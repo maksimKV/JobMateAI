@@ -196,7 +196,8 @@ class AIClient:
         
         if question_type == "hr":
             prompt = f"""
-            Generate 5 HR interview questions based on this job description. Focus on:
+            Generate exactly 8 HR interview questions based on this job description. 
+            Focus on:
             - Soft skills
             - Teamwork and collaboration
             - Problem-solving approach
@@ -206,11 +207,14 @@ class AIClient:
             Job Description:
             {job_description}
             
-            Provide questions in a structured format.
+            Important: Start directly with the questions, no introductory text.
+            Format each question on a new line with a number and period (e.g., "1. Question text").
+            Do not include any other text before, between, or after the questions.
             """
         else:  # technical
             prompt = f"""
-            Generate 5 technical interview questions based on this job description. Include:
+            Generate exactly 8 technical interview questions based on this job description. 
+            Include:
             - Theory questions
             - Practical coding scenarios
             - System design concepts
@@ -219,7 +223,9 @@ class AIClient:
             Job Description:
             {job_description}
             
-            Provide questions with expected answer points.
+            Important: Start directly with the questions, no introductory text.
+            Format each question on a new line with a number and period (e.g., "1. Question text").
+            Do not include any other text before, between, or after the questions.
             """
         
         questions = await self.generate_text(prompt, max_tokens=1000, temperature=0.6)
