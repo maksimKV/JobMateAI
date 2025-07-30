@@ -1,26 +1,81 @@
 import os
 import cohere
 import openai
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 import httpx
 import asyncio
+import logging
+from openai import OpenAI as OpenAIClient
+
+logger = logging.getLogger(__name__)
 
 class AIClient:
     def __init__(self):
-        self.cohere_client = None
-        self.openai_client = None
-        
-        # Initialize Cohere
+        self._cohere_client = None
+        self._openai_client = None
+        self._initialized = False
+    
+    @property
+    def cohere_client(self):
+        if self._cohere_client is None and not self._initialized:
+            self._initialize_cohere()
+        return self._cohere_client
+    
+    @property
+    def openai_client(self):
+        if self._openai_client is None and not self._initialized:
+            self._initialize_openai()
+        return self._openai_client
+    
+    def _initialize_cohere(self):
         cohere_api_key = os.getenv("COHERE_API_KEY")
         if cohere_api_key:
-            self.cohere_client = cohere.Client(cohere_api_key)
-        
-        # Initialize OpenAI
+            try:
+                self._cohere_client = cohere.Client(api_key=cohere_api_key)
+                logger.info("Cohere client initialized successfully")
+                # Test the Cohere connection
+                self._cohere_client.chat(
+                    model="command",
+                    message="Test connection"
+                )
+                logger.info("Cohere connection test successful")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to initialize Cohere client: {str(e)}")
+                self._cohere_client = None
+        else:
+            logger.warning("COHERE_API_KEY not found in environment variables")
+        return False
+    
+    def _initialize_openai(self):
         openai_api_key = os.getenv("OPENAI_API_KEY")
         if openai_api_key:
-            openai.api_key = openai_api_key
-            self.openai_client = openai
+            try:
+                self._openai_client = OpenAIClient(api_key=openai_api_key)
+                logger.info("OpenAI client initialized successfully")
+                # Test the OpenAI connection
+                self._openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": "Test connection"}],
+                    max_tokens=5
+                )
+                logger.info("OpenAI connection test successful")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+                self._openai_client = None
+        else:
+            logger.warning("OPENAI_API_KEY not found in environment variables")
+        return False
     
+    def _initialize_clients(self):
+        if not self._initialized:
+            cohere_initialized = self._initialize_cohere()
+            openai_initialized = self._initialize_openai()
+            self._initialized = cohere_initialized or openai_initialized
+            if not self._initialized:
+                logger.error("Failed to initialize any AI client")
+
     async def generate_text(self, prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> str:
         """Generate text using available AI providers with fallback logic."""
         

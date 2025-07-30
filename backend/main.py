@@ -1,14 +1,45 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
-from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import routers
 from routers import cv_analyzer, cover_letter, job_scanner, interview_simulator, code_reviewer, statistics
 
 # Load environment variables
-load_dotenv()
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+# Load .env from the same directory as this script
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+# Debug print
+logger.info("\n=== Environment Status ===")
+logger.info(f"Current directory: {os.getcwd()}")
+logger.info(f".env path: {env_path}")
+logger.info(f"COHERE_API_KEY: {'Set' if os.getenv('COHERE_API_KEY') else 'Not set'}")
+logger.info(f"OPENAI_API_KEY: {'Set' if os.getenv('OPENAI_API_KEY') else 'Not set'}")
+logger.info("========================\n")
+
+# Initialize AI client after environment variables are loaded
+from utils.ai_client import ai_client
+
+# Force initialization of AI clients
+ai_client._initialize_clients()
+
+# Log client status
+logger.info("AI Client status:")
+logger.info(f"Cohere client: {'Available' if ai_client.cohere_client else 'Not available'}")
+logger.info(f"OpenAI client: {'Available' if ai_client.openai_client else 'Not available'}")
+
+if not ai_client.cohere_client and not ai_client.openai_client:
+    logger.error("Warning: No AI clients were successfully initialized. Check your API keys and network connection.")
 
 app = FastAPI(
     title="JobMate AI API",
