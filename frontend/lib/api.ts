@@ -68,7 +68,7 @@ export const cvAPI = {
   },
 
   list: async () => {
-    return apiRequest('/api/cv');
+    return apiRequest('/api/cv/list');
   },
 
   delete: async (cvId: string) => {

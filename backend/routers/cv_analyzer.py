@@ -50,6 +50,9 @@ async def upload_cv(file: UploadFile = File(...)) -> Dict[str, Any]:
         
         # Create response data
         cv_id = str(len(cv_storage) + 1)  # Simple ID generation
+        from datetime import datetime
+        upload_timestamp = datetime.utcnow().isoformat() + "Z"
+        
         cv_data = {
             "id": cv_id,
             "filename": file.filename,
@@ -57,7 +60,7 @@ async def upload_cv(file: UploadFile = File(...)) -> Dict[str, Any]:
             "parsed_data": parsed_data,
             "ai_analysis": ai_analysis,
             "extracted_skills": skills,
-            "upload_timestamp": "2024-01-01T00:00:00Z"  # In production, use actual timestamp
+            "upload_timestamp": upload_timestamp
         }
         
         # Store in memory (in production, save to database)
@@ -172,19 +175,28 @@ async def delete_cv(cv_id: str) -> Dict[str, Any]:
 
 @router.get("/list")
 async def list_cvs() -> Dict[str, Any]:
-    """List all uploaded CVs."""
-    
-    cv_list = []
-    for cv_id, cv_data in cv_storage.items():
-        cv_list.append({
-            "id": cv_id,
-            "filename": cv_data["filename"],
-            "upload_timestamp": cv_data["upload_timestamp"],
-            "word_count": cv_data["parsed_data"]["word_count"],
-            "skills_count": len(cv_data["extracted_skills"])
-        })
-    
-    return {
-        "total_cvs": len(cv_list),
-        "cvs": cv_list
-    } 
+    """
+    List all uploaded CVs.
+    Returns an empty list if no CVs are present.
+    """
+    try:
+        cv_list = []
+        for cv_id, cv_data in cv_storage.items():
+            cv_list.append({
+                "id": cv_id,
+                "filename": cv_data["filename"],
+                "upload_timestamp": cv_data["upload_timestamp"],
+                "word_count": cv_data["parsed_data"]["word_count"],
+                "skills_count": len(cv_data["extracted_skills"])
+            })
+        
+        return {
+            "total_cvs": len(cv_list),
+            "cvs": cv_list
+        }
+    except Exception as e:
+        print(f"Error in list_cvs: {str(e)}")
+        return {
+            "total_cvs": 0,
+            "cvs": []
+        } 

@@ -10,6 +10,7 @@ export default function CVAnalyzer() {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [analysis, setAnalysis] = useState<CVUploadResponse | null>(null);
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [showList, setShowList] = useState(false);
@@ -59,6 +60,33 @@ export default function CVAnalyzer() {
     if (selectedFile) {
       setFile(selectedFile);
       setError(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile && (droppedFile.type === 'application/pdf' || 
+                        droppedFile.name.endsWith('.docx'))) {
+      setFile(droppedFile);
+      setError(null);
+    } else {
+      setError('Please upload a valid PDF or DOCX file');
     }
   };
 
@@ -169,41 +197,66 @@ export default function CVAnalyzer() {
         {/* Upload Section */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Upload New CV</h3>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <div className="flex justify-center mb-4">
-              <Upload className="h-12 w-12 text-blue-500" />
+          <div 
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col items-center">
+              <Upload className={`h-12 w-12 mb-4 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+              <p className="text-gray-600 mb-4">
+                {isDragging ? 'Drop your CV here' : 'Drag and drop your CV here, or'}
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <div>
+                  <input
+                    type="file"
+                    id="cv-upload"
+                    className="hidden"
+                    accept=".pdf,.docx"
+                    onChange={handleFileChange}
+                  />
+                  <label
+                    htmlFor="cv-upload"
+                    className="cursor-pointer bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors inline-block whitespace-nowrap"
+                  >
+                    Select File
+                  </label>
+                </div>
+                
+                {file && (
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-700 truncate max-w-xs">
+                      {file.name}
+                    </span>
+                    <button
+                      onClick={handleUpload}
+                      disabled={isUploading}
+                      className={`px-6 py-2 rounded-md transition-colors whitespace-nowrap ${
+                        isUploading 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      {isUploading ? (
+                        <span className="flex items-center">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Uploading...
+                        </span>
+                      ) : 'Upload & Analyze'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <p className="text-xs text-gray-500 mt-4">
+                Supported formats: PDF, DOCX (Max 10MB)
+              </p>
             </div>
-            <input
-              type="file"
-              id="cv-upload"
-              className="hidden"
-              accept=".pdf,.docx"
-              onChange={handleFileChange}
-            />
-            <label
-              htmlFor="cv-upload"
-              className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors inline-block"
-            >
-              {file ? file.name : 'Choose CV (PDF/DOCX)'}
-            </label>
-            {file && (
-              <button
-                onClick={handleUpload}
-                disabled={isUploading}
-                className={`ml-4 px-4 py-2 rounded-md transition-colors ${
-                  isUploading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
-              >
-                {isUploading ? (
-                  <span className="flex items-center">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Uploading...
-                  </span>
-                ) : 'Analyze CV'}
-              </button>
-            )}
           </div>
 
           {/* Error Display */}
