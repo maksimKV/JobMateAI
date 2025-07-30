@@ -1,16 +1,58 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, List, Loader2 } from 'lucide-react';
 import { cvAPI, APIError } from '@/lib/api';
-import { CVUploadResponse } from '@/types';
+import { CVUploadResponse, CVData } from '@/types';
 
 export default function CVAnalyzer() {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [analysis, setAnalysis] = useState<CVUploadResponse | null>(null);
+  const [cvList, setCvList] = useState<CVData[]>([]);
+  const [showList, setShowList] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load CV list on component mount
+  useEffect(() => {
+    loadCvList();
+  }, []);
+
+  const loadCvList = async () => {
+    try {
+      setIsLoading(true);
+      const response = await cvAPI.list();
+      // Type assertion to handle the API response
+      const data = response as { cvs: CVData[] };
+      setCvList(data.cvs || []);
+    } catch (err) {
+      console.error('Error loading CV list:', err);
+      setError('Failed to load CV list');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCvSelect = async (cvId: string) => {
+    try {
+      setIsLoading(true);
+      const cvData = await cvAPI.getAnalysis(cvId);
+      setAnalysis({
+        success: true,
+        cv_id: cvId,
+        filename: cvData.filename || 'Unknown',
+        analysis: cvData.analysis || {}
+      });
+      setShowList(false);
+    } catch (err) {
+      console.error('Error loading CV:', err);
+      setError('Failed to load CV details');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -29,6 +71,8 @@ export default function CVAnalyzer() {
     try {
       const result = await cvAPI.upload(file);
       setAnalysis(result);
+      // Refresh the CV list after upload
+      await loadCvList();
     } catch (err) {
       if (err instanceof APIError) {
         setError(err.message);
@@ -37,6 +81,24 @@ export default function CVAnalyzer() {
       }
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteCv = async (cvId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this CV?')) return;
+    
+    try {
+      await cvAPI.delete(cvId);
+      // Refresh the CV list after deletion
+      await loadCvList();
+      // Clear analysis if the deleted CV is currently shown
+      if (analysis?.cv_id === cvId) {
+        setAnalysis(null);
+      }
+    } catch (err) {
+      console.error('Error deleting CV:', err);
+      setError('Failed to delete CV');
     }
   };
 
@@ -49,58 +111,98 @@ export default function CVAnalyzer() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <Navigation />
-        
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <FileText className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">CV Analyzer</h1>
-            <p className="text-gray-600">
-              Upload your resume and get AI-powered analysis of structure, clarity, and missing sections.
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">CV Analyzer</h1>
+          <p className="text-gray-600">Upload your CV to get detailed analysis and feedback</p>
+        </div>
 
-          {/* File Upload */}
-          <div className="mb-8">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <div className="mb-4">
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <span className="text-blue-600 hover:text-blue-700 font-semibold">
-                    Choose a file
-                  </span>
-                  <span className="text-gray-500"> or drag and drop</span>
-                </label>
-                <input
-                  id="file-upload"
-                  type="file"
-                  accept=".pdf,.docx"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">My CVs</h2>
+          <button
+            onClick={() => setShowList(!showList)}
+            className="flex items-center text-blue-600 hover:text-blue-800"
+          >
+            <List className="h-5 w-5 mr-1" />
+            {showList ? 'Hide List' : 'Show My CVs'}
+          </button>
+        </div>
+
+        {/* CV List */}
+        {showList && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Your Uploaded CVs</h3>
+            {isLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
               </div>
-              <p className="text-sm text-gray-500">
-                PDF or DOCX files up to 10MB
-              </p>
-              {file && (
-                <p className="text-sm text-green-600 mt-2">
-                  Selected: {file.name}
-                </p>
-              )}
+            ) : cvList.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No CVs found. Upload a CV to get started.</p>
+            ) : (
+              <div className="space-y-2">
+                {cvList.map((cv) => (
+                  <div 
+                    key={cv.id} 
+                    className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleCvSelect(cv.id)}
+                  >
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-gray-500 mr-3" />
+                      <span className="font-medium">{cv.filename || 'Untitled CV'}</span>
+                    </div>
+                    <button 
+                      onClick={(e) => handleDeleteCv(cv.id, e)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                      title="Delete CV"
+                    >
+                      <XCircle className="h-5 w-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upload Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Upload New CV</h3>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <div className="flex justify-center mb-4">
+              <Upload className="h-12 w-12 text-blue-500" />
             </div>
-            
+            <input
+              type="file"
+              id="cv-upload"
+              className="hidden"
+              accept=".pdf,.docx"
+              onChange={handleFileChange}
+            />
+            <label
+              htmlFor="cv-upload"
+              className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors inline-block"
+            >
+              {file ? file.name : 'Choose CV (PDF/DOCX)'}
+            </label>
             {file && (
-              <div className="mt-4 text-center">
-                <button
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUploading ? 'Analyzing...' : 'Analyze CV'}
-                </button>
-              </div>
+              <button
+                onClick={handleUpload}
+                disabled={isUploading}
+                className={`ml-4 px-4 py-2 rounded-md transition-colors ${
+                  isUploading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                {isUploading ? (
+                  <span className="flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Uploading...
+                  </span>
+                ) : 'Analyze CV'}
+              </button>
             )}
           </div>
 
@@ -212,7 +314,7 @@ export default function CVAnalyzer() {
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 } 
