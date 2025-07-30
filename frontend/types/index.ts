@@ -61,23 +61,31 @@ export interface JobMatchResponse {
 }
 
 // Interview Simulator Types
+export type InterviewType = 'hr' | 'technical' | 'mixed';
+
 export interface InterviewQuestionRequest {
   job_description: string;
-  stage: 'hr' | 'technical';
+  interview_type: InterviewType;
 }
 
 export interface InterviewQuestionResponse {
   success: boolean;
   session_id: string;
-  questions: string;
-  stage: string;
+  interview_type: InterviewType;
+  total_questions: number;
+  current_question: string;
+  question_type: string;
+  question_number: number;
+}
+
+export interface QuestionData {
+  text: string;
+  type: 'hr' | 'technical';
 }
 
 export interface AnswerSubmissionRequest {
   session_id: string;
-  question: string;
   answer: string;
-  question_type: string;
 }
 
 export interface AnswerSubmissionResponse {
@@ -88,6 +96,19 @@ export interface AnswerSubmissionResponse {
     answer: string;
     type: string;
   };
+  next_question?: string;
+  question_type?: string;
+  question_number?: number;
+  is_complete: boolean;
+}
+
+export interface InterviewSessionState {
+  sessionId: string | null;
+  questions: QuestionData[];
+  currentQuestionIndex: number;
+  feedback: AnswerSubmissionResponse['feedback'][];
+  interviewType: InterviewType;
+  isComplete: boolean;
 }
 
 // Code Reviewer Types

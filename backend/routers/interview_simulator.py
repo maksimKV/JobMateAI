@@ -1,71 +1,180 @@
 from fastapi import APIRouter, HTTPException, Body
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from utils.ai_client import ai_client
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # In-memory storage for interview sessions (for MVP)
 interview_sessions = {}
 
+async def _generate_questions_by_type(job_description: str, question_type: str) -> List[Dict[str, str]]:
+    """Helper function to generate questions of a specific type."""
+    try:
+        questions_data = await ai_client.generate_interview_questions(job_description, question_type)
+        if isinstance(questions_data["questions"], str):
+            # Split by newlines and clean up
+            questions = [q.strip() for q in questions_data["questions"].split("\n") if q.strip()]
+        else:
+            questions = questions_data["questions"]
+        
+        return [{"text": q, "type": question_type} for q in questions if q]
+    except Exception as e:
+        logger.error(f"Error generating {question_type} questions: {str(e)}")
+        return []
+
 @router.post("/generate-questions")
 async def generate_questions(
     job_description: str = Body(..., embed=True),
-    stage: str = Body("hr", embed=True)  # 'hr' or 'technical'
+    interview_type: str = Body("hr", embed=True)  # 'hr', 'technical', or 'mixed'
 ) -> Dict[str, Any]:
-    """Generate interview questions based on job description and stage."""
-    if stage not in ["hr", "technical"]:
-        raise HTTPException(status_code=400, detail="Invalid stage. Use 'hr' or 'technical'.")
+    """Generate interview questions based on job description and interview type."""
+    if interview_type not in ["hr", "technical", "mixed"]:
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid interview type. Use 'hr', 'technical', or 'mixed'."
+        )
+    
     try:
-        questions_data = await ai_client.generate_interview_questions(job_description, stage)
-        # Store questions in a session (simple in-memory, for MVP)
         session_id = str(len(interview_sessions) + 1)
+        
+        if interview_type == "mixed":
+            # Generate both HR and technical questions
+            hr_questions = await _generate_questions_by_type(job_description, "hr")
+            tech_questions = await _generate_questions_by_type(job_description, "technical")
+            
+            # Interleave HR and technical questions
+            questions = []
+            for i in range(max(len(hr_questions), len(tech_questions))):
+                if i < len(hr_questions):
+                    questions.append(hr_questions[i])
+                if i < len(tech_questions):
+                    questions.append(tech_questions[i])
+        else:
+            # Single question type
+            questions = await _generate_questions_by_type(job_description, interview_type)
+        
+        if not questions:
+            raise HTTPException(
+                status_code=500, 
+                detail="Failed to generate questions. Please try again."
+            )
+        
+        # Store the session
         interview_sessions[session_id] = {
-            "stage": stage,
-            "questions": questions_data["questions"],
+            "interview_type": interview_type,
+            "questions": questions,
+            "current_question_index": 0,
             "answers": [],
             "feedback": []
         }
+        
         return {
             "success": True,
             "session_id": session_id,
-            "questions": questions_data["questions"],
-            "stage": stage
+            "interview_type": interview_type,
+            "total_questions": len(questions),
+            "current_question": questions[0]["text"] if questions else "",
+            "question_type": questions[0]["type"] if questions else "",
+            "question_number": 1
         }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating questions: {str(e)}")
+        logger.error(f"Error in generate_questions: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"An error occurred while generating questions: {str(e)}"
+        )
 
 @router.post("/submit-answer")
 async def submit_answer(
     session_id: str = Body(..., embed=True),
-    question: str = Body(..., embed=True),
-    answer: str = Body(..., embed=True),
-    question_type: str = Body("hr", embed=True)
+    answer: str = Body(..., embed=True)
 ) -> Dict[str, Any]:
-    """Submit an answer to an interview question and get feedback."""
+    """Submit an answer to the current interview question and get feedback."""
     if session_id not in interview_sessions:
         raise HTTPException(status_code=404, detail="Session not found.")
+    
+    session = interview_sessions[session_id]
+    current_idx = session["current_question_index"]
+    
+    if current_idx >= len(session["questions"]):
+        raise HTTPException(status_code=400, detail="No more questions in this session.")
+    
     try:
+        question_data = session["questions"][current_idx]
+        question = question_data["text"]
+        question_type = question_data["type"]
+        
+        # Get feedback for the answer
         feedback = await ai_client.evaluate_answer(question, answer, question_type)
-        # Store answer and feedback
-        interview_sessions[session_id]["answers"].append({"question": question, "answer": answer})
-        interview_sessions[session_id]["feedback"].append(feedback)
-        return {
-            "success": True,
+        
+        # Store the answer and feedback
+        session["answers"].append({
+            "question": question,
+            "answer": answer,
+            "type": question_type,
             "feedback": feedback
+        })
+        
+        # Move to the next question
+        next_idx = current_idx + 1
+        session["current_question_index"] = next_idx
+        
+        # Prepare response
+        response = {
+            "success": True,
+            "feedback": feedback,
+            "is_complete": next_idx >= len(session["questions"])
         }
+        
+        # Add next question if available
+        if next_idx < len(session["questions"]):
+            next_question = session["questions"][next_idx]
+            response.update({
+                "next_question": next_question["text"],
+                "question_type": next_question["type"],
+                "question_number": next_idx + 1
+            })
+        
+        return response
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error evaluating answer: {str(e)}")
+        logger.error(f"Error in submit_answer: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"An error occurred while processing your answer: {str(e)}"
+        )
 
 @router.get("/session/{session_id}")
 async def get_session(session_id: str) -> Dict[str, Any]:
-    """Get all questions, answers, and feedback for a session."""
+    """Get the current state of an interview session."""
     if session_id not in interview_sessions:
         raise HTTPException(status_code=404, detail="Session not found.")
+    
     session = interview_sessions[session_id]
-    return {
+    current_idx = session["current_question_index"]
+    total_questions = len(session["questions"])
+    
+    response = {
         "session_id": session_id,
-        "stage": session["stage"],
-        "questions": session["questions"],
+        "interview_type": session["interview_type"],
+        "total_questions": total_questions,
+        "current_question_index": current_idx,
         "answers": session["answers"],
-        "feedback": session["feedback"]
+        "is_complete": current_idx >= total_questions
     }
+    
+    # Add current question if available
+    if current_idx < total_questions:
+        current_question = session["questions"][current_idx]
+        response.update({
+            "current_question": current_question["text"],
+            "question_type": current_question["type"],
+            "question_number": current_idx + 1
+        })
+    
+    return response

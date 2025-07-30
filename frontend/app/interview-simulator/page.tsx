@@ -3,89 +3,162 @@
 import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import { interviewAPI, APIError } from '@/lib/api';
-import { InterviewQuestionRequest, InterviewQuestionResponse, AnswerSubmissionRequest, AnswerSubmissionResponse } from '@/types';
-import { MessageSquare, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { 
+  InterviewQuestionRequest, 
+  InterviewQuestionResponse, 
+  AnswerSubmissionRequest, 
+  AnswerSubmissionResponse,
+  InterviewType,
+  InterviewSessionState
+} from '@/types';
+import { MessageSquare, Loader2, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 
-function parseQuestions(raw: string): string[] {
-  // Try to split questions by newlines or numbers
-  return raw
-    .split(/\n|\r|\d+\.|\d+\)/)
-    .map(q => q.trim())
-    .filter(q => q.length > 10); // Only keep non-empty, reasonable questions
-}
+const initialSessionState: InterviewSessionState = {
+  sessionId: null,
+  questions: [],
+  currentQuestionIndex: 0,
+  feedback: [],
+  interviewType: 'hr',
+  isComplete: false
+};
 
 export default function InterviewSimulatorPage() {
-  const [stage, setStage] = useState<'hr' | 'technical'>('hr');
   const [jobDescription, setJobDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [questions, setQuestions] = useState<string[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState<AnswerSubmissionResponse['feedback'][]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [completed, setCompleted] = useState(false);
+  const [answer, setAnswer] = useState('');
+  const [session, setSession] = useState<InterviewSessionState>({
+    ...initialSessionState,
+    interviewType: 'hr' // Set default interview type
+  });
+  
+  const currentQuestion = session.questions[session.currentQuestionIndex];
+  const showInterviewTypeSelection = !session.sessionId && session.questions.length === 0;
+  const showQuestion = session.questions.length > 0 && !session.isComplete;
+  const showCompletion = session.isComplete;
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (interviewType: InterviewType) => {
+    if (!jobDescription.trim()) {
+      setError('Please enter a job description');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    setQuestions([]);
-    setSessionId(null);
-    setCurrentIdx(0);
-    setFeedback([]);
-    setCompleted(false);
+    
     try {
       const req: InterviewQuestionRequest = {
         job_description: jobDescription,
-        stage,
+        interview_type: interviewType,
       };
+      
+      setSession(prev => ({
+        ...initialSessionState,
+        interviewType
+      }));
+      
       const res: InterviewQuestionResponse = await interviewAPI.generateQuestions(req);
-      setSessionId(res.session_id);
-      setQuestions(parseQuestions(res.questions));
+      
+      setSession({
+        ...initialSessionState,
+        sessionId: res.session_id,
+        interviewType,
+        questions: [{
+          text: res.current_question,
+          type: res.question_type as 'hr' | 'technical'
+        }],
+        currentQuestionIndex: 0
+      });
+      
     } catch (err) {
-      if (err instanceof APIError) setError(err.message);
-      else setError('An unexpected error occurred');
+      console.error('Error generating questions:', err);
+      setError(err instanceof APIError ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!sessionId || !questions[currentIdx]) return;
+    if (!answer.trim() || !currentQuestion) return;
+    
     setIsLoading(true);
-    setError(null);
+    
     try {
-      const req: AnswerSubmissionRequest = {
-        session_id: sessionId,
-        question: questions[currentIdx],
-        answer,
-        question_type: stage,
-      };
-      const res: AnswerSubmissionResponse = await interviewAPI.submitAnswer(req);
-      setFeedback(prev => [...prev, res.feedback]);
-      setAnswer('');
-      if (currentIdx + 1 < questions.length) {
-        setCurrentIdx(currentIdx + 1);
-      } else {
-        setCompleted(true);
+      if (!session.sessionId) {
+        throw new Error('No active interview session');
       }
+      
+      const req: AnswerSubmissionRequest = {
+        session_id: session.sessionId,
+        answer: answer,
+      };
+      
+      // Update local state optimistically
+      const updatedFeedback = [
+        ...session.feedback,
+        {
+          question: currentQuestion.text,
+          answer,
+          evaluation: 'Evaluating your answer...',
+          type: currentQuestion.type
+        }
+      ];
+      
+      setSession({
+        ...session,
+        feedback: updatedFeedback,
+        currentQuestionIndex: session.currentQuestionIndex + 1
+      });
+      
+      const res: AnswerSubmissionResponse = await interviewAPI.submitAnswer(req);
+      
+      // Update session with feedback and next question if available
+      setSession(prev => {
+        const updatedQuestions = [...prev.questions];
+        const updatedFeedback = [...prev.feedback];
+        
+        // Add next question if available
+        if (res.next_question && !res.is_complete) {
+          updatedQuestions[prev.currentQuestionIndex + 1] = {
+            text: res.next_question,
+            type: res.question_type as 'hr' | 'technical'
+          };
+        }
+        
+        updatedFeedback[prev.currentQuestionIndex - 1] = {
+          question: prev.questions[prev.currentQuestionIndex - 1].text,
+          answer: answer,
+          evaluation: res.feedback.evaluation,
+          type: prev.questions[prev.currentQuestionIndex - 1].type
+        };
+        
+        return {
+          ...prev,
+          questions: updatedQuestions,
+          currentQuestionIndex: prev.currentQuestionIndex + 1,
+          feedback: updatedFeedback,
+          isComplete: res.is_complete
+        };
+      });
+      
+      setAnswer('');
+      
     } catch (err) {
-      if (err instanceof APIError) setError(err.message);
-      else setError('An unexpected error occurred');
+      console.error('Error submitting answer:', err);
+      setError(err instanceof APIError ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRestart = () => {
-    setQuestions([]);
-    setSessionId(null);
-    setCurrentIdx(0);
-    setAnswer('');
-    setFeedback([]);
-    setError(null);
-    setCompleted(false);
+    setSession({
+      ...initialSessionState,
+      interviewType: session.interviewType // Keep the same interview type
+    });
     setJobDescription('');
+    setAnswer('');
+    setError(null);
   };
 
   return (
@@ -102,19 +175,8 @@ export default function InterviewSimulatorPage() {
           </div>
 
           {/* Setup */}
-          {questions.length === 0 && !isLoading && !completed && (
-            <>
-              <div className="mb-6">
-                <label className="block text-gray-700 font-semibold mb-2">Interview Stage</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2"
-                  value={stage}
-                  onChange={e => setStage(e.target.value as 'hr' | 'technical')}
-                >
-                  <option value="hr">HR Interview</option>
-                  <option value="technical">Technical Interview</option>
-                </select>
-              </div>
+          {showInterviewTypeSelection && (
+            <div className="space-y-6">
               <div className="mb-6">
                 <label className="block text-gray-700 font-semibold mb-2">Paste Job Description</label>
                 <textarea
@@ -124,20 +186,46 @@ export default function InterviewSimulatorPage() {
                   placeholder="Paste the job description here..."
                 />
               </div>
-              <div className="mb-6 text-center">
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Select Interview Type</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(['hr', 'technical', 'mixed'] as InterviewType[]).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`p-4 border rounded-lg transition-colors ${
+                        session.interviewType === type
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                      }`}
+                      onClick={() => setSession(prev => ({ ...prev, interviewType: type }))}
+                    >
+                      <div className="font-medium capitalize">
+                        {type === 'hr' ? 'HR Interview' : type === 'technical' ? 'Technical Interview' : 'Mixed Interview'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="text-center">
                 <button
                   className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleGenerate}
-                  disabled={isLoading || !jobDescription}
+                  onClick={() => handleGenerate(session.interviewType)}
+                  disabled={isLoading || !jobDescription.trim()}
                 >
                   {isLoading ? (
-                    <span className="flex items-center justify-center"><Loader2 className="animate-spin h-5 w-5 mr-2" />Generating...</span>
+                    <span className="flex items-center justify-center">
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Generating...
+                    </span>
                   ) : (
-                    'Generate Questions'
+                    'Start Interview'
                   )}
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {/* Error */}
@@ -151,46 +239,59 @@ export default function InterviewSimulatorPage() {
           )}
 
           {/* Question/Answer Flow */}
-          {questions.length > 0 && !completed && (
+          {showQuestion && currentQuestion && (
             <div className="space-y-6">
               <div className="mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Question {currentIdx + 1} of {questions.length}</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Question {session.currentQuestionIndex + 1}
+                  </h2>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    {currentQuestion.type === 'hr' ? 'HR' : 'Technical'}
+                  </span>
+                </div>
                 <div className="bg-gray-50 rounded-lg p-4 text-gray-800">
-                  {questions[currentIdx]}
+                  {currentQuestion.text}
                 </div>
               </div>
+              
               <div className="mb-4">
                 <label className="block text-gray-700 font-semibold mb-2">Your Answer</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 min-h-[80px]"
+                  className="w-full border rounded-lg px-3 py-2 min-h-[120px]"
                   value={answer}
                   onChange={e => setAnswer(e.target.value)}
                   placeholder="Type your answer here..."
                   disabled={isLoading}
                 />
               </div>
+              
               <div className="text-center">
                 <button
                   className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleSubmit}
-                  disabled={isLoading || !answer}
+                  disabled={isLoading || !answer.trim()}
                 >
                   {isLoading ? (
-                    <span className="flex items-center justify-center"><Loader2 className="animate-spin h-5 w-5 mr-2" />Submitting...</span>
+                    <span className="flex items-center justify-center">
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Submitting...
+                    </span>
                   ) : (
-                    (currentIdx + 1 === questions.length ? 'Finish Interview' : 'Submit Answer')
+                    'Submit Answer'
                   )}
                 </button>
               </div>
+              
               {/* Show feedback for current question if available */}
-              {feedback[currentIdx] && (
+              {session.feedback[session.currentQuestionIndex - 1] && (
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
                     <span className="text-blue-800 font-semibold">AI Feedback</span>
                   </div>
                   <div className="text-gray-700 whitespace-pre-wrap">
-                    {feedback[currentIdx].evaluation}
+                    {session.feedback[session.currentQuestionIndex - 1].evaluation}
                   </div>
                 </div>
               )}
@@ -198,30 +299,44 @@ export default function InterviewSimulatorPage() {
           )}
 
           {/* Completed Session Summary */}
-          {completed && (
+          {showCompletion && session.feedback.length > 0 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-green-700 mb-2">Interview Complete!</h2>
                 <p className="text-gray-700">Here is your session summary and feedback for each question.</p>
               </div>
-              {questions.map((q, idx) => (
-                <div key={idx} className="mb-6">
-                  <div className="font-semibold text-gray-900 mb-1">Q{idx + 1}: {q}</div>
-                  <div className="mb-1 text-gray-700"><span className="font-semibold">Your Answer:</span> {feedback[idx]?.answer}</div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
-                    <div className="flex items-center mb-2">
-                      <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
-                      <span className="text-blue-800 font-semibold">AI Feedback</span>
+              
+              {session.questions.map((question, idx) => {
+                const feedback = session.feedback[idx];
+                if (!feedback) return null;
+                
+                return (
+                  <div key={idx} className="mb-6">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-semibold text-gray-900">Q{idx + 1}: {question.text}</div>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        {question.type === 'hr' ? 'HR' : 'Technical'}
+                      </span>
                     </div>
-                    <div className="text-gray-700 whitespace-pre-wrap">
-                      {feedback[idx]?.evaluation}
+                    <div className="mb-1 text-gray-700">
+                      <span className="font-semibold">Your Answer:</span> {feedback.answer}
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+                      <div className="flex items-center mb-2">
+                        <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                        <span className="text-blue-800 font-semibold">AI Feedback</span>
+                      </div>
+                      <div className="text-gray-700 whitespace-pre-wrap">
+                        {feedback.evaluation}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              
               <div className="text-center">
                 <button
-                  className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200"
+                  className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700"
                   onClick={handleRestart}
                 >
                   Start New Interview
