@@ -28,7 +28,7 @@ export default function CVAnalyzer() {
       // Type assertion to handle the API response
       const data = response as { cvs: CVData[] };
       setCvList(data.cvs || []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error loading CV list:', err);
       setError('Failed to load CV list');
     } finally {

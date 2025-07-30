@@ -11,7 +11,7 @@ import {
   InterviewType,
   InterviewSessionState
 } from '@/types';
-import { MessageSquare, Loader2, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { MessageSquare, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 const initialSessionState: InterviewSessionState = {
   sessionId: null,
@@ -52,10 +52,10 @@ export default function InterviewSimulatorPage() {
         interview_type: interviewType,
       };
       
-      setSession(prev => ({
+      setSession({
         ...initialSessionState,
         interviewType
-      }));
+      });
       
       const res: InterviewQuestionResponse = await interviewAPI.generateQuestions(req);
       
