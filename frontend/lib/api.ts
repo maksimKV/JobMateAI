@@ -1,0 +1,138 @@
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+class APIError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
+
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  const config: RequestInit = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  };
+
+  try {
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new APIError(response.status, errorData.detail || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    throw new APIError(500, 'Network error');
+  }
+}
+
+// CV Analyzer API
+export const cvAPI = {
+  upload: async (file: File): Promise<CVUploadResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/cv/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new APIError(response.status, errorData.detail || `HTTP ${response.status}`);
+    }
+    
+    return response.json();
+  },
+
+  getAnalysis: async (cvId: string): Promise<CVData> => {
+    return apiRequest<CVData>(`/api/cv/${cvId}`);
+  },
+
+  getSkills: async (cvId: string) => {
+    return apiRequest(`/api/cv/${cvId}/skills`);
+  },
+
+  list: async () => {
+    return apiRequest('/api/cv/list');
+  },
+
+  delete: async (cvId: string) => {
+    return apiRequest(`/api/cv/${cvId}`, { method: 'DELETE' });
+  },
+};
+
+// Cover Letter API
+export const coverLetterAPI = {
+  generate: async (data: CoverLetterRequest): Promise<CoverLetterResponse> => {
+    return apiRequest<CoverLetterResponse>('/api/cover-letter/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Job Scanner API
+export const jobScannerAPI = {
+  match: async (data: JobMatchRequest): Promise<JobMatchResponse> => {
+    return apiRequest<JobMatchResponse>('/api/job-scanner/match', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Interview Simulator API
+export const interviewAPI = {
+  generateQuestions: async (data: InterviewQuestionRequest): Promise<InterviewQuestionResponse> => {
+    return apiRequest<InterviewQuestionResponse>('/api/interview/generate-questions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  submitAnswer: async (data: AnswerSubmissionRequest): Promise<AnswerSubmissionResponse> => {
+    return apiRequest<AnswerSubmissionResponse>('/api/interview/submit-answer', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  getSession: async (sessionId: string) => {
+    return apiRequest(`/api/interview/session/${sessionId}`);
+  },
+};
+
+// Code Reviewer API
+export const codeReviewAPI = {
+  review: async (code: string): Promise<{ success: boolean; review: string; detected_language: string }> => {
+    return apiRequest<{ success: boolean; review: string; detected_language: string }>('/api/code-review/review', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+};
+
+// Statistics API
+export const statisticsAPI = {
+  getCharts: async (data: StatisticsRequest): Promise<StatisticsResponse> => {
+    return apiRequest<StatisticsResponse>('/api/statistics/charts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+export { APIError }; 
