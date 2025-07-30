@@ -1,0 +1,27 @@
+# Node
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*
+
+# Python
+backend/venv/
+backend/.env*
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build
+/dist/
+/build/
+
+# Misc
+.env*
+*.sqlite3
+uploads/
