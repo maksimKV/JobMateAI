@@ -22,7 +22,7 @@ export default function InterviewSimulatorPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<AnswerSubmissionResponse['feedback'][]>([]);
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
 
@@ -178,7 +178,8 @@ export default function InterviewSimulatorPage() {
                   {isLoading ? (
                     <span className="flex items-center justify-center"><Loader2 className="animate-spin h-5 w-5 mr-2" />Submitting...</span>
                   ) : (
-                    currentIdx + 1 === questions.length ? 'Finish Interview' : 'Submit Answer'}
+                    (currentIdx + 1 === questions.length ? 'Finish Interview' : 'Submit Answer')
+                  )}
                 </button>
               </div>
               {/* Show feedback for current question if available */}

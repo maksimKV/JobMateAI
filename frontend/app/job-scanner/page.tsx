@@ -16,12 +16,14 @@ export default function JobScannerPage() {
 
   useEffect(() => {
     cvAPI.list().then((data) => {
-      setCvList(data.cvs || []);
-      if (data.cvs && data.cvs.length > 0) {
-        setSelectedCv(data.cvs[0].id);
+      const { cvs } = data as { cvs: CVData[]; total_cvs?: number };
+      setCvList(cvs || []);
+      if (cvs && cvs.length > 0) {
+        setSelectedCv(cvs[0].id);
       }
     });
   }, []);
+  
 
   const handleMatch = async () => {
     setIsLoading(true);

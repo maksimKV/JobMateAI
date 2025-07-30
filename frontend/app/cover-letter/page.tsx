@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { coverLetterAPI, cvAPI, APIError } from '@/lib/api';
 import { CoverLetterRequest, CoverLetterResponse, CVData } from '@/types';
-import { Mail, Loader2, AlertCircle, FileText } from 'lucide-react';
+import { Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function CoverLetterPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -18,9 +18,10 @@ export default function CoverLetterPage() {
   useEffect(() => {
     // Fetch available CVs
     cvAPI.list().then((data) => {
-      setCvList(data.cvs || []);
-      if (data.cvs && data.cvs.length > 0) {
-        setSelectedCv(data.cvs[0].id);
+      const { cvs } = data as { cvs: CVData[]; total_cvs: number };
+      setCvList(cvs || []);
+      if (cvs && cvs.length > 0) {
+        setSelectedCv(cvs[0].id);
       }
     });
   }, []);
