@@ -191,12 +191,21 @@ class AIClient:
         
         return await self.generate_text(prompt, max_tokens=800, temperature=0.7)
     
-    async def generate_interview_questions(self, job_description: str, question_type: str) -> Dict[str, Any]:
-        """Generate interview questions based on job description."""
+    async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8) -> Dict[str, Any]:
+        """Generate interview questions based on job description.
+        
+        Args:
+            job_description: The job description to base questions on
+            question_type: Type of questions ('hr' or 'technical')
+            count: Number of questions to generate (default: 8)
+            
+        Returns:
+            Dict containing the generated questions
+        """
         
         if question_type == "hr":
             prompt = f"""
-            Generate exactly 8 HR interview questions based on this job description. 
+            Generate exactly {count} HR interview questions based on this job description. 
             Focus on:
             - Soft skills
             - Teamwork and collaboration
@@ -213,7 +222,7 @@ class AIClient:
             """
         else:  # technical
             prompt = f"""
-            Generate exactly 8 technical interview questions based on this job description. 
+            Generate exactly {count} technical interview questions based on this job description. 
             Include:
             - Theory questions
             - Practical coding scenarios

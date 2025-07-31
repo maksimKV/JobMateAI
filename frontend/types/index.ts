@@ -62,10 +62,24 @@ export interface JobMatchResponse {
 
 // Interview Simulator Types
 export type InterviewType = 'hr' | 'technical' | 'mixed';
+export type InterviewLength = 'short' | 'medium' | 'long';
+
+export const INTERVIEW_LENGTHS: Record<InterviewLength, { label: string; questions: number }> = {
+  short: { label: 'Short (4 questions)', questions: 4 },
+  medium: { label: 'Medium (8 questions)', questions: 8 },
+  long: { label: 'Long (12 questions)', questions: 12 },
+};
+
+export const MIXED_INTERVIEW_LENGTHS: Record<InterviewLength, { label: string; questions: { hr: number; technical: number } }> = {
+  short: { label: 'Short (8 questions)', questions: { hr: 4, technical: 4 } },
+  medium: { label: 'Medium (16 questions)', questions: { hr: 8, technical: 8 } },
+  long: { label: 'Long (24 questions)', questions: { hr: 12, technical: 12 } },
+};
 
 export interface InterviewQuestionRequest {
   job_description: string;
   interview_type: InterviewType;
+  length?: InterviewLength;
 }
 
 export interface InterviewQuestion {

@@ -11,7 +11,10 @@ import {
   InterviewType,
   InterviewSessionState,
   InterviewSession,
-  InterviewFeedback
+  InterviewFeedback,
+  InterviewLength,
+  INTERVIEW_LENGTHS,
+  MIXED_INTERVIEW_LENGTHS
 } from '@/types';
 import { MessageSquare, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -31,6 +34,8 @@ type InterviewSimulatorPageProps = Record<string, never>;
 export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) {
   // State management
   const [jobDescription, setJobDescription] = useState('');
+  const [interviewType, setInterviewType] = useState<InterviewType>('hr');
+  const [interviewLength, setInterviewLength] = useState<InterviewLength>('medium');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState('');
@@ -52,7 +57,7 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
   const showInterviewTypeSelection = !sessionId && questions.length === 0;
   const showQuestion = questions.length > 0 && !isComplete;
 
-  const handleGenerate = async (interviewType: InterviewType) => {
+  const handleStartInterview = useCallback(async (): Promise<void> => {
     if (!jobDescription.trim()) {
       setError('Please enter a job description');
       return;
@@ -60,27 +65,27 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
 
     setIsLoading(true);
     setError(null);
+    setShowCompletion(false);
     
     try {
       const req: InterviewQuestionRequest = {
         job_description: jobDescription,
         interview_type: interviewType,
+        length: interviewLength,
       };
       
       // Reset session with proper typing
-      setSession(prev => ({
-        ...prev,
+      setSession({
         ...initialSessionState,
         questions: [],
         feedback: [],
         interviewType
-      }));
+      });
       
       const res: InterviewQuestionResponse = await interviewAPI.generateQuestions(req);
       
       // Update session with new question
-      setSession(prev => ({
-        ...prev,
+      setSession({
         ...initialSessionState,
         sessionId: res.session_id,
         interviewType,
@@ -91,15 +96,20 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
         feedback: [],
         currentQuestionIndex: 0,
         isComplete: false
-      }));
+      });
       
+      setError(null);
     } catch (err) {
       console.error('Error generating questions:', err);
-      setError(err instanceof APIError ? err.message : 'An unexpected error occurred');
+      if (err instanceof APIError) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [jobDescription, interviewType, interviewLength]);
 
   const handleSubmit = async (): Promise<void> => {
     if (!answer.trim() || !currentQuestion) return;
@@ -240,32 +250,60 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
                   />
                 </div>
               </div>
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">Select Interview Type</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {(['hr', 'technical', 'mixed'] as InterviewType[]).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      className={`p-4 border rounded-lg transition-colors ${
-                        session.interviewType === type
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
-                      }`}
-                      onClick={() => setSession(prev => ({ ...prev, interviewType: type }))}
-                    >
-                      <div className="font-medium capitalize">
-                        {type === 'hr' ? 'HR Interview' : type === 'technical' ? 'Technical Interview' : 'Mixed Interview'}
-                      </div>
-                    </button>
-                  ))}
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Select Interview Type</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(['hr', 'technical', 'mixed'] as InterviewType[]).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        className={`p-4 border rounded-lg transition-colors ${
+                          interviewType === type
+                            ? 'border-orange-500 bg-orange-50 text-orange-700'
+                            : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                        }`}
+                        onClick={() => setInterviewType(type)}
+                      >
+                        <div className="font-medium capitalize">
+                          {type === 'hr' ? 'HR Interview' : type === 'technical' ? 'Technical Interview' : 'Mixed Interview'}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Interview Length</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(interviewType === 'mixed' ? Object.entries(MIXED_INTERVIEW_LENGTHS) : Object.entries(INTERVIEW_LENGTHS)).map(([length, { label }]) => (
+                      <button
+                        key={length}
+                        type="button"
+                        className={`p-4 border rounded-lg transition-colors ${
+                          interviewLength === length
+                            ? 'border-orange-500 bg-orange-50 text-orange-700'
+                            : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                        }`}
+                        onClick={() => setInterviewLength(length as InterviewLength)}
+                      >
+                        <div className="font-medium">{label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {interviewType === 'mixed' 
+                      ? `This will include ${MIXED_INTERVIEW_LENGTHS[interviewLength].questions.hr} HR questions and ${MIXED_INTERVIEW_LENGTHS[interviewLength].questions.technical} technical questions.`
+                      : `This interview will include ${INTERVIEW_LENGTHS[interviewLength].questions} ${interviewType} questions.`
+                    }
+                  </p>
                 </div>
               </div>
 
               <div className="text-center">
                 <button
                   className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => handleGenerate(session.interviewType)}
+                  onClick={handleStartInterview}
                   disabled={isLoading || !jobDescription.trim()}
                 >
                   {isLoading ? (

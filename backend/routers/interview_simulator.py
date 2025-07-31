@@ -9,15 +9,23 @@ logger = logging.getLogger(__name__)
 # In-memory storage for interview sessions (for MVP)
 interview_sessions = {}
 
-async def _generate_questions_by_type(job_description: str, question_type: str) -> List[Dict[str, str]]:
-    """Helper function to generate questions of a specific type."""
+async def _generate_questions_by_type(job_description: str, question_type: str, count: int = 8) -> List[Dict[str, str]]:
+    """Helper function to generate a specific number of questions of a given type."""
     try:
-        questions_data = await ai_client.generate_interview_questions(job_description, question_type)
+        questions_data = await ai_client.generate_interview_questions(
+            job_description, 
+            question_type,
+            count=count
+        )
+        
         if isinstance(questions_data["questions"], str):
             # Split by newlines and clean up
             questions = [q.strip() for q in questions_data["questions"].split("\n") if q.strip()]
         else:
             questions = questions_data["questions"]
+        
+        # Ensure we don't return more questions than requested
+        questions = questions[:count]
         
         return [{"text": q, "type": question_type} for q in questions if q]
     except Exception as e:
@@ -27,22 +35,33 @@ async def _generate_questions_by_type(job_description: str, question_type: str) 
 @router.post("/generate-questions")
 async def generate_questions(
     job_description: str = Body(..., embed=True),
-    interview_type: str = Body("hr", embed=True)  # 'hr', 'technical', or 'mixed'
+    interview_type: str = Body("hr", embed=True),  # 'hr', 'technical', or 'mixed'
+    length: str = Body("medium", embed=True)  # 'short', 'medium', or 'long'
 ) -> Dict[str, Any]:
-    """Generate interview questions based on job description and interview type."""
+    """Generate interview questions based on job description, interview type, and length."""
     if interview_type not in ["hr", "technical", "mixed"]:
         raise HTTPException(
             status_code=400, 
             detail="Invalid interview type. Use 'hr', 'technical', or 'mixed'."
         )
     
+    if length not in ["short", "medium", "long"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid length. Use 'short', 'medium', or 'long'."
+        )
+    
     try:
         session_id = str(len(interview_sessions) + 1)
         
         if interview_type == "mixed":
-            # Generate both HR and technical questions
-            hr_questions = await _generate_questions_by_type(job_description, "hr")
-            tech_questions = await _generate_questions_by_type(job_description, "technical")
+            # For mixed interviews, generate both HR and technical questions
+            # based on the selected length
+            hr_count = {"short": 4, "medium": 8, "long": 12}[length]
+            tech_count = {"short": 4, "medium": 8, "long": 12}[length]
+            
+            hr_questions = await _generate_questions_by_type(job_description, "hr", hr_count)
+            tech_questions = await _generate_questions_by_type(job_description, "technical", tech_count)
             
             # Interleave HR and technical questions
             questions = []
@@ -52,8 +71,9 @@ async def generate_questions(
                 if i < len(tech_questions):
                     questions.append(tech_questions[i])
         else:
-            # Single question type
-            questions = await _generate_questions_by_type(job_description, interview_type)
+            # For single type interviews, generate questions based on length
+            count = {"short": 4, "medium": 8, "long": 12}[length]
+            questions = await _generate_questions_by_type(job_description, interview_type, count)
         
         if not questions:
             raise HTTPException(
