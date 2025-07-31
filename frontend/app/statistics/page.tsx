@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
 import { 
@@ -128,6 +128,8 @@ const processChartData = (data: StatisticsResponse | null): ProcessedChartData |
 // Number of questions to show per page
 const QUESTIONS_PER_PAGE = 1;
 
+type QuestionType = 'all' | 'hr' | 'technical';
+
 export default function StatisticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
@@ -135,22 +137,46 @@ export default function StatisticsPage() {
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [questionType, setQuestionType] = useState<QuestionType>('all');
   
-  // Calculate pagination when sessionData changes
+  // Check if there are HR or Technical questions
+  const hasHRQuestions = sessionData?.feedback?.some(item => item.type === 'hr') ?? false;
+  const hasTechnicalQuestions = sessionData?.feedback?.some(item => item.type === 'technical') ?? false;
+  
+  // Calculate total pages when sessionData or questionType changes
   useEffect(() => {
     if (sessionData?.feedback) {
-      setTotalPages(Math.ceil(sessionData.feedback.length / QUESTIONS_PER_PAGE));
-      setCurrentPage(1); // Reset to first page when data changes
+      const filteredQuestions = filterQuestionsByType(sessionData.feedback);
+      setTotalPages(Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE) || 1);
+      
+      // Reset to first page if current page is out of bounds
+      const maxPage = Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE) || 1;
+      if (currentPage > maxPage) {
+        setCurrentPage(1);
+      }
     }
-  }, [sessionData]);
+  }, [sessionData, questionType]);
   
-  // Get current questions based on pagination
-  const getCurrentQuestions = () => {
+  // Filter questions by type
+  const filterQuestionsByType = (questions: FeedbackItem[]) => {
+    if (!questions) return [];
+    if (questionType === 'all') return [...questions];
+    return questions.filter(question => question.type === questionType);
+  };
+
+  // Get current questions based on pagination and filter
+  const getCurrentQuestions = useMemo(() => {
     if (!sessionData?.feedback) return [];
+    
+    // Filter questions by type
+    const filteredQuestions = filterQuestionsByType(sessionData.feedback);
+    
+    // Calculate pagination
     const startIndex = (currentPage - 1) * QUESTIONS_PER_PAGE;
     const endIndex = startIndex + QUESTIONS_PER_PAGE;
-    return sessionData.feedback.slice(startIndex, endIndex);
-  };
+    
+    return filteredQuestions.slice(startIndex, endIndex);
+  }, [sessionData?.feedback, questionType, currentPage]);
   
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -377,8 +403,52 @@ export default function StatisticsPage() {
                   Page {currentPage} of {totalPages}
                 </div>
               </div>
+              
+              {/* Question Type Tabs */}
+              <div className="mb-6 border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8" aria-label="Question types">
+                  <button
+                    onClick={() => setQuestionType('all')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      questionType === 'all'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    All Questions
+                  </button>
+                  <button
+                    onClick={() => setQuestionType('hr')}
+                    disabled={!hasHRQuestions}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      questionType === 'hr'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : hasHRQuestions
+                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        : 'border-transparent text-gray-300 cursor-not-allowed'
+                    }`}
+                    title={!hasHRQuestions ? 'No HR questions available' : ''}
+                  >
+                    HR Questions
+                  </button>
+                  <button
+                    onClick={() => setQuestionType('technical')}
+                    disabled={!hasTechnicalQuestions}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      questionType === 'technical'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : hasTechnicalQuestions
+                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        : 'border-transparent text-gray-300 cursor-not-allowed'
+                    }`}
+                    title={!hasTechnicalQuestions ? 'No Technical questions available' : ''}
+                  >
+                    Technical Questions
+                  </button>
+                </nav>
+              </div>
               <div className="space-y-6 mb-6">
-                {getCurrentQuestions().map((item: FeedbackItem, index: number) => {
+                {getCurrentQuestions.map((item: FeedbackItem, index: number) => {
                   const originalIndex = (currentPage - 1) * QUESTIONS_PER_PAGE + index;
                   return (
                     <div key={originalIndex} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
