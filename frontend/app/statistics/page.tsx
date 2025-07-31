@@ -125,13 +125,42 @@ const processChartData = (data: StatisticsResponse | null): ProcessedChartData |
   };
 };
 
-// Feedback and SessionData types are now imported from @/types
+// Number of questions to show per page
+const QUESTIONS_PER_PAGE = 1;
 
 export default function StatisticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Calculate pagination when sessionData changes
+  useEffect(() => {
+    if (sessionData?.feedback) {
+      setTotalPages(Math.ceil(sessionData.feedback.length / QUESTIONS_PER_PAGE));
+      setCurrentPage(1); // Reset to first page when data changes
+    }
+  }, [sessionData]);
+  
+  // Get current questions based on pagination
+  const getCurrentQuestions = () => {
+    if (!sessionData?.feedback) return [];
+    const startIndex = (currentPage - 1) * QUESTIONS_PER_PAGE;
+    const endIndex = startIndex + QUESTIONS_PER_PAGE;
+    return sessionData.feedback.slice(startIndex, endIndex);
+  };
+  
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of questions section
+    const questionsSection = document.getElementById('questions-section');
+    if (questionsSection) {
+      questionsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     console.log('Component mounted, checking for saved session...');
@@ -341,20 +370,71 @@ export default function StatisticsPage() {
           
           {/* Questions & Feedback */}
           {sessionData?.feedback && sessionData.feedback.length > 0 ? (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Interview Questions & Feedback</h2>
-              <div className="space-y-6">
-                {sessionData.feedback.map((item: FeedbackItem, index: number) => (
-                  <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h3 className="font-medium text-gray-900 mb-2">Question {index + 1}: {item.question}</h3>
-                    <p className="text-sm text-gray-700 mb-3"><span className="font-medium">Your Answer:</span> {item.answer}</p>
-                    <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
-                      <h4 className="font-medium text-blue-800 mb-1">Feedback:</h4>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">{item.evaluation}</p>
-                    </div>
-                  </div>
-                ))}
+            <div id="questions-section" className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Interview Questions & Feedback</h2>
+                <div className="text-sm text-gray-500">
+                  Page {currentPage} of {totalPages}
+                </div>
               </div>
+              <div className="space-y-6 mb-6">
+                {getCurrentQuestions().map((item: FeedbackItem, index: number) => {
+                  const originalIndex = (currentPage - 1) * QUESTIONS_PER_PAGE + index;
+                  return (
+                    <div key={originalIndex} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <h3 className="font-medium text-gray-900 mb-2">Question {originalIndex + 1}: {item.question}</h3>
+                      <p className="text-sm text-gray-700 mb-3"><span className="font-medium">Your Answer:</span> {item.answer}</p>
+                      <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
+                        <h4 className="font-medium text-blue-800 mb-1">Feedback:</h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{item.evaluation}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-6">
+                  <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${
+                        currentPage === 1 
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium ${
+                          currentPage === pageNum
+                            ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${
+                        currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </nav>
+                </div>
+              )}
             </div>
           ) : (
             <div className="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-400">
