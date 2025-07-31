@@ -104,18 +104,11 @@ export default function InterviewSimulatorPage() {
         }
       ];
       
-      setSession({
-        ...session,
-        feedback: updatedFeedback,
-        currentQuestionIndex: session.currentQuestionIndex + 1
-      });
-      
       const res: AnswerSubmissionResponse = await interviewAPI.submitAnswer(req);
       
       // Update session with feedback and next question if available
       setSession(prev => {
         const updatedQuestions = [...prev.questions];
-        const updatedFeedback = [...prev.feedback];
         
         // Add next question if available
         if (res.next_question && !res.is_complete) {
@@ -125,18 +118,20 @@ export default function InterviewSimulatorPage() {
           };
         }
         
-        updatedFeedback[prev.currentQuestionIndex - 1] = {
-          question: prev.questions[prev.currentQuestionIndex - 1].text,
+        // Update the feedback with the evaluation
+        const newFeedback = [...prev.feedback];
+        newFeedback[prev.currentQuestionIndex] = {
+          question: prev.questions[prev.currentQuestionIndex].text,
           answer: answer,
           evaluation: res.feedback.evaluation,
-          type: prev.questions[prev.currentQuestionIndex - 1].type
+          type: prev.questions[prev.currentQuestionIndex].type
         };
         
         return {
           ...prev,
           questions: updatedQuestions,
-          currentQuestionIndex: prev.currentQuestionIndex + 1,
-          feedback: updatedFeedback,
+          currentQuestionIndex: res.is_complete ? prev.currentQuestionIndex : prev.currentQuestionIndex + 1,
+          feedback: newFeedback,
           isComplete: res.is_complete
         };
       });
