@@ -178,15 +178,33 @@ export default function InterviewSimulatorPage() {
           {showInterviewTypeSelection && (
             <div className="space-y-6">
               <div className="mb-6">
-                <label className="block text-gray-700 font-semibold mb-2">Paste Job Description</label>
-                <textarea
-                  className="w-full border rounded-lg px-3 py-2 min-h-[120px]"
-                  value={jobDescription}
-                  onChange={e => setJobDescription(e.target.value)}
-                  placeholder="Paste the job description here..."
-                />
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700">
+                    Job Description
+                  </label>
+                  {jobDescription && (
+                    <button
+                      type="button"
+                      onClick={() => setJobDescription('')}
+                      className="text-xs text-gray-500 hover:text-gray-700 focus:outline-none"
+                      disabled={isLoading}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <textarea
+                    id="jobDescription"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste the job description here..."
+                    rows={8}
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
-
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-900">Select Interview Type</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
