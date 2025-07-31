@@ -165,6 +165,12 @@ export interface StatisticsResponse {
   success: boolean;
   bar_chart: ChartData;
   pie_chart: ChartData;
+  session: {
+    questions: InterviewQuestion[];
+    feedback: InterviewFeedback[];
+    interviewType: InterviewType;
+    timestamp: string;
+  };
 }
 
 // Navigation Types
