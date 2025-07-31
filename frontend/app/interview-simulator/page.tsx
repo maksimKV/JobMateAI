@@ -318,7 +318,7 @@ export default function InterviewSimulatorPage() {
           )}
 
           {/* Completed Session Summary */}
-          {showCompletion && session.feedback.length > 0 && (
+          {showCompletion && session.feedback && session.feedback.length > 0 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-green-700 mb-2">Interview Complete!</h2>
@@ -326,19 +326,31 @@ export default function InterviewSimulatorPage() {
               </div>
               
               {session.questions.map((question, idx) => {
+                // Skip if question is undefined or doesn't have text
+                if (!question || !question.text) {
+                  console.warn(`Skipping invalid question at index ${idx}:`, question);
+                  return null;
+                }
+                
                 const feedback = session.feedback[idx];
-                if (!feedback) return null;
+                // Skip if no feedback for this question
+                if (!feedback) {
+                  console.warn(`No feedback found for question ${idx + 1}`);
+                  return null;
+                }
                 
                 return (
                   <div key={idx} className="mb-6">
                     <div className="flex items-center justify-between mb-1">
-                      <div className="font-semibold text-gray-900">Q{idx + 1}: {question.text}</div>
+                      <div className="font-semibold text-gray-900">
+                        Q{idx + 1}: {question.text}
+                      </div>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                         {question.type === 'hr' ? 'HR' : 'Technical'}
                       </span>
                     </div>
                     <div className="mb-1 text-gray-700">
-                      <span className="font-semibold">Your Answer:</span> {feedback.answer}
+                      <span className="font-semibold">Your Answer:</span> {feedback.answer || 'No answer provided'}
                     </div>
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
                       <div className="flex items-center mb-2">
@@ -346,7 +358,7 @@ export default function InterviewSimulatorPage() {
                         <span className="text-blue-800 font-semibold">AI Feedback</span>
                       </div>
                       <div className="text-gray-700 whitespace-pre-wrap">
-                        {feedback.evaluation}
+                        {feedback.evaluation || 'No feedback available'}
                       </div>
                     </div>
                   </div>
