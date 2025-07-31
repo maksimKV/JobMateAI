@@ -25,3 +25,6 @@ Thumbs.db
 .env*
 *.sqlite3
 uploads/
+
+# VSCode
+.vscode
