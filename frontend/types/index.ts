@@ -68,11 +68,42 @@ export interface InterviewQuestionRequest {
   interview_type: InterviewType;
 }
 
+export interface InterviewQuestion {
+  text: string;
+  type: 'hr' | 'technical'; // Only these two types are valid for individual questions
+}
+
+export interface InterviewFeedback {
+  question: string;
+  answer: string;
+  evaluation: string;
+  type: InterviewType;
+}
+
+export interface InterviewSession extends InterviewSessionState {
+  questions: InterviewQuestion[];
+  feedback: InterviewFeedback[];
+}
+
+// Type guard to check if an object is of type InterviewFeedback
+export const isInterviewFeedback = (obj: any): obj is InterviewFeedback => {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'question' in obj &&
+    'answer' in obj &&
+    'evaluation' in obj &&
+    'type' in obj &&
+    (obj.type === 'hr' || obj.type === 'technical' || obj.type === 'mixed')
+  );
+};
+
 export interface InterviewQuestionResponse {
   success: boolean;
   session_id: string;
   interview_type: InterviewType;
-  total_questions: number;
+  next_question?: string;
+  is_complete: boolean;
   current_question: string;
   question_type: string;
   question_number: number;
@@ -80,7 +111,7 @@ export interface InterviewQuestionResponse {
 
 export interface QuestionData {
   text: string;
-  type: 'hr' | 'technical';
+  type: InterviewType;
 }
 
 export interface AnswerSubmissionRequest {
@@ -90,14 +121,9 @@ export interface AnswerSubmissionRequest {
 
 export interface AnswerSubmissionResponse {
   success: boolean;
-  feedback: {
-    evaluation: string;
-    question: string;
-    answer: string;
-    type: string;
-  };
+  feedback: InterviewFeedback;
   next_question?: string;
-  question_type?: string;
+  question_type?: InterviewType;
   question_number?: number;
   is_complete: boolean;
 }
@@ -106,7 +132,7 @@ export interface InterviewSessionState {
   sessionId: string | null;
   questions: QuestionData[];
   currentQuestionIndex: number;
-  feedback: AnswerSubmissionResponse['feedback'][];
+  feedback: InterviewFeedback[];
   interviewType: InterviewType;
   isComplete: boolean;
 }

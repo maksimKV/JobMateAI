@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Navigation from '@/components/Navigation';
 import { interviewAPI, APIError } from '@/lib/api';
 import { 
@@ -9,10 +9,13 @@ import {
   AnswerSubmissionRequest, 
   AnswerSubmissionResponse,
   InterviewType,
-  InterviewSessionState
+  InterviewSessionState,
+  InterviewSession,
+  InterviewFeedback
 } from '@/types';
 import { MessageSquare, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
+// Define the initial session state with proper typing
 const initialSessionState: InterviewSessionState = {
   sessionId: null,
   questions: [],
@@ -22,20 +25,32 @@ const initialSessionState: InterviewSessionState = {
   isComplete: false
 };
 
-export default function InterviewSimulatorPage() {
+// Define the component props type
+type InterviewSimulatorPageProps = Record<string, never>;
+
+export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) {
+  // State management
   const [jobDescription, setJobDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState('');
-  const [session, setSession] = useState<InterviewSessionState>({
-    ...initialSessionState,
-    interviewType: 'hr' // Set default interview type
-  });
+  const [showCompletion, setShowCompletion] = useState(false);
   
-  const currentQuestion = session.questions[session.currentQuestionIndex];
-  const showInterviewTypeSelection = !session.sessionId && session.questions.length === 0;
-  const showQuestion = session.questions.length > 0 && !session.isComplete;
-  const showCompletion = session.isComplete;
+  // Session state with proper typing
+  const [session, setSession] = useState<InterviewSession>(() => ({
+    ...initialSessionState,
+    questions: [],
+    feedback: [],
+    interviewType: 'hr' as const
+  }));
+  
+  // Destructure session for easier access
+  const { questions, currentQuestionIndex, isComplete, sessionId } = session;
+  const currentQuestion = questions[currentQuestionIndex];
+  
+  // UI state flags
+  const showInterviewTypeSelection = !sessionId && questions.length === 0;
+  const showQuestion = questions.length > 0 && !isComplete;
 
   const handleGenerate = async (interviewType: InterviewType) => {
     if (!jobDescription.trim()) {
@@ -52,23 +67,31 @@ export default function InterviewSimulatorPage() {
         interview_type: interviewType,
       };
       
-      setSession({
+      // Reset session with proper typing
+      setSession(prev => ({
+        ...prev,
         ...initialSessionState,
+        questions: [],
+        feedback: [],
         interviewType
-      });
+      }));
       
       const res: InterviewQuestionResponse = await interviewAPI.generateQuestions(req);
       
-      setSession({
+      // Update session with new question
+      setSession(prev => ({
+        ...prev,
         ...initialSessionState,
         sessionId: res.session_id,
         interviewType,
         questions: [{
           text: res.current_question,
-          type: res.question_type as 'hr' | 'technical'
+          type: res.question_type as 'hr' | 'technical' // Ensure type safety
         }],
-        currentQuestionIndex: 0
-      });
+        feedback: [],
+        currentQuestionIndex: 0,
+        isComplete: false
+      }));
       
     } catch (err) {
       console.error('Error generating questions:', err);
@@ -78,7 +101,7 @@ export default function InterviewSimulatorPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     if (!answer.trim() || !currentQuestion) return;
     
     setIsLoading(true);
@@ -93,50 +116,61 @@ export default function InterviewSimulatorPage() {
         answer: answer,
       };
       
-      // Update local state optimistically
-      const updatedFeedback = [
-        ...session.feedback,
-        {
-          question: currentQuestion.text,
-          answer,
-          evaluation: 'Evaluating your answer...',
-          type: currentQuestion.type
-        }
-      ];
+      // Create a new feedback object with proper typing
+      const newFeedback: InterviewFeedback = {
+        question: currentQuestion.text,
+        answer,
+        evaluation: 'Evaluating your answer...',
+        type: currentQuestion.type as 'hr' | 'technical' // Ensure type safety
+      };
       
+      // Make the API call first
       const res: AnswerSubmissionResponse = await interviewAPI.submitAnswer(req);
       
-      // Update session with feedback and next question if available
+      // Then update the state in a single operation
       setSession(prev => {
         const updatedQuestions = [...prev.questions];
+        const updatedFeedback = [...prev.feedback, {
+          ...newFeedback,
+          evaluation: res.feedback.evaluation,
+          type: (res.question_type as 'hr' | 'technical') || 'hr'
+        }];
         
-        // Add next question if available
-        if (res.next_question && !res.is_complete) {
-          updatedQuestions[prev.currentQuestionIndex + 1] = {
+        const isComplete = res.is_complete;
+        const nextQuestionIndex = isComplete ? prev.currentQuestionIndex : prev.currentQuestionIndex + 1;
+        
+        // If there's a next question, add it to the questions array
+        if (res.next_question && !isComplete) {
+          updatedQuestions[nextQuestionIndex] = {
             text: res.next_question,
-            type: res.question_type as 'hr' | 'technical'
+            type: (res.question_type as 'hr' | 'technical') || 'hr' // Ensure type safety
           };
         }
         
-        // Update the feedback with the evaluation
-        const newFeedback = [...prev.feedback];
-        newFeedback[prev.currentQuestionIndex] = {
-          question: prev.questions[prev.currentQuestionIndex].text,
-          answer: answer,
-          evaluation: res.feedback.evaluation,
-          type: prev.questions[prev.currentQuestionIndex].type
-        };
-        
-        return {
+        const updatedSession: InterviewSession = {
           ...prev,
           questions: updatedQuestions,
-          currentQuestionIndex: res.is_complete ? prev.currentQuestionIndex : prev.currentQuestionIndex + 1,
-          feedback: newFeedback,
-          isComplete: res.is_complete
+          currentQuestionIndex: nextQuestionIndex,
+          feedback: updatedFeedback,
+          isComplete
         };
+        
+        // Save session to localStorage when complete
+        if (isComplete) {
+          localStorage.setItem('interviewSession', JSON.stringify({
+            sessionId: prev.sessionId,
+            questions: updatedQuestions,
+            feedback: updatedFeedback,
+            interviewType: prev.interviewType,
+            timestamp: new Date().toISOString()
+          }));
+        }
+        
+        return updatedSession;
       });
       
       setAnswer('');
+      setShowCompletion(res.is_complete);
       
     } catch (err) {
       console.error('Error submitting answer:', err);
@@ -146,15 +180,20 @@ export default function InterviewSimulatorPage() {
     }
   };
 
-  const handleRestart = () => {
-    setSession({
+  // Handle restarting the interview
+  const handleRestart = useCallback((): void => {
+    setSession((prev: InterviewSession) => ({
       ...initialSessionState,
-      interviewType: session.interviewType // Keep the same interview type
-    });
+      interviewType: prev.interviewType, // Use the current session's interviewType
+      questions: [],
+      feedback: []
+    }));
+    // Reset other states
     setJobDescription('');
     setAnswer('');
     setError(null);
-  };
+    setShowCompletion(false);
+  }, [setSession, setJobDescription, setAnswer, setError, setShowCompletion]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -312,61 +351,61 @@ export default function InterviewSimulatorPage() {
             </div>
           )}
 
-          {/* Completed Session Summary */}
+          {/* Interview Completion Message */}
           {showCompletion && session.feedback && session.feedback.length > 0 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-green-700 mb-2">Interview Complete!</h2>
-                <p className="text-gray-700">Here is your session summary and feedback for each question.</p>
-              </div>
-              
-              {session.questions.map((question, idx) => {
-                // Skip if question is undefined or doesn't have text
-                if (!question || !question.text) {
-                  console.warn(`Skipping invalid question at index ${idx}:`, question);
-                  return null;
-                }
+                <p className="text-gray-700 mb-6">Thank you for completing the interview. Here&apos;s the feedback for your last question.</p>
                 
-                const feedback = session.feedback[idx];
-                // Skip if no feedback for this question
-                if (!feedback) {
-                  console.warn(`No feedback found for question ${idx + 1}`);
-                  return null;
-                }
-                
-                return (
-                  <div key={idx} className="mb-6">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="font-semibold text-gray-900">
-                        Q{idx + 1}: {question.text}
-                      </div>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                        {question.type === 'hr' ? 'HR' : 'Technical'}
-                      </span>
+                {/* Last Question and Feedback */}
+                <div className="bg-white rounded-lg shadow-md p-6 max-w-3xl mx-auto text-left">
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Last Question:</h3>
+                    <p className="text-gray-700">{session.questions[session.questions.length - 1]?.text}</p>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 bg-blue-100 text-blue-800">
+                      {session.questions[session.questions.length - 1]?.type === 'hr' ? 'HR' : 'Technical'}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-6">
+                    <h4 className="font-semibold text-gray-900 mb-1">Your Answer:</h4>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded">
+                      {session.feedback[session.feedback.length - 1]?.answer || 'No answer provided'}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                      <span className="text-blue-800 font-semibold">AI Feedback</span>
                     </div>
-                    <div className="mb-1 text-gray-700">
-                      <span className="font-semibold">Your Answer:</span> {feedback.answer || 'No answer provided'}
-                    </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
-                      <div className="flex items-center mb-2">
-                        <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
-                        <span className="text-blue-800 font-semibold">AI Feedback</span>
-                      </div>
-                      <div className="text-gray-700 whitespace-pre-wrap">
-                        {feedback.evaluation || 'No feedback available'}
-                      </div>
+                    <div className="text-gray-700 whitespace-pre-wrap">
+                      {session.feedback[session.feedback.length - 1]?.evaluation || 'No feedback available'}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
               
-              <div className="text-center">
-                <button
-                  className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700"
-                  onClick={handleRestart}
-                >
-                  Start New Interview
-                </button>
+              <div className="text-center space-y-4">
+                <p className="text-gray-600">
+                  View your complete interview summary and detailed statistics on the statistics page.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                  <a
+                    href="/statistics"
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                  >
+                    View Full Statistics
+                  </a>
+                  <button
+                    onClick={handleRestart}
+                    className="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                  >
+                    Start New Interview
+                  </button>
+                </div>
               </div>
             </div>
           )}
