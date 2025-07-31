@@ -92,6 +92,8 @@ export interface InterviewFeedback {
   answer: string;
   evaluation: string;
   type: InterviewType;
+  score?: number;
+  question_type?: 'hr' | 'technical_theory' | 'technical_practical';
 }
 
 export interface InterviewSession extends InterviewSessionState {
@@ -163,6 +165,36 @@ export interface CodeReviewResponse {
 }
 
 // Statistics Types
+export interface ChartDataset {
+  data: number[];
+  backgroundColor?: string[];
+  borderColor?: string[];
+  borderWidth?: number;
+  label?: string;
+  fill?: boolean;
+  tension?: number;
+}
+
+export interface ProcessedChartData {
+  labels: string[];
+  datasets: ChartDataset[];
+}
+
+export interface FeedbackItem {
+  question: string;
+  answer: string;
+  evaluation: string;
+  type?: string;
+}
+
+export interface SessionData {
+  sessionId: string;
+  timestamp: string;
+  questions: Array<{ text: string; type: string }>;
+  feedback: FeedbackItem[];
+  interviewType?: string;
+}
+
 export interface StatisticsRequest {
   session_id: string;
 }
@@ -172,18 +204,45 @@ export interface ChartData {
   datasets: Array<{
     label?: string;
     data: number[];
+    backgroundColor?: string | string[];
+    borderColor?: string | string[];
+    borderWidth?: number;
+    fill?: boolean;
+    tension?: number;
   }>;
+}
+
+export interface ScoreBreakdown {
+  score: number;
+  total_questions: number;
 }
 
 export interface StatisticsResponse {
   success: boolean;
-  bar_chart: ChartData;
-  pie_chart: ChartData;
   session: {
-    questions: InterviewQuestion[];
-    feedback: InterviewFeedback[];
-    interviewType: InterviewType;
+    id: string;
+    stage: string;
     timestamp: string;
+    questions: string[];
+    feedback: InterviewFeedback[];
+    interviewType: string;
+  };
+  scores: {
+    overall: {
+      total: number;
+      average: number;
+      max_possible: number;
+    };
+    by_category: {
+      hr: ScoreBreakdown;
+      tech_theory: ScoreBreakdown;
+      tech_practical: ScoreBreakdown;
+    };
+  };
+  charts: {
+    bar_chart: ChartData;
+    pie_chart: ChartData;
+    line_chart: ChartData;
   };
 }
 

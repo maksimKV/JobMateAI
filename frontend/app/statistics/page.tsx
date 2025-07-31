@@ -1,61 +1,223 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
-import { StatisticsRequest, StatisticsResponse } from '@/types';
-import { Bar, Pie } from 'react-chartjs-2';
-import { Chart, BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend, Title } from 'chart.js';
-import { BarChart3, Loader2, AlertCircle, ArrowLeft, MessageSquare, CheckCircle } from 'lucide-react';
+import { 
+  StatisticsRequest, 
+  StatisticsResponse, 
+  ChartDataset, 
+  ProcessedChartData, 
+  FeedbackItem, 
+  SessionData 
+} from '@/types';
+import { Pie } from 'react-chartjs-2';
+import { Chart, ArcElement, Tooltip, Legend, Title, TooltipItem, TooltipModel } from 'chart.js';
+import { Loader2, AlertCircle, PieChart } from 'lucide-react';
 
 // Register Chart.js components
-Chart.register(BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend, Title);
+Chart.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  Title
+);
+
+// Chart options for pie chart
+const pieChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'right' as const,
+      labels: {
+        padding: 20,
+        usePointStyle: true,
+        pointStyle: 'circle',
+        font: {
+          size: 12
+        }
+      }
+    },
+    title: {
+      display: true,
+      text: 'Question Type Distribution',
+      font: { 
+        size: 16,
+        weight: 'bold' as const  // Changed from '600' to 'bold' to match Chart.js type
+      },
+      padding: {
+        top: 10,
+        bottom: 20
+      }
+    },
+    tooltip: {
+      callbacks: {
+        label: function(this: TooltipModel<'pie'>, tooltipItem: TooltipItem<'pie'>) {
+          const label = tooltipItem.label || '';
+          const value = tooltipItem.raw as number;
+          const dataset = tooltipItem.dataset.data as number[];
+          const total = dataset.reduce((a, b) => a + b, 0);
+          const percentage = Math.round((value / total) * 100);
+          return `${label}: ${value} (${percentage}%)`;
+        }
+      }
+    }
+  },
+};
+
+// Chart types are now imported from @/types
+
+// Default colors for charts
+const CHART_COLORS = {
+  background: [
+    'rgba(99, 102, 241, 0.8)',
+    'rgba(167, 139, 250, 0.8)',
+    'rgba(217, 70, 239, 0.8)',
+    'rgba(236, 72, 153, 0.8)',
+    'rgba(249, 115, 22, 0.8)',
+  ],
+  border: [
+    'rgba(99, 102, 241, 1)',
+    'rgba(167, 139, 250, 1)',
+    'rgba(217, 70, 239, 1)',
+    'rgba(236, 72, 153, 1)',
+    'rgba(249, 115, 22, 1)',
+  ]
+};
+
+// Process chart data from API response
+const processChartData = (data: StatisticsResponse | null): ProcessedChartData | null => {
+  if (!data?.charts?.pie_chart) {
+    return null;
+  }
+
+  const pieData = data.charts.pie_chart;
+  
+  // Ensure we have valid data structure
+  if (!pieData.labels || !pieData.datasets || !pieData.datasets[0]?.data) {
+    console.error('Invalid chart data structure:', pieData);
+    return null;
+  }
+
+  // Validate data arrays have the same length
+  if (pieData.labels.length !== pieData.datasets[0].data.length) {
+    console.error('Mismatch between labels and data length:', {
+      labels: pieData.labels,
+      data: pieData.datasets[0].data
+    });
+    return null;
+  }
+
+  // Get colors for the current dataset
+  const backgroundColors = CHART_COLORS.background.slice(0, pieData.labels.length);
+  const borderColors = CHART_COLORS.border.slice(0, pieData.labels.length);
+
+  return {
+    labels: pieData.labels,
+    datasets: [{
+      label: 'Question Types',
+      data: pieData.datasets[0].data,
+      backgroundColor: backgroundColors,
+      borderColor: borderColors,
+      borderWidth: 1,
+    }],
+  };
+};
+
+// Feedback and SessionData types are now imported from @/types
 
 export default function StatisticsPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'summary' | 'charts'>('summary');
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
 
   useEffect(() => {
+    console.log('Component mounted, checking for saved session...');
+    
     const loadLatestSession = async () => {
       try {
         const savedSession = localStorage.getItem('interviewSession');
+        console.log('Saved session from localStorage:', savedSession);
+        
         if (savedSession) {
-          const session = JSON.parse(savedSession);
-          if (session.sessionId) {
-            setSessionId(session.sessionId);
-            await fetchStatistics(session.sessionId);
-            return;
+          try {
+            const session = JSON.parse(savedSession);
+            console.log('Parsed session data:', session);
+            
+            // Set session data first
+            if (session && typeof session === 'object' && 'sessionId' in session && 'feedback' in session) {
+              setSessionData(session as SessionData);
+              
+              if (session.sessionId) {
+                console.log('Found session ID, fetching statistics...');
+                await fetchStatistics(session.sessionId);
+              } else {
+                console.log('No session ID found in session data');
+                setError('No valid session ID found. Please complete an interview first.');
+              }
+            } else {
+              console.error('Invalid session data structure:', session);
+              setError('Invalid session data format. Please complete a new interview.');
+            }
+          } catch (parseError) {
+            console.error('Error parsing session data:', parseError);
+            setError('Invalid session data. Please complete a new interview.');
           }
+        } else {
+          console.log('No saved session found in localStorage');
+          setError('No interview session found. Please complete an interview first.');
         }
-        setError('No interview session found. Please complete an interview first.');
       } catch (err) {
-        console.error('Error loading session:', err);
-        setError('Failed to load interview session data.');
+        console.error('Error in loadLatestSession:', err);
+        setError('Failed to load interview session data. Please try refreshing the page.');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadLatestSession();
+    
+    // Cleanup function
+    return () => {
+      console.log('Cleaning up statistics page...');
+    };
   }, []);
 
   const fetchStatistics = async (id: string) => {
+    console.log('Fetching statistics for session:', id);
     setIsLoading(true);
     setError(null);
     setStats(null);
+    
     try {
       const req: StatisticsRequest = { session_id: id };
+      console.log('Sending request to API with data:', req);
+      
+      // Add a timeout to the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const res = await statisticsAPI.getCharts(req);
+      clearTimeout(timeoutId);
+      
+      console.log('Received response from API:', res);
+      
+      if (!res) {
+        throw new Error('Empty response from server');
+      }
+      
       setStats(res);
     } catch (err) {
       console.error('Error fetching statistics:', err);
-      if (err instanceof APIError) {
-        setError(err.message);
+      
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timed out. The server is taking too long to respond.');
+      } else if (err instanceof APIError) {
+        setError(`Error: ${err.message}`);
+      } else if (err instanceof Error) {
+        setError(`An error occurred: ${err.message}`);
       } else {
         setError('An unexpected error occurred while loading statistics.');
       }
@@ -64,220 +226,183 @@ export default function StatisticsPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading your interview statistics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="max-w-md bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-red-700 font-medium">{error}</p>
+              <p className="text-sm text-red-600 mt-1">
+                {error.includes('No interview session')
+                  ? 'Please complete an interview first to see your statistics.'
+                  : 'Please try again later or contact support if the issue persists.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No statistics data available.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Session data is now loaded in the main useEffect
+
+  // If we have no session data but also no error, show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading your interview statistics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have an error, show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="max-w-md bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-red-700 font-medium">{error}</p>
+              <p className="text-sm text-red-600 mt-1">
+                {error.includes('No interview session')
+                  ? 'Please complete an interview first to see your statistics.'
+                  : 'Please try again later or contact support if the issue persists.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have no stats data, show empty state
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No statistics data available.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <Navigation />
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <BarChart3 className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Statistics Dashboard</h1>
-            <p className="text-gray-600">
-              Visualize your interview performance with interactive charts.
-            </p>
-          </div>
-
-          {/* Session Info and Tabs */}
-          {sessionId && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Session ID</p>
-                  <p className="text-sm text-gray-700 font-mono bg-gray-50 p-2 rounded mt-1">{sessionId}</p>
-                </div>
-                <button
-                  onClick={() => router.back()}
-                  className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors text-sm font-medium"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  Back to Interview
-                </button>
-              </div>
-              
-              {/* Tabs */}
-              <div className="border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8">
-                  <button
-                    onClick={() => setActiveTab('summary')}
-                    className={`${activeTab === 'summary' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                  >
-                    Interview Summary
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('charts')}
-                    className={`${activeTab === 'charts' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                  >
-                    Performance Charts
-                  </button>
-                </nav>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Interview Statistics</h1>
+          
+          {/* Session Information */}
+          {sessionData ? (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Interview Session</h2>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium">Session ID:</span> {sessionData.sessionId || 'N/A'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Date:</span> {sessionData.timestamp ? new Date(sessionData.timestamp).toLocaleString() : 'N/A'}
+                </p>
               </div>
             </div>
-          )}
-
-          {/* Loading State */}
-          {isLoading && !stats && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mb-4" />
-              <p className="text-gray-600">Loading your interview statistics...</p>
+          ) : (
+            <div className="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-400">
+              <p className="text-yellow-700">No session information available</p>
             </div>
           )}
-
-          {/* Error */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-red-700 font-medium">{error}</p>
-                  <p className="text-sm text-red-600 mt-1">
-                    {error.includes('No interview session') ? (
-                      'Please complete an interview first to see your statistics.'
-                    ) : (
-                      'Please try again later or contact support if the issue persists.'
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Content based on active tab */}
-          {stats && !isLoading && (
-            <div className="mt-6">
-              {activeTab === 'summary' ? (
-                <div className="space-y-8">
-                  <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h2 className="text-lg font-medium text-gray-900">Interview Summary</h2>
-                      <p className="mt-1 text-sm text-gray-500">
-                        {stats.session?.timestamp ? (
-                          <>
-                            {new Date(stats.session.timestamp).toLocaleString()}
-                            {' • '}
-                          </>
-                        ) : null}
-                        <span className="capitalize">{stats.session?.interviewType || 'Unknown'}</span> Interview
-                      </p>
-                    </div>
-                    
-                    <div className="divide-y divide-gray-200">
-                      {stats.session?.questions?.length ? (
-                        stats.session.questions.map((question, index) => {
-                        const feedback = stats.session?.feedback?.[index];
-                        return (
-                          <div key={index} className="p-6">
-                            <div className="flex items-start">
-                              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <MessageSquare className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div className="ml-4 flex-1">
-                                <div className="flex items-center justify-between">
-                                  <h3 className="text-sm font-medium text-gray-900">
-                                    Question {index + 1}
-                                    <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      {question.type}
-                                    </span>
-                                  </h3>
-                                </div>
-                                <div className="mt-1 text-sm text-gray-700 space-y-2">
-                                  <p className="font-medium">{question.text}</p>
-                                  
-                                  {feedback?.answer && (
-                                    <div className="mt-2">
-                                      <p className="text-sm font-medium text-gray-500">Your Answer:</p>
-                                      <p className="mt-1 px-3 py-2 bg-gray-50 rounded-md">
-                                        {feedback.answer}
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  {feedback?.evaluation && (
-                                    <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-100">
-                                      <div className="flex">
-                                        <CheckCircle className="flex-shrink-0 h-5 w-5 text-blue-500" />
-                                        <div className="ml-3">
-                                          <h4 className="text-sm font-medium text-blue-800">AI Feedback</h4>
-                                          <div className="mt-1 text-sm text-blue-700 whitespace-pre-wrap">
-                                            {feedback.evaluation}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })) : (
-                        <div className="p-6 text-center text-gray-500">
-                          No interview questions found in this session.
-                        </div>
-                      )}
+          
+          {/* Questions & Feedback */}
+          {sessionData?.feedback && sessionData.feedback.length > 0 ? (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Interview Questions & Feedback</h2>
+              <div className="space-y-6">
+                {sessionData.feedback.map((item: FeedbackItem, index: number) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 className="font-medium text-gray-900 mb-2">Question {index + 1}: {item.question}</h3>
+                    <p className="text-sm text-gray-700 mb-3"><span className="font-medium">Your Answer:</span> {item.answer}</p>
+                    <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
+                      <h4 className="font-medium text-blue-800 mb-1">Feedback:</h4>
+                      <p className="text-sm text-gray-700 whitespace-pre-line">{item.evaluation}</p>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">HR vs Technical Performance</h2>
-                    <div className="h-80">
-                      <Bar 
-                        data={stats.bar_chart} 
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-400">
+              <p className="text-yellow-700">No feedback available for this session</p>
+            </div>
+          )}
+          
+          {/* Charts Section */}
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6">Performance Metrics</h2>
+            
+            {/* Pie Chart - Question Types */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <PieChart className="h-5 w-5 text-indigo-600 mr-2" />
+                Question Type Distribution
+              </h3>
+              <div className="h-80">
+                {(() => {
+                  const chartData = processChartData(stats);
+                  console.log('Processed chart data:', chartData);
+                  
+                  if (!chartData) {
+                    return (
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        No chart data available
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="relative h-full w-full">
+                      <Pie
+                        data={chartData}
                         options={{
+                          ...pieChartOptions,
                           responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: { display: false },
-                            title: {
-                              display: true,
-                              text: 'Performance by Question Type',
-                              font: { size: 16 }
-                            }
-                          },
-                          scales: {
-                            y: {
-                              beginAtZero: true,
-                              max: 100,
-                              title: {
-                                display: true,
-                                text: 'Score (%)'
-                              }
-                            }
-                          }
-                        }} 
+                          maintainAspectRatio: false
+                        }}
                       />
                     </div>
-                  </div>
-                  
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Theory vs Practical (Technical)</h2>
-                    <div className="h-80 flex justify-center">
-                      <div className="w-full max-w-md">
-                        <Pie 
-                          data={stats.pie_chart} 
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                              legend: {
-                                position: 'right',
-                              },
-                              title: {
-                                display: true,
-                                text: 'Question Type Distribution',
-                                font: { size: 16 }
-                              }
-                            }
-                          }} 
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                  );
+                })()}
+              </div>
             </div>
-          )}
+            
+            {/* Add more charts or metrics here as needed */}
+          </div>
         </div>
       </div>
     </div>
