@@ -2,14 +2,70 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
 from typing import Dict, Any
 import os
+import logging
 
 from utils.ai_client import ai_client
 from utils.file_parser import FileParser
 
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.info("Initializing CV Analyzer router...")
+
 router = APIRouter()
+logger.info("CV Analyzer router created")
 
 # In-memory storage for parsed CVs
 cv_storage = {}
+
+@router.get("/")
+async def cv_root():
+    return {"message": "CV Analyzer API is working"}
+
+@router.get("/list")
+async def list_cvs() -> Dict[str, Any]:
+    logger.info("List CVs endpoint called")
+    print("List CVs endpoint called - Print statement")
+    logger.info(f"CV Storage: {cv_storage}")
+    print(f"CV Storage: {cv_storage}")
+    """
+    List all uploaded CVs.
+    Returns an empty list if no CVs are present or if there's an error.
+    """
+    try:
+        if not cv_storage:  # Return early if storage is empty
+            return {
+                "success": True,
+                "total_cvs": 0,
+                "cvs": []
+            }
+            
+        cv_list = []
+        for cv_id, cv_data in cv_storage.items():
+            # Safely access dictionary values with defaults
+            parsed_data = cv_data.get("parsed_data", {})
+            extracted_skills = cv_data.get("extracted_skills", [])
+            
+            cv_list.append({
+                "id": cv_id,
+                "filename": cv_data.get("filename", "unknown"),
+                "upload_timestamp": cv_data.get("upload_timestamp"),
+                "word_count": parsed_data.get("word_count", 0),
+                "skills_count": len(extracted_skills) if isinstance(extracted_skills, (list, tuple)) else 0
+            })
+        
+        return {
+            "success": True,
+            "total_cvs": len(cv_list),
+            "cvs": cv_list
+        }
+    except Exception as e:
+        print(f"Error in list_cvs: {str(e)}")
+        return {
+            "success": False,
+            "error": "Failed to retrieve CV list",
+            "total_cvs": 0,
+            "cvs": []
+        } 
 
 @router.post("/upload")
 async def upload_cv(file: UploadFile = File(...)) -> Dict[str, Any]:
@@ -172,31 +228,3 @@ async def delete_cv(cv_id: str) -> Dict[str, Any]:
         "success": True,
         "message": f"CV {cv_id} deleted successfully"
     }
-
-@router.get("/list")
-async def list_cvs() -> Dict[str, Any]:
-    """
-    List all uploaded CVs.
-    Returns an empty list if no CVs are present.
-    """
-    try:
-        cv_list = []
-        for cv_id, cv_data in cv_storage.items():
-            cv_list.append({
-                "id": cv_id,
-                "filename": cv_data["filename"],
-                "upload_timestamp": cv_data["upload_timestamp"],
-                "word_count": cv_data["parsed_data"]["word_count"],
-                "skills_count": len(cv_data["extracted_skills"])
-            })
-        
-        return {
-            "total_cvs": len(cv_list),
-            "cvs": cv_list
-        }
-    except Exception as e:
-        print(f"Error in list_cvs: {str(e)}")
-        return {
-            "total_cvs": 0,
-            "cvs": []
-        } 
