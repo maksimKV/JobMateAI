@@ -1,32 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
 import { StatisticsRequest, StatisticsResponse } from '@/types';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart, BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend } from 'chart.js';
-import { BarChart3, Loader2, AlertCircle } from 'lucide-react';
+import { BarChart3, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 Chart.register(BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend);
 
 export default function StatisticsPage() {
-  const [sessionId, setSessionId] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const handleFetch = async () => {
+  useEffect(() => {
+    const loadLatestSession = async () => {
+      try {
+        const savedSession = localStorage.getItem('interviewSession');
+        if (savedSession) {
+          const session = JSON.parse(savedSession);
+          if (session.sessionId) {
+            setSessionId(session.sessionId);
+            await fetchStatistics(session.sessionId);
+            return;
+          }
+        }
+        setError('No interview session found. Please complete an interview first.');
+      } catch (err) {
+        console.error('Error loading session:', err);
+        setError('Failed to load interview session data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadLatestSession();
+  }, []);
+
+  const fetchStatistics = async (id: string) => {
     setIsLoading(true);
     setError(null);
     setStats(null);
     try {
-      const req: StatisticsRequest = { session_id: sessionId };
+      const req: StatisticsRequest = { session_id: id };
       const res = await statisticsAPI.getCharts(req);
       setStats(res);
     } catch (err) {
-      if (err instanceof APIError) setError(err.message);
-      else setError('An unexpected error occurred');
+      console.error('Error fetching statistics:', err);
+      if (err instanceof APIError) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred while loading statistics.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -45,44 +75,54 @@ export default function StatisticsPage() {
             </p>
           </div>
 
-          {/* Session ID Input */}
-          <div className="mb-6">
-            <label className="block text-gray-700 font-semibold mb-2">Enter Interview Session ID</label>
-            <input
-              className="w-full border rounded-lg px-3 py-2"
-              value={sessionId}
-              onChange={e => setSessionId(e.target.value)}
-              placeholder="Session ID..."
-            />
-          </div>
+          {/* Session Info */}
+          {sessionId && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Session ID</p>
+                  <p className="text-sm text-gray-700 font-mono bg-gray-50 p-2 rounded mt-1">{sessionId}</p>
+                </div>
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors text-sm font-medium"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back to Interview
+                </button>
+              </div>
+            </div>
+          )}
 
-          {/* Fetch Button */}
-          <div className="mb-6 text-center">
-            <button
-              className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleFetch}
-              disabled={isLoading || !sessionId}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center"><Loader2 className="animate-spin h-5 w-5 mr-2" />Fetching...</span>
-              ) : (
-                'Show Statistics'
-              )}
-            </button>
-          </div>
+          {/* Loading State */}
+          {isLoading && !stats && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mb-4" />
+              <p className="text-gray-600">Loading your interview statistics...</p>
+            </div>
+          )}
 
           {/* Error */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-red-700">{error}</span>
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-red-700 font-medium">{error}</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    {error.includes('No interview session') ? (
+                      'Please complete an interview first to see your statistics.'
+                    ) : (
+                      'Please try again later or contact support if the issue persists.'
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
           {/* Charts */}
-          {stats && (
+          {stats && !isLoading && (
             <div className="space-y-8">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">HR vs Technical Performance</h2>
