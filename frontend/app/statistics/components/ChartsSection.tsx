@@ -79,7 +79,7 @@ export function ChartsSection({ stats, hasHRQuestions, hasTechnicalQuestions }: 
     if (!stats?.charts?.bar_chart) {
       return { data: null, options: null };
     }
-
+    
     const barChartData = {
       ...stats.charts.bar_chart,
       datasets: stats.charts.bar_chart.datasets?.map(dataset => ({
@@ -94,7 +94,7 @@ export function ChartsSection({ stats, hasHRQuestions, hasTechnicalQuestions }: 
     if (!barChartData.labels || !barChartData.datasets || barChartData.datasets.length === 0) {
       return { data: null, options: null };
     }
-
+    
     const options = {
       ...commonOptions,
       plugins: {
@@ -158,56 +158,61 @@ export function ChartsSection({ stats, hasHRQuestions, hasTechnicalQuestions }: 
   const { data: theoryVsPracticalData, options: theoryVsPracticalOptions } = processTheoryVsPracticalData();
   
   // Check if we have valid chart data
-  // Check if we have valid chart data
-  const hasHRData = hasHRQuestions && hrVsTechData !== null && hrVsTechOptions !== null;
-  const hasTechData = hasTechnicalQuestions && theoryVsPracticalData !== null && theoryVsPracticalOptions !== null;
+  const hasHRData = hasHRQuestions && 
+                  hrVsTechData !== null && 
+                  hrVsTechOptions !== null;
+  
+  const hasTechData = hasTechnicalQuestions && 
+                    theoryVsPracticalData !== null && 
+                    theoryVsPracticalOptions !== null;
+  
+  // Check if we have any data to show at all
+  const hasAnyData = hasHRData || hasTechData;
 
 
   return (
     <div className="mt-8">
       <h2 className="text-xl font-semibold text-gray-800 mb-6">Interview Statistics</h2>
       
-      {/* Chart 1: HR vs Technical Performance */}
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-8">
-        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <BarChart2 className="h-5 w-5 text-indigo-600 mr-2" />
-          Interview Type Performance
-        </h3>
-        <div className="h-80">
-          {!hasHRData ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
-              <AlertCircle className="h-8 w-8 text-gray-400 mb-2" />
-              <p>Complete an HR interview to see performance metrics</p>
-              <p className="text-sm mt-2">
-                Complete an HR interview to see your performance comparison.
-              </p>
-            </div>
-          ) : (
-            <Bar data={hrVsTechData!} options={hrVsTechOptions!} />
-          )}
+      {!hasAnyData ? (
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No interview data available</h3>
+          <p className="text-gray-500">
+            {hasHRQuestions || hasTechnicalQuestions
+              ? "Complete an interview to see your performance metrics."
+              : "No interview questions were answered in this session."}
+          </p>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Chart 1: HR vs Technical Performance */}
+          {hasHRData && (
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <BarChart2 className="h-5 w-5 text-indigo-600 mr-2" />
+                Interview Type Performance
+              </h3>
+              <div className="h-80">
+                <Bar data={hrVsTechData!} options={hrVsTechOptions!} />
+              </div>
+            </div>
+          )}
 
-      {/* Chart 2: Theory vs Practical Performance */}
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <PieChart className="h-5 w-5 text-indigo-600 mr-2" />
-          Technical Performance Breakdown
-        </h3>
-        <div className="h-80">
-{!hasTechData ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
-              <AlertCircle className="h-8 w-8 text-gray-400 mb-2" />
-              <p>Complete a Technical interview to see performance breakdown</p>
-              <p className="text-sm mt-2">
-                The pie chart will show your performance on theory vs practical questions.
-              </p>
+          {/* Chart 2: Theory vs Practical Performance */}
+          {hasTechData && (
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <PieChart className="h-5 w-5 text-indigo-600 mr-2" />
+                Technical Performance Breakdown
+              </h3>
+              <div className="h-80">
+                <Pie data={theoryVsPracticalData!} options={theoryVsPracticalOptions!} />
+              </div>
             </div>
-          ) : (
-            <Pie data={theoryVsPracticalData!} options={theoryVsPracticalOptions!} />
           )}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
