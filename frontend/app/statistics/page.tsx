@@ -284,6 +284,15 @@ export default function StatisticsPage() {
           {/* Session Info */}
           {!isLoading && !error && <SessionInfo sessionData={sessionData} />}
           
+          {/* Charts Section */}
+          {!isLoading && !error && stats && (
+            <ChartsSection 
+              stats={stats} 
+              hasHRQuestions={hasHRQuestions}
+              hasTechnicalQuestions={hasTechnicalQuestions}
+            />
+          )}
+          
           {/* Questions List */}
           {!isLoading && !error && sessionData?.feedback && sessionData.feedback.length > 0 && (
             <div id="questions-section" className="mt-8">
@@ -300,13 +309,10 @@ export default function StatisticsPage() {
             </div>
           )}
           
-          {/* Charts Section */}
-          {!isLoading && !error && stats && <ChartsSection stats={stats} />}
-          
-          {/* Empty State - No data but no error */}
-          {!isLoading && !error && (!sessionData || !sessionData.feedback || sessionData.feedback.length === 0) && (
-            <div className="text-center py-12">
-              <p className="text-gray-600">No interview data available. Please complete an interview to see your statistics.</p>
+          {/* Empty State - No questions */}
+          {!isLoading && !error && (!sessionData?.feedback || sessionData.feedback.length === 0) && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No interview questions found.</p>
             </div>
           )}
         </div>
