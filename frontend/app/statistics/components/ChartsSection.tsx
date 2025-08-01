@@ -25,7 +25,16 @@ ChartJS.register(
 );
 
 // Chart colors for consistent theming
-const CHART_COLORS = {
+interface ChartColors {
+  hr: string;
+  technical: string;
+  theory: string;
+  practical: string;
+  border: string;
+  [key: string]: string;
+}
+
+const CHART_COLORS: ChartColors = {
   hr: 'rgba(99, 102, 241, 0.8)',
   technical: 'rgba(236, 72, 153, 0.8)',
   theory: 'rgba(16, 185, 129, 0.8)',
@@ -49,18 +58,17 @@ const commonOptions = {
     },
     title: {
       display: true,
-      font: { 
-        size: 16,
-        weight: 'bold' as const
-      },
-      padding: { top: 10, bottom: 20 }
+      align: 'start' as const,
+      font: { size: 16, weight: 'bold' as const },
+      padding: { bottom: 20 }
     },
     tooltip: {
       callbacks: {
-        label: function(this: unknown, tooltipItem: TooltipItem<'bar' | 'pie'>) {
-          const label = tooltipItem.dataset.label || '';
-          const value = tooltipItem.raw as number;
-          return `${label}: ${value}%`;
+        label: function(context: TooltipItem<'bar' | 'pie'>) {
+          const label = context.dataset?.label || '';
+          const value = context.parsed?.y || context.raw || 0;
+          const valueToShow = typeof value === 'number' ? value : 0;
+          return `${label}: ${valueToShow.toFixed(1)}`;
         }
       }
     }
@@ -69,149 +77,203 @@ const commonOptions = {
 
 interface ChartsSectionProps {
   stats: StatisticsResponse | null;
-  hasHRQuestions: boolean;
-  hasTechnicalQuestions: boolean;
 }
 
-export function ChartsSection({ stats, hasHRQuestions, hasTechnicalQuestions }: ChartsSectionProps) {
+export function ChartsSection({ stats }: ChartsSectionProps) {
+  // Early return if stats is null
+  if (!stats) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 mt-6">
+        <div className="text-center py-8">
+          <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No interview data available</h3>
+          <p className="mt-1 text-sm text-gray-500">Please complete an interview to see your statistics.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { metadata } = stats;
   // Process HR vs Technical performance data
   const processHRvsTechnicalData = () => {
     if (!stats?.charts?.bar_chart) {
-      return { data: null, options: null };
+      return null;
     }
+
+    const { labels, datasets } = stats.charts.bar_chart;
     
-    const barChartData = {
-      ...stats.charts.bar_chart,
-      datasets: stats.charts.bar_chart.datasets?.map(dataset => ({
+    return {
+      labels,
+      datasets: datasets.map((dataset, index) => ({
         ...dataset,
-        backgroundColor: [CHART_COLORS.hr, CHART_COLORS.technical],
-        borderColor: CHART_COLORS.border,
-        borderWidth: 1
+        backgroundColor: index === 0 ? CHART_COLORS.hr : CHART_COLORS.technical,
+        borderColor: index === 0 ? CHART_COLORS.hr : CHART_COLORS.technical,
+        borderWidth: 1,
+        borderRadius: 4,
+        barPercentage: 0.8,
+        categoryPercentage: 0.8,
       }))
     };
-    
-    // Ensure we have valid data
-    if (!barChartData.labels || !barChartData.datasets || barChartData.datasets.length === 0) {
-      return { data: null, options: null };
-    }
-    
-    const options = {
-      ...commonOptions,
-      plugins: {
-        ...commonOptions.plugins,
-        title: {
-          ...commonOptions.plugins.title,
-          text: barChartData.datasets[0]?.label || 'Interview Performance'
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          title: {
-            display: true,
-            text: 'Performance Score (%)'
-          }
-        }
-      }
-    };
-
-    return { data: barChartData, options };
   };
 
   // Process Theory vs Practical performance data
   const processTheoryVsPracticalData = () => {
     if (!stats?.charts?.pie_chart) {
-      return { data: null, options: null };
+      return null;
     }
 
-    const pieChartData = {
-      ...stats.charts.pie_chart,
-      datasets: stats.charts.pie_chart.datasets?.map(dataset => ({
+    const { labels, datasets } = stats.charts.pie_chart;
+    
+    return {
+      labels,
+      datasets: datasets.map(dataset => ({
         ...dataset,
         backgroundColor: [CHART_COLORS.theory, CHART_COLORS.practical],
         borderColor: CHART_COLORS.border,
-        borderWidth: 1
+        borderWidth: 1,
       }))
     };
-    
-    // Ensure we have valid data
-    if (!pieChartData.labels || !pieChartData.datasets || pieChartData.datasets.length === 0) {
-      return { data: null, options: null };
-    }
-
-    const options = {
-      ...commonOptions,
-      plugins: {
-        ...commonOptions.plugins,
-        title: {
-          ...commonOptions.plugins.title,
-          text: pieChartData.datasets[0]?.label || 'Performance Breakdown'
-        }
-      }
-    };
-
-    return { data: pieChartData, options };
   };
 
-  const { data: hrVsTechData, options: hrVsTechOptions } = processHRvsTechnicalData();
-  const { data: theoryVsPracticalData, options: theoryVsPracticalOptions } = processTheoryVsPracticalData();
-  
-  // Check if we have valid chart data
-  const hasHRData = hasHRQuestions && 
-                  hrVsTechData !== null && 
-                  hrVsTechOptions !== null;
-  
-  const hasTechData = hasTechnicalQuestions && 
-                    theoryVsPracticalData !== null && 
-                    theoryVsPracticalOptions !== null;
-  
-  // Check if we have any data to show at all
-  const hasAnyData = hasHRData || hasTechData;
+  const barChartData = processHRvsTechnicalData();
+  const pieChartData = processTheoryVsPracticalData();
 
+  // Chart options with type safety
+  // Bar chart specific options
+  const barChartOptions = {
+    ...commonOptions,
+    animation: {
+      duration: 1000,
+      easing: 'easeInOutQuart'
+    } as const,
+    plugins: {
+      ...commonOptions.plugins,
+      title: {
+        ...commonOptions.plugins.title,
+        text: 'Interview Performance by Type',
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: TooltipItem<'bar'>) {
+            if (!stats?.scores?.by_category) return '';
+            
+            const label = context.dataset.label || '';
+            const value = context.parsed?.y || 0;
+            const category = context.label?.toLowerCase() as keyof typeof stats.scores.by_category;
+            const totalQuestions = stats.scores.by_category[category]?.total_questions || 1;
+            const average = value / totalQuestions;
+            
+            return [
+              `${label}: ${average.toFixed(1)}/10 avg`,
+              `Total: ${value.toFixed(1)}`,
+              `Questions: ${totalQuestions}`
+            ];
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 10,
+        title: {
+          display: true,
+          text: 'Score (out of 10)'
+        }
+      }
+    }
+  };
+
+  // Pie chart specific options
+  const pieChartOptions = {
+    ...commonOptions,
+    animation: {
+      animateScale: true,
+      animateRotate: true,
+      duration: 1000
+    } as const,
+    plugins: {
+      ...commonOptions.plugins,
+      title: {
+        ...commonOptions.plugins.title,
+        text: 'Technical Performance Breakdown',
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: TooltipItem<'pie'>) {
+            const label = context.label || '';
+            const value = context.raw as number || 0;
+            const dataset = context.dataset as { data: number[] };
+            const total = dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = Math.round((value / total) * 100);
+            const category = label.toLowerCase().includes('theory') ? 'tech_theory' : 'tech_practical';
+            const totalQuestions = stats.scores.by_category[category]?.total_questions || 1;
+            const average = value / totalQuestions;
+            
+            return [
+              `${label}: ${average.toFixed(1)}/10 avg`,
+              `Percentage: ${percentage}%`,
+              `Questions: ${totalQuestions}`
+            ];
+          }
+        }
+      }
+    }
+  };
+
+  // Check if we have any charts to show
+  const hasCharts = barChartData || pieChartData;
+  const showHRTechnicalChart = barChartData && (metadata.has_hr || metadata.has_technical);
+  const showTheoryPracticalChart = pieChartData && metadata.has_tech_theory && metadata.has_tech_practical;
+
+  if (!hasCharts) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 mt-6">
+        <div className="text-center py-8">
+          <BarChart2 className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No chart data available</h3>
+          <p className="mt-1 text-sm text-gray-500">Complete more questions to see your performance charts.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-8">
-      <h2 className="text-xl font-semibold text-gray-800 mb-6">Interview Statistics</h2>
-      
-      {!hasAnyData ? (
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
-          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No interview data available</h3>
-          <p className="text-gray-500">
-            {hasHRQuestions || hasTechnicalQuestions
-              ? "Complete an interview to see your performance metrics."
-              : "No interview questions were answered in this session."}
-          </p>
+    <div className="space-y-6">
+      {/* HR vs Technical Performance Chart */}
+      {showHRTechnicalChart && barChartData && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="h-80">
+            <Bar data={barChartData} options={barChartOptions} />
+          </div>
         </div>
-      ) : (
-        <>
-          {/* Chart 1: HR vs Technical Performance */}
-          {hasHRData && (
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <BarChart2 className="h-5 w-5 text-indigo-600 mr-2" />
-                Interview Type Performance
-              </h3>
-              <div className="h-80">
-                <Bar data={hrVsTechData!} options={hrVsTechOptions!} />
-              </div>
-            </div>
-          )}
+      )}
 
-          {/* Chart 2: Theory vs Practical Performance */}
-          {hasTechData && (
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <PieChart className="h-5 w-5 text-indigo-600 mr-2" />
-                Technical Performance Breakdown
-              </h3>
-              <div className="h-80">
-                <Pie data={theoryVsPracticalData!} options={theoryVsPracticalOptions!} />
-              </div>
-            </div>
-          )}
-        </>
+      {/* Theory vs Practical Performance Chart */}
+      {showTheoryPracticalChart && pieChartData && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="h-80">
+            <Pie data={pieChartData} options={pieChartOptions} />
+          </div>
+        </div>
+      )}
+
+      {/* Fallback message if no charts are shown but we have data */}
+      {!showHRTechnicalChart && !showTheoryPracticalChart && metadata.total_questions > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-center py-8">
+            <PieChart className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Insufficient data for charts</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {metadata.has_hr ? 'HR interview completed. ' : ''}
+              {metadata.has_tech_theory ? 'Technical theory questions answered. ' : ''}
+              {metadata.has_tech_practical ? 'Technical practical questions answered.' : ''}
+              {!metadata.has_tech_theory && !metadata.has_tech_practical && !metadata.has_hr 
+                ? 'No interview data available.' 
+                : 'Complete more questions to see detailed charts.'}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

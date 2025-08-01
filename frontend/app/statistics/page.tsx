@@ -28,9 +28,10 @@ export default function StatisticsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [questionType, setQuestionType] = useState<QuestionType>('all');
   
-  // Check if there are HR or Technical questions
-  const hasHRQuestions = sessionData?.feedback?.some(item => item.type === 'hr') ?? false;
-  const hasTechnicalQuestions = sessionData?.feedback?.some(item => item.type === 'technical') ?? false;
+  // Check if there are HR or Technical questions based on metadata if available, otherwise fall back to feedback data
+  const hasHRQuestions = stats?.metadata?.has_hr ?? sessionData?.feedback?.some(item => item.type === 'hr') ?? false;
+  const hasTechnicalQuestions = stats?.metadata?.has_technical ?? 
+    sessionData?.feedback?.some(item => item.type === 'technical' || item.type === 'tech_theory' || item.type === 'tech_practical') ?? false;
   
   // Calculate total pages when sessionData or questionType changes
   useEffect(() => {
@@ -285,13 +286,9 @@ export default function StatisticsPage() {
           {!isLoading && !error && <SessionInfo sessionData={sessionData} />}
           
           {/* Charts Section */}
-          {!isLoading && !error && stats && (
-            <ChartsSection 
-              stats={stats} 
-              hasHRQuestions={hasHRQuestions}
-              hasTechnicalQuestions={hasTechnicalQuestions}
-            />
-          )}
+          <div className="mt-8">
+            <ChartsSection stats={stats} />
+          </div>
           
           {/* Questions List */}
           {!isLoading && !error && sessionData?.feedback && sessionData.feedback.length > 0 && (

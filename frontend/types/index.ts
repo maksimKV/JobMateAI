@@ -219,13 +219,20 @@ export interface ScoreBreakdown {
 
 export interface StatisticsResponse {
   success: boolean;
+  metadata: {
+    has_hr: boolean;
+    has_technical: boolean;
+    has_tech_theory: boolean;
+    has_tech_practical: boolean;
+    total_questions: number;
+  };
   session: {
     id: string;
     stage: string;
+    interview_type: string;
     timestamp: string;
     questions: string[];
-    feedback: InterviewFeedback[];
-    interviewType: string;
+    feedback: any[];
   };
   scores: {
     overall: {
@@ -234,15 +241,53 @@ export interface StatisticsResponse {
       max_possible: number;
     };
     by_category: {
-      hr: ScoreBreakdown;
-      tech_theory: ScoreBreakdown;
-      tech_practical: ScoreBreakdown;
+      hr?: {
+        score: number;
+        total_questions: number;
+        average: number;
+      };
+      tech_theory?: {
+        score: number;
+        total_questions: number;
+        average: number;
+      };
+      tech_practical?: {
+        score: number;
+        total_questions: number;
+        average: number;
+      };
     };
   };
   charts: {
-    bar_chart: ChartData;
-    pie_chart: ChartData;
-    line_chart: ChartData;
+    bar_chart?: {
+      labels: string[];
+      datasets: Array<{
+        label: string;
+        data: number[];
+        backgroundColor: string[];
+        borderColor: string[];
+        borderWidth: number;
+      }>;
+    };
+    pie_chart?: {
+      labels: string[];
+      datasets: Array<{
+        data: number[];
+        backgroundColor: string[];
+        borderColor: string[];
+        borderWidth: number;
+      }>;
+    };
+    line_chart?: {
+      labels: string[];
+      datasets: Array<{
+        label: string;
+        data: number[];
+        fill: boolean;
+        borderColor: string;
+        tension: number;
+      }>;
+    };
   };
 }
 
