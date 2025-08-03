@@ -4,7 +4,19 @@ import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { coverLetterAPI, cvAPI, APIError } from '@/lib/api';
 import { CoverLetterRequest, CoverLetterResponse, CVData } from '@/types';
-import { Mail, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Loader2, AlertCircle, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+
+// Type definition for html2canvas options
+type Html2CanvasOptions = {
+  scale?: number;
+  logging?: boolean;
+  useCORS?: boolean;
+  allowTaint?: boolean;
+  backgroundColor?: string | null;
+  removeContainer?: boolean;
+};
 
 export default function CoverLetterPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -162,6 +174,7 @@ export default function CoverLetterPage() {
                 </button>
               </div>
               <div 
+                id="cover-letter-content"
                 className="bg-white border border-gray-300 rounded-lg p-4 text-gray-800 w-full min-h-[200px] max-h-[600px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
                 contentEditable
                 suppressContentEditableWarning={true}
@@ -175,6 +188,107 @@ export default function CoverLetterPage() {
                   fontSize: '0.9375rem' // Match default text size
                 }}
               />
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={async () => {
+                    try {
+                      const element = document.getElementById('cover-letter-content');
+                      if (!element) return;
+                      
+                      // Create a clone of the element to avoid affecting the original
+                      const elementClone = element.cloneNode(true) as HTMLElement;
+                      document.body.appendChild(elementClone);
+                      elementClone.style.position = 'fixed';
+                      elementClone.style.left = '-9999px';
+                      elementClone.style.top = '0';
+                      
+                      // Set a white background to ensure good contrast
+                      elementClone.style.backgroundColor = 'white';
+                      
+                      // Remove any problematic CSS properties
+                      const allElements = elementClone.getElementsByTagName('*');
+                      for (let i = 0; i < allElements.length; i++) {
+                        const el = allElements[i] as HTMLElement;
+                        // Remove any problematic color functions
+                        if (el.style.color.includes('oklch')) {
+                          el.style.color = '';
+                        }
+                        if (el.style.backgroundColor?.includes('oklch')) {
+                          el.style.backgroundColor = '';
+                        }
+                      }
+                      
+                      try {
+                        // Create a temporary container for better rendering
+                        const tempContainer = document.createElement('div');
+                        tempContainer.style.position = 'absolute';
+                        tempContainer.style.left = '-9999px';
+                        tempContainer.style.top = '0';
+                        tempContainer.style.width = '210mm'; // A4 width
+                        tempContainer.style.padding = '20px';
+                        tempContainer.style.background = 'white';
+                        
+                        // Clone and clean the content
+                        const cleanClone = elementClone.cloneNode(true) as HTMLElement;
+                        cleanClone.style.all = 'revert';
+                        cleanClone.style.width = '100%';
+                        cleanClone.style.padding = '20px';
+                        cleanClone.style.boxSizing = 'border-box';
+                        
+                        // Add to temp container
+                        tempContainer.appendChild(cleanClone);
+                        document.body.appendChild(tempContainer);
+                        
+                        try {
+                          // Generate the canvas with explicit type assertion
+                          const options: Html2CanvasOptions = {
+                            scale: 2,
+                            logging: false,
+                            useCORS: true,
+                            allowTaint: true,
+                            backgroundColor: null,
+                            removeContainer: false
+                          };
+                          
+                          const canvas = await html2canvas(cleanClone, options);
+                          
+                          // Create PDF
+                          const pdf = new jsPDF('p', 'mm', 'a4');
+                          const imgData = canvas.toDataURL('image/png');
+                          const pdfWidth = pdf.internal.pageSize.getWidth() - 40; // 20mm margins
+                          const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+                          
+                          // Add image to PDF with margins
+                          pdf.addImage(
+                            imgData,
+                            'PNG',
+                            20, // x
+                            20, // y
+                            pdfWidth,
+                            imgHeight
+                          );
+                          
+                          // Save the PDF
+                          pdf.save('cover-letter.pdf');
+                        } finally {
+                          // Clean up
+                          document.body.removeChild(tempContainer);
+                        }
+                      } finally {
+                        // Clean up the cloned element
+                        document.body.removeChild(elementClone);
+                      }
+                    } catch (error) {
+                      console.error('Error generating PDF:', error);
+                      setError('Failed to generate PDF. Please try again or copy the text manually.');
+                    }
+                  }}
+                  className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center gap-2"
+                >
+                  <Download className="h-5 w-5" />
+                  Download as PDF
+                </button>
+              </div>
             </div>
           )}
         </div>
