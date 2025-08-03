@@ -320,6 +320,7 @@ export default function CoverLetterPage() {
                                   }
                                 } catch (error) {
                                   // Skip cross-origin stylesheets that throw errors
+                                  console.error('Error processing CSS:', error);
                                   continue;
                                 }
                               }

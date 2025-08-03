@@ -14,7 +14,7 @@ import {
   Filler,
   ScriptableContext
 } from 'chart.js';
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { PieChart, BarChart2, AlertCircle } from 'lucide-react';
 import { StatisticsResponse } from '@/types';
 
@@ -126,7 +126,6 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
   const chartRef = useRef<{
     update: (mode?: string) => void;
   } | null>(null);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   
   // Log when the chart data changes
   useEffect(() => {
@@ -136,14 +135,25 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
     }
   }, [lineChartData]);
 
+  const hasCharts = useMemo(() => {
+    console.log('Checking if charts should render:', {
+      hasLineData: lineChartData?.datasets?.length > 0,
+      hasStats: !!stats,
+      hasLineChart: !!stats?.charts?.line_chart,
+      lineChartData
+    });
+    return lineChartData?.datasets?.length > 0 && !!stats?.charts?.line_chart;
+  }, [lineChartData, stats]);
+
   // Update container size on mount and window resize
   useEffect(() => {
     const updateSize = () => {
       if (chartContainerRef.current) {
-        setContainerSize({
+        const containerSize = {
           width: chartContainerRef.current.offsetWidth,
           height: chartContainerRef.current.offsetHeight
-        });
+        };
+        console.log('Container size updated:', containerSize);
       }
     };
 
@@ -156,16 +166,6 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
     // Cleanup
     return () => window.removeEventListener('resize', updateSize);
   }, []);
-
-  const hasCharts = useMemo(() => {
-    console.log('Checking if charts should render:', {
-      hasLineData: lineChartData?.datasets?.length > 0,
-      hasStats: !!stats,
-      hasLineChart: !!stats?.charts?.line_chart,
-      lineChartData
-    });
-    return lineChartData?.datasets?.length > 0 && !!stats?.charts?.line_chart;
-  }, [lineChartData, stats, stats?.charts?.line_chart]);
 
   // Handle loading or no stats
   if (!stats) {
