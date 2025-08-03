@@ -260,18 +260,31 @@ class AIClient:
         2. Clarity and communication
         3. Technical accuracy (if applicable)
         4. Areas for improvement
-        5. Score (1-10)
+        
+        At the end, provide a score from 1-10 based on the answer's quality.
+        Format the score as: SCORE: X/10 where X is the score.
         
         Give constructive feedback with specific suggestions.
         """
         
         evaluation = await self.generate_text(prompt, max_tokens=600, temperature=0.5)
         
+        # Extract score from evaluation text (look for SCORE: X/10 pattern)
+        import re
+        score_match = re.search(r'SCORE:\s*(\d+(?:\.\d+)?)/10', evaluation, re.IGNORECASE)
+        score = 5  # Default score if not found
+        if score_match:
+            try:
+                score = float(score_match.group(1))
+            except (ValueError, IndexError):
+                pass
+        
         return {
             "evaluation": evaluation,
             "question": question,
             "answer": answer,
-            "type": question_type
+            "type": question_type,
+            "score": score
         }
 
 # Global AI client instance

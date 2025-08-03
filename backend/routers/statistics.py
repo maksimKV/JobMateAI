@@ -41,24 +41,107 @@ def calculate_scores(feedback: List[Dict[str, Any]], stage: str) -> Dict[str, An
 async def get_statistics(
     session_id: str = Body(..., embed=True)
 ) -> Dict[str, Any]:
-    """Return statistics for interview session including charts and full session data."""
-    if session_id not in interview_sessions:
-        raise HTTPException(status_code=404, detail="Session not found.")
+    """Return statistics for interview session including charts and full session data.
     
-    session = interview_sessions[session_id]
-    feedback = session.get("feedback", [])
-    questions = session.get("questions", [])
-    stage = session.get("stage", "hr")
-    interview_type = session.get("interview_type", "technical").lower()
+    If no session is found, returns default empty statistics instead of raising an error.
+    """
+    try:
+        if session_id not in interview_sessions:
+            # Return default empty statistics instead of raising an error
+            return {
+                "success": True,
+                "message": "No active session found. Please start a new interview.",
+                "has_data": False,
+                "scores": {
+                    "hr_score": 0,
+                    "tech_theory_score": 0,
+                    "tech_practical_score": 0,
+                    "total_hr": 0,
+                    "total_tech_theory": 0,
+                    "total_tech_practical": 0
+                },
+                "charts": {
+                    "line_chart": {
+                        "labels": [],
+                        "datasets": []
+                    },
+                    "radar_chart": {
+                        "labels": [],
+                        "datasets": []
+                    }
+                }
+            }
+        
+        session = interview_sessions.get(session_id, {})        
+        feedback = session.get("feedback", [])
+        questions = session.get("questions", [])
+        stage = session.get("stage", "hr")
+        interview_type = session.get("interview_type", "technical").lower()
+                
+        # Initialize scores with default values
+        scores = {
+            "hr_score": 0,
+            "tech_theory_score": 0,
+            "tech_practical_score": 0,
+            "total_hr": 0,
+            "total_tech_theory": 0,
+            "total_tech_practical": 0
+        }
+        
+        # Calculate scores if we have feedback
+        if feedback:
+            try:
+                calculated_scores = calculate_scores(feedback, stage)
+                                
+                # Ensure calculated_scores is a dictionary and has all required keys
+                if isinstance(calculated_scores, dict):
+                    scores.update({
+                        k: calculated_scores.get(k, 0) 
+                        for k in scores.keys()
+                    })
+                else:
+                    print(f"[WARNING] Expected dictionary but got {type(calculated_scores)}")
+            except Exception as e:
+                print(f"[ERROR] Error calculating scores: {str(e)}")
+                import traceback
+                traceback.print_exc()
     
-    # Calculate scores
-    scores = calculate_scores(feedback, stage)
+    except Exception as e:
+        error_msg = f"Unexpected error in get_statistics: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": "An error occurred while processing your request.",
+            "error": error_msg,
+            "has_data": False,
+            "scores": {
+                "hr_score": 0,
+                "tech_theory_score": 0,
+                "tech_practical_score": 0,
+                "total_hr": 0,
+                "total_tech_theory": 0,
+                "total_tech_practical": 0
+            },
+            "charts": {
+                "line_chart": {
+                    "labels": [],
+                    "datasets": []
+                },
+                "radar_chart": {
+                    "labels": [],
+                    "datasets": []
+                }
+            }
+        }
     
     # Determine which types of questions we have
-    has_hr = stage == "hr" and scores["total_hr"] > 0
-    has_tech = scores["total_tech_theory"] > 0 or scores["total_tech_practical"] > 0
-    has_tech_theory = scores["total_tech_theory"] > 0
-    has_tech_practical = scores["total_tech_practical"] > 0
+    # Safely access scores with .get() to avoid KeyError
+    has_hr = stage == "hr" and scores.get("total_hr", 0) > 0
+    has_tech_theory = stage == "technical" and scores.get("total_tech_theory", 0) > 0
+    has_tech_practical = stage == "technical" and scores.get("total_tech_practical", 0) > 0
+    has_tech = has_tech_theory or has_tech_practical
     
     # Prepare questions and feedback for the response
     session_data = []
@@ -139,18 +222,22 @@ async def get_statistics(
                 }]
             }
     
-    # Line chart: Progress over questions (only if we have questions)
-    if questions:
-        line_chart = {
-            "labels": [f"Q{i+1}" for i in range(len(questions))],
-            "datasets": [{
-                "label": "Score per Question",
-                "data": [fb.get("score", 0) for fb in feedback],
-                "fill": False,
-                "borderColor": "#8b5cf6",
-                "tension": 0.3
-            }]
-        }
+    # Line chart: Progress over questions (only if we have questions with scores)
+    if questions and feedback and len(questions) == len(feedback):
+        # Only create line chart if we have scores
+        question_scores = [float(fb.get("score", 0)) for fb in feedback if fb.get("score") is not None]
+        
+        if question_scores:  # Only create chart if we have at least one score
+            line_chart = {
+                "labels": [f"Q{i+1}" for i in range(len(questions))],
+                "datasets": [{
+                    "label": "Score per Question",
+                    "data": [fb.get("score", 0) for fb in feedback],
+                    "fill": False,
+                    "borderColor": "#8b5cf6",
+                    "tension": 0.3
+                }]
+            }
     
     # Prepare response
     response = {
@@ -184,16 +271,16 @@ async def get_statistics(
     # Only include categories that have data
     if has_hr:
         response["scores"]["by_category"]["hr"] = {
-            "score": scores["hr_score"],
-            "total_questions": scores["total_hr"],
-            "average": scores["hr_score"] / scores["total_hr"] if scores["total_hr"] > 0 else 0
+            "score": scores.get("hr_score", 0),
+            "total_questions": scores.get("total_hr", 0),
+            "average": scores.get("hr_score", 0) / scores.get("total_hr", 1) if scores.get("total_hr", 0) > 0 else 0
         }
     
     if has_tech_theory:
         response["scores"]["by_category"]["tech_theory"] = {
-            "score": scores["tech_theory_score"],
-            "total_questions": scores["total_tech_theory"],
-            "average": scores["tech_theory_score"] / scores["total_tech_theory"] if scores["total_tech_theory"] > 0 else 0
+            "score": scores.get("tech_theory_score", 0),
+            "total_questions": scores.get("total_tech_theory", 0),
+            "average": scores.get("tech_theory_score", 0) / scores.get("total_tech_theory", 1) if scores.get("total_tech_theory", 0) > 0 else 0
         }
         
     if has_tech_practical:

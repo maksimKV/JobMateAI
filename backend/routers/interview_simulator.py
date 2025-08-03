@@ -133,12 +133,17 @@ async def submit_answer(
         feedback = await ai_client.evaluate_answer(question, answer, question_type)
         
         # Store the answer and feedback
-        session["answers"].append({
+        feedback_data = {
             "question": question,
             "answer": answer,
             "type": question_type,
-            "feedback": feedback
-        })
+            "evaluation": feedback.get("feedback", ""),
+            "score": feedback.get("score", 0)  # Store the score for statistics
+        }
+        
+        # Store in both answers and feedback arrays for backward compatibility
+        session["answers"].append(feedback_data)
+        session["feedback"].append(feedback_data)
         
         # Move to the next question
         next_idx = current_idx + 1
