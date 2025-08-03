@@ -62,7 +62,7 @@ export interface JobMatchResponse {
 }
 
 // Interview Simulator Types
-export type InterviewType = 'hr' | 'technical' | 'mixed';
+export type InterviewType = 'hr' | 'technical' | 'mixed' | 'non_technical';
 export type InterviewLength = 'short' | 'medium' | 'long';
 
 export const INTERVIEW_LENGTHS: Record<InterviewLength, { label: string; questions: number }> = {
@@ -77,6 +77,12 @@ export const MIXED_INTERVIEW_LENGTHS: Record<InterviewLength, { label: string; q
   long: { label: 'Long (24 questions)', questions: { hr: 12, technical: 12 } },
 };
 
+export const NON_TECHNICAL_LENGTHS: Record<InterviewLength, { label: string; questions: number }> = {
+  short: { label: 'Short (4 questions)', questions: 4 },
+  medium: { label: 'Medium (8 questions)', questions: 8 },
+  long: { label: 'Long (12 questions)', questions: 12 },
+};
+
 export interface InterviewQuestionRequest {
   job_description: string;
   interview_type: InterviewType;
@@ -85,7 +91,7 @@ export interface InterviewQuestionRequest {
 
 export interface InterviewQuestion {
   text: string;
-  type: 'hr' | 'technical'; // Only these two types are valid for individual questions
+  type: 'hr' | 'technical' | 'non_technical';
 }
 
 export interface InterviewFeedback {
@@ -100,6 +106,8 @@ export interface InterviewFeedback {
 export interface InterviewSession extends InterviewSessionState {
   questions: InterviewQuestion[];
   feedback: InterviewFeedback[];
+  detected_role?: string;
+  detected_domain?: string;
 }
 
 // Type guard to check if an object is of type InterviewFeedback
@@ -111,7 +119,7 @@ export const isInterviewFeedback = (obj: any): obj is InterviewFeedback => {
     'answer' in obj &&
     'evaluation' in obj &&
     'type' in obj &&
-    (obj.type === 'hr' || obj.type === 'technical' || obj.type === 'mixed')
+    (obj.type === 'hr' || obj.type === 'technical' || obj.type === 'mixed' || obj.type === 'non_technical')
   );
 };
 
@@ -124,6 +132,8 @@ export interface InterviewQuestionResponse {
   current_question: string;
   question_type: string;
   question_number: number;
+  detected_role?: string;
+  detected_domain?: string;
 }
 
 export interface QuestionData {
@@ -152,6 +162,8 @@ export interface InterviewSessionState {
   feedback: InterviewFeedback[];
   interviewType: InterviewType;
   isComplete: boolean;
+  detected_role?: string;
+  detected_domain?: string;
 }
 
 // Code Reviewer Types
@@ -307,4 +319,4 @@ export type NavItem = {
 export interface APIError {
   detail: string;
   status_code: number;
-} 
+}
