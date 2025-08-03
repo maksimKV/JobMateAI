@@ -219,19 +219,73 @@ class AIClient:
             "company_name": company_name
         }
     
-    async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8) -> Dict[str, Any]:
-        """Generate interview questions based on job description.
+    async def detect_role_and_domain(self, job_description: str) -> dict:
+        """
+        Detect the role and domain from a job description.
+        Returns a dictionary with 'role' and 'domain' keys.
+        """
+        prompt = f"""
+        Analyze the following job description and determine:
+        1. The specific job role (e.g., 'Marketing Manager', 'Sales Representative')
+        2. The general domain/industry (e.g., 'Marketing', 'Sales', 'Healthcare')
         
-        Args:
-            job_description: The job description to base questions on
-            question_type: Type of questions ('hr' or 'technical')
-            count: Number of questions to generate (default: 8)
-            
-        Returns:
-            Dict containing the generated questions
+        Job Description:
+        {job_description}
+        
+        Return a JSON object with these fields:
+        - "role": The specific job role
+        - "domain": The general domain/industry
+        
+        Only return the JSON object, nothing else.
         """
         
-        if question_type == "hr":
+        try:
+            response = await self.generate_text(prompt, max_tokens=200, temperature=0.3)
+            # Clean and parse the response
+            response = response.strip().strip('```json').strip('```').strip()
+            import json
+            result = json.loads(response)
+            
+            # Validate the response
+            if not all(key in result for key in ["role", "domain"]):
+                raise ValueError("Invalid response format from AI")
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error detecting role and domain: {str(e)}")
+            # Return default values in case of error
+            return {
+                "role": "Professional Role",
+                "domain": "General Business"
+            }
+
+    async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8) -> Dict[str, Any]:
+        """Generate interview questions based on job description and type."""
+        
+        if question_type == "non_technical":
+            # First detect the role and domain
+            role_info = await self.detect_role_and_domain(job_description)
+            role = role_info["role"]
+            domain = role_info["domain"]
+            
+            prompt = f"""
+            Generate exactly {count} interview questions for a {role} role in the {domain} domain.
+            Focus on questions that assess:
+            - Role-specific knowledge and skills
+            - Industry best practices
+            - Problem-solving in this domain
+            - Communication and interpersonal skills
+            - Past experiences relevant to this role
+            
+            Job Description:
+            {job_description}
+            
+            Important: Start directly with the questions, no introductory text.
+            Format each question on a new line with a number and period (e.g., "1. Question text").
+            Do not include any other text before, between, or after the questions.
+            """
+        elif question_type == "hr":
             prompt = f"""
             Generate exactly {count} HR interview questions based on this job description. 
             Focus on:
@@ -250,7 +304,7 @@ class AIClient:
             """
         else:  # technical
             prompt = f"""
-            Generate exactly {count} technical interview questions based on this job description. 
+            Generate exactly {count} technical interview questions based on this job description.
             Include:
             - Theory questions
             - Practical coding scenarios
@@ -267,12 +321,21 @@ class AIClient:
         
         questions = await self.generate_text(prompt, max_tokens=1000, temperature=0.6)
         
-        return {
+        # For non-technical questions, include the detected role and domain in the response
+        result = {
             "questions": questions,
             "type": question_type,
             "job_description": job_description
         }
-    
+        
+        if question_type == "non_technical":
+            result.update({
+                "detected_role": role,
+                "detected_domain": domain
+            })
+        
+        return result
+
     async def evaluate_answer(self, question: str, answer: str, question_type: str) -> Dict[str, Any]:
         """Evaluate an interview answer and provide feedback."""
         

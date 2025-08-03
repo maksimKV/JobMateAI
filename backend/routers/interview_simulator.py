@@ -35,14 +35,14 @@ async def _generate_questions_by_type(job_description: str, question_type: str, 
 @router.post("/generate-questions")
 async def generate_questions(
     job_description: str = Body(..., embed=True),
-    interview_type: str = Body("hr", embed=True),  # 'hr', 'technical', or 'mixed'
+    interview_type: str = Body("non_technical", embed=True),  # 'hr', 'technical', 'mixed', or 'non_technical'
     length: str = Body("medium", embed=True)  # 'short', 'medium', or 'long'
 ) -> Dict[str, Any]:
     """Generate interview questions based on job description, interview type, and length."""
-    if interview_type not in ["hr", "technical", "mixed"]:
+    if interview_type not in ["hr", "technical", "mixed", "non_technical"]:
         raise HTTPException(
             status_code=400, 
-            detail="Invalid interview type. Use 'hr', 'technical', or 'mixed'."
+            detail="Invalid interview type. Use 'hr', 'technical', 'mixed', or 'non_technical'."
         )
     
     if length not in ["short", "medium", "long"]:
@@ -56,7 +56,6 @@ async def generate_questions(
         
         if interview_type == "mixed":
             # For mixed interviews, generate both HR and technical questions
-            # based on the selected length
             hr_count = {"short": 4, "medium": 8, "long": 12}[length]
             tech_count = {"short": 4, "medium": 8, "long": 12}[length]
             
@@ -81,8 +80,8 @@ async def generate_questions(
                 detail="Failed to generate questions. Please try again."
             )
         
-        # Store the session
-        interview_sessions[session_id] = {
+        # Prepare session data with additional metadata for non_technical type
+        session_data = {
             "interview_type": interview_type,
             "questions": questions,
             "current_question_index": 0,
@@ -90,7 +89,18 @@ async def generate_questions(
             "feedback": []
         }
         
-        return {
+        # Add detected role and domain for non_technical interviews
+        if interview_type == "non_technical" and hasattr(questions[0], 'get'):
+            session_data.update({
+                "detected_role": questions[0].get("detected_role", "Professional Role"),
+                "detected_domain": questions[0].get("detected_domain", "General Business")
+            })
+        
+        # Store the session
+        interview_sessions[session_id] = session_data
+        
+        # Prepare response
+        response = {
             "success": True,
             "session_id": session_id,
             "interview_type": interview_type,
@@ -99,6 +109,15 @@ async def generate_questions(
             "question_type": questions[0]["type"] if questions else "",
             "question_number": 1
         }
+        
+        # Add detected role and domain to response for non_technical interviews
+        if interview_type == "non_technical":
+            response.update({
+                "detected_role": session_data.get("detected_role", "Professional Role"),
+                "detected_domain": session_data.get("detected_domain", "General Business")
+            })
+        
+        return response
         
     except HTTPException:
         raise
@@ -192,6 +211,13 @@ async def get_session(session_id: str) -> Dict[str, Any]:
         "answers": session["answers"],
         "is_complete": current_idx >= total_questions
     }
+    
+    # Add detected role and domain for non_technical interviews
+    if session["interview_type"] == "non_technical":
+        response.update({
+            "detected_role": session.get("detected_role", "Professional Role"),
+            "detected_domain": session.get("detected_domain", "General Business")
+        })
     
     # Add current question if available
     if current_idx < total_questions:
