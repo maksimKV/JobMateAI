@@ -17,7 +17,7 @@ import { ChartsSection } from './components/ChartsSection';
 // Number of questions to show per page
 const QUESTIONS_PER_PAGE = 1;
 
-type QuestionType = 'all' | 'hr' | 'technical';
+type QuestionType = 'all' | 'hr' | 'technical' | 'non_technical';
 
 export default function StatisticsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -28,19 +28,26 @@ export default function StatisticsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [questionType, setQuestionType] = useState<QuestionType>('all');
   
-  // Check if there are HR or Technical questions based on metadata if available, otherwise fall back to feedback data
-  const hasHRQuestions = stats?.metadata?.has_hr ?? sessionData?.feedback?.some(item => item.type === 'hr') ?? false;
-  const hasTechnicalQuestions = stats?.metadata?.has_technical ?? 
-    sessionData?.feedback?.some(item => item.type === 'technical' || item.type === 'tech_theory' || item.type === 'tech_practical') ?? false;
+  // Check if there are HR, Technical, or Non-Technical questions
+  const hasHRQuestions = (stats?.scores?.by_category?.hr?.total_questions || 0) > 0;
+  const hasTechnicalQuestions = 
+    ((stats?.scores?.by_category?.tech_theory?.total_questions || 0) + 
+    (stats?.scores?.by_category?.tech_practical?.total_questions || 0)) > 0;
+  const hasNonTechnicalQuestions = (stats?.scores?.by_category?.non_technical?.total_questions || 0) > 0;
   
   // Calculate total pages when sessionData or questionType changes
   useEffect(() => {
     if (sessionData?.feedback) {
-      // Define filter function inside useEffect to avoid dependency issues
       const filterQuestionsByType = (questions: FeedbackItem[]) => {
         if (!questions) return [];
         if (questionType === 'all') return [...questions];
-        return questions.filter(question => question.type === questionType);
+        return questions.filter(question => {
+          const qType = question.type?.toLowerCase();
+          if (questionType === 'technical') {
+            return qType === 'technical' || qType === 'tech_theory' || qType === 'tech_practical';
+          }
+          return qType === questionType;
+        });
       };
       
       const filteredQuestions = filterQuestionsByType(sessionData.feedback);
@@ -56,11 +63,16 @@ export default function StatisticsPage() {
   
   // Get current questions based on pagination and filter
   const getCurrentQuestions = useMemo(() => {
-    // Define filter function inside useMemo to avoid dependency issues
     const filterQuestionsByType = (questions: FeedbackItem[]) => {
       if (!questions) return [];
       if (questionType === 'all') return [...questions];
-      return questions.filter(question => question.type === questionType);
+      return questions.filter(question => {
+        const qType = question.type?.toLowerCase();
+        if (questionType === 'technical') {
+          return qType === 'technical' || qType === 'tech_theory' || qType === 'tech_practical';
+        }
+        return qType === questionType;
+      });
     };
     
     if (!sessionData?.feedback) return [];
@@ -300,6 +312,7 @@ export default function StatisticsPage() {
                 questionType={questionType}
                 hasHRQuestions={hasHRQuestions}
                 hasTechnicalQuestions={hasTechnicalQuestions}
+                hasNonTechnicalQuestions={hasNonTechnicalQuestions}
                 onPageChange={handlePageChange}
                 onTypeChange={handleTypeChange}
               />

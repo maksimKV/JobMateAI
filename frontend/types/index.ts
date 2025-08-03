@@ -198,6 +198,7 @@ export interface FeedbackItem {
   answer: string;
   evaluation: string;
   type?: string;
+  score?: number;
 }
 
 export interface SessionData {
@@ -268,6 +269,11 @@ export interface StatisticsResponse {
         average: number;
       };
       tech_practical?: {
+        score: number;
+        total_questions: number;
+        average: number;
+      };
+      non_technical?: {
         score: number;
         total_questions: number;
         average: number;
