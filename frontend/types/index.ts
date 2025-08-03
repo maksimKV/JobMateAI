@@ -36,6 +36,7 @@ export interface CoverLetterRequest {
 export interface CoverLetterResponse {
   success: boolean;
   cover_letter: string;
+  company_name: string;
   language: string;
 }
 

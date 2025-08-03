@@ -2,29 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
-import { coverLetterAPI, cvAPI, APIError } from '@/lib/api';
-import { CoverLetterRequest, CoverLetterResponse, CVData } from '@/types';
+import { coverLetterAPI, cvAPI } from '@/lib/api';
+import { CoverLetterRequest, CVData } from '@/types';
 import { Mail, Loader2, AlertCircle, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 // Type definition for html2canvas options
-type Html2CanvasOptions = {
-  scale?: number;
-  logging?: boolean;
-  useCORS?: boolean;
-  allowTaint?: boolean;
-  backgroundColor?: string | null;
-  removeContainer?: boolean;
-};
+interface Html2CanvasOptions {
+  scale: number;
+  logging: boolean;
+  useCORS: boolean;
+  allowTaint: boolean;
+  backgroundColor: string | null;
+  removeContainer: boolean;
+  ignoreElements?: (element: HTMLElement) => boolean;
+  onclone?: (document: Document) => void;
+}
 
 export default function CoverLetterPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [selectedCv, setSelectedCv] = useState<string>('');
+  const [coverLetter, setCoverLetter] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [jobDescription, setJobDescription] = useState('');
   const [language, setLanguage] = useState('English');
   const [isLoading, setIsLoading] = useState(false);
-  const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,17 +45,19 @@ export default function CoverLetterPage() {
     setIsLoading(true);
     setError(null);
     setCoverLetter(null);
+    setCompanyName(null);
     try {
       const req: CoverLetterRequest = {
         cv_id: selectedCv,
         job_description: jobDescription,
         language,
       };
-      const res: CoverLetterResponse = await coverLetterAPI.generate(req);
-      setCoverLetter(res.cover_letter);
+      const data = await coverLetterAPI.generate(req);
+      setCoverLetter(data.cover_letter);
+      setCompanyName(data.company_name || 'Company');
     } catch (err) {
-      if (err instanceof APIError) setError(err.message);
-      else setError('An unexpected error occurred');
+      console.error('Error generating cover letter:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate cover letter');
     } finally {
       setIsLoading(false);
     }
@@ -219,57 +224,132 @@ export default function CoverLetterPage() {
                       }
                       
                       try {
-                        // Create a temporary container for better rendering
+                        // Create a temporary container with A4 dimensions (210mm x 297mm at 96 DPI)
                         const tempContainer = document.createElement('div');
                         tempContainer.style.position = 'absolute';
                         tempContainer.style.left = '-9999px';
-                        tempContainer.style.top = '0';
-                        tempContainer.style.width = '210mm'; // A4 width
-                        tempContainer.style.padding = '20px';
-                        tempContainer.style.background = 'white';
+                        tempContainer.style.width = '794px'; // A4 width in pixels at 96 DPI
+                        tempContainer.style.padding = '20mm';
+                        tempContainer.style.backgroundColor = 'white';
+                        tempContainer.style.boxSizing = 'border-box';
+                        tempContainer.style.fontFamily = 'Arial, sans-serif';
+                        tempContainer.style.fontSize = '12pt';
+                        tempContainer.style.lineHeight = '1.6';
                         
-                        // Clone and clean the content
-                        const cleanClone = elementClone.cloneNode(true) as HTMLElement;
-                        cleanClone.style.all = 'revert';
-                        cleanClone.style.width = '100%';
-                        cleanClone.style.padding = '20px';
-                        cleanClone.style.boxSizing = 'border-box';
+                        // Clone the content and clean up problematic styles
+                        const contentClone = elementClone.cloneNode(true) as HTMLElement;
+                        contentClone.style.width = '100%';
+                        contentClone.style.height = 'auto';
+                        contentClone.style.margin = '0';
+                        contentClone.style.padding = '0';
+                        contentClone.style.border = 'none';
+                        contentClone.style.overflow = 'visible';
                         
-                        // Add to temp container
-                        tempContainer.appendChild(cleanClone);
+                        // Remove any inline background colors or problematic styles
+                        const removeProblematicStyles = (element: HTMLElement) => {
+                          // Remove style attributes that might contain unsupported color functions
+                          if (element.style) {
+                            element.style.backgroundColor = '';
+                            element.style.backgroundImage = '';
+                            element.style.boxShadow = 'none';
+                            element.style.transform = 'none';
+                            element.style.color = ''; // Reset text color
+                            element.style.border = 'none';
+                            element.style.borderRadius = '';
+                            element.style.background = '';
+                            element.style.backgroundClip = '';
+                            element.style.webkitBackgroundClip = '';
+                            element.style.backgroundClip = '';
+                            element.style.webkitTextFillColor = '';
+                            element.style.filter = '';
+                            element.style.backdropFilter = '';
+                            element.style.backgroundBlendMode = '';
+                            element.style.mixBlendMode = '';
+                            element.style.isolation = '';
+                          }
+                        };
+
+                        // Process all elements including the root
+                        removeProblematicStyles(contentClone);
+                        contentClone.querySelectorAll('*').forEach(el => {
+                          removeProblematicStyles(el as HTMLElement);
+                        });
+
+                        // Force standard colors and fonts for better PDF rendering
+                        contentClone.style.color = '#000000';
+                        contentClone.style.fontFamily = 'Arial, sans-serif';
+                        
+                        tempContainer.appendChild(contentClone);
                         document.body.appendChild(tempContainer);
                         
                         try {
-                          // Generate the canvas with explicit type assertion
                           const options: Html2CanvasOptions = {
                             scale: 2,
-                            logging: false,
+                            logging: true, // Enable logging to help with debugging
                             useCORS: true,
                             allowTaint: true,
-                            backgroundColor: null,
-                            removeContainer: false
+                            backgroundColor: '#FFFFFF',
+                            removeContainer: true,
+                            ignoreElements: () => {
+                              // Ignore elements that might cause issues
+                              return false;
+                            },
+                            onclone: (clonedDoc) => {
+                              // Clean up any remaining styles on the cloned document
+                              const styleSheets = Array.from(clonedDoc.styleSheets);
+                              for (const styleSheet of styleSheets) {
+                                try {
+                                  const rules = styleSheet.cssRules ? Array.from(styleSheet.cssRules) : [];
+                                  for (const rule of rules) {
+                                    if ('style' in rule && rule.style) {
+                                      // Type assertion for CSSStyleRule
+                                      const cssRule = rule as CSSStyleRule;
+                                      const style = cssRule.style;
+                                      // Convert CSSStyleDeclaration to array of property names
+                                      const properties = Array.from(style);
+                                      for (const prop of properties) {
+                                        if (prop.includes('oklch') || 
+                                            prop.includes('gradient') || 
+                                            prop.includes('filter') ||
+                                            prop.includes('blend') ||
+                                            prop.includes('backdrop')) {
+                                          style.setProperty(prop, '');
+                                        }
+                                      }
+                                    }
+                                  }
+                                } catch (error) {
+                                  // Skip cross-origin stylesheets that throw errors
+                                  continue;
+                                }
+                              }
+                            }
                           };
+                          const canvas = await html2canvas(tempContainer, options);
                           
-                          const canvas = await html2canvas(cleanClone, options);
-                          
-                          // Create PDF
-                          const pdf = new jsPDF('p', 'mm', 'a4');
                           const imgData = canvas.toDataURL('image/png');
-                          const pdfWidth = pdf.internal.pageSize.getWidth() - 40; // 20mm margins
-                          const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+                          const pdf = new jsPDF({
+                            orientation: 'portrait',
+                            unit: 'mm',
+                            format: 'a4'
+                          });
                           
-                          // Add image to PDF with margins
-                          pdf.addImage(
-                            imgData,
-                            'PNG',
-                            20, // x
-                            20, // y
-                            pdfWidth,
-                            imgHeight
-                          );
+                          const imgProps = pdf.getImageProperties(imgData);
+                          const pdfWidth = pdf.internal.pageSize.getWidth();
+                          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
                           
-                          // Save the PDF
-                          pdf.save('cover-letter.pdf');
+                          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                          
+                          // Create a safe filename with the company name
+                          const safeCompanyName = companyName
+                            ? companyName.replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ').trim()
+                            : 'Company';
+                          const filename = `Cover Letter - ${safeCompanyName}.pdf`;
+                          
+                          pdf.save(filename);
+                        } catch (error) {
+                          console.error('Error generating PDF:', error);
+                          setError('Failed to generate PDF. Please try again.');
                         } finally {
                           // Clean up
                           document.body.removeChild(tempContainer);
