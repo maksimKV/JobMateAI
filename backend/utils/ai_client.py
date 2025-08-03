@@ -166,8 +166,31 @@ class AIClient:
             "provider": "cohere" if self.cohere_client else "openai" if self.openai_client else "none"
         }
     
-    async def generate_cover_letter(self, cv_content: str, job_description: str, language: str = "English") -> str:
-        """Generate a personalized cover letter based on CV and job description."""
+    async def extract_company_name(self, job_description: str) -> str:
+        """Extract the company name from a job description."""
+        prompt = f"""
+        Extract just the company name from this job description. 
+        Return ONLY the company name, nothing else.
+        
+        Job Description:
+        {job_description}
+        
+        Company Name:
+        """
+        
+        company_name = await self.generate_text(prompt, max_tokens=50, temperature=0.1)
+        # Clean up the response to ensure it's just the company name
+        company_name = company_name.strip().split('\n')[0].strip('"\'').strip()
+        return company_name if company_name else "Company"
+
+    async def generate_cover_letter(self, cv_content: str, job_description: str, language: str = "English") -> Dict[str, str]:
+        """Generate a personalized cover letter based on CV and job description.
+        
+        Returns:
+            Dict containing 'content' (the cover letter) and 'company_name'
+        """
+        # First extract the company name
+        company_name = await self.extract_company_name(job_description)
         
         prompt = f"""
         Generate a professional cover letter in {language} based on the following CV and job description.
@@ -189,7 +212,12 @@ class AIClient:
         Generate the cover letter:
         """
         
-        return await self.generate_text(prompt, max_tokens=800, temperature=0.7)
+        cover_letter = await self.generate_text(prompt, max_tokens=800, temperature=0.7)
+        
+        return {
+            "content": cover_letter,
+            "company_name": company_name
+        }
     
     async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8) -> Dict[str, Any]:
         """Generate interview questions based on job description.

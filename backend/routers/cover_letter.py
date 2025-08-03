@@ -19,10 +19,11 @@ async def generate_cover_letter(
     cv_content = cv_data["parsed_data"]["raw_text"]
     
     try:
-        cover_letter = await ai_client.generate_cover_letter(cv_content, job_description, language)
+        result = await ai_client.generate_cover_letter(cv_content, job_description, language)
         return {
             "success": True,
-            "cover_letter": cover_letter,
+            "cover_letter": result["content"],
+            "company_name": result["company_name"],
             "language": language
         }
     except Exception as e:
