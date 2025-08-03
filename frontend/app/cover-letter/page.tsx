@@ -148,10 +148,33 @@ export default function CoverLetterPage() {
           {/* Result */}
           {coverLetter && (
             <div className="mt-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Generated Cover Letter</h2>
-              <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-gray-800">
-                {coverLetter}
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Generated Cover Letter</h2>
+                <button
+                  onClick={() => {
+                    // Copy to clipboard functionality
+                    navigator.clipboard.writeText(coverLetter);
+                  }}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                  title="Copy to clipboard"
+                >
+                  Copy to Clipboard
+                </button>
               </div>
+              <div 
+                className="bg-white border border-gray-300 rounded-lg p-4 text-gray-800 w-full min-h-[200px] max-h-[600px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
+                contentEditable
+                suppressContentEditableWarning={true}
+                onInput={(e) => setCoverLetter(e.currentTarget.textContent || '')}
+                dangerouslySetInnerHTML={{ __html: coverLetter.replace(/\n/g, '<br>') }}
+                style={{ 
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.6',
+                  fontFamily: 'inherit',
+                  fontSize: '0.9375rem' // Match default text size
+                }}
+              />
             </div>
           )}
         </div>
