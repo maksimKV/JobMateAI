@@ -219,6 +219,9 @@ export interface ScoreBreakdown {
 
 export interface StatisticsResponse {
   success: boolean;
+  has_data?: boolean;
+  message?: string;
+  error?: string;
   metadata: {
     has_hr: boolean;
     has_technical: boolean;

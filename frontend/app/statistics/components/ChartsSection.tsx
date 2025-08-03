@@ -1,15 +1,20 @@
-import { Pie, Bar } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
+import type { ChartData, ChartOptions } from 'chart.js';
 import { 
   Chart as ChartJS, 
   ArcElement, 
   Tooltip, 
   Legend, 
-  Title, 
-  TooltipItem,
+  Title,
   CategoryScale,
   LinearScale,
-  BarElement
+  BarElement,
+  PointElement,
+  LineElement,
+  Filler,
+  ScriptableContext
 } from 'chart.js';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { PieChart, BarChart2, AlertCircle } from 'lucide-react';
 import { StatisticsResponse } from '@/types';
 
@@ -21,7 +26,10 @@ ChartJS.register(
   Title, 
   CategoryScale,
   LinearScale,
-  BarElement
+  BarElement,
+  PointElement,
+  LineElement,
+  Filler
 );
 
 // Chart colors for consistent theming
@@ -42,233 +50,301 @@ const CHART_COLORS: ChartColors = {
   border: 'rgba(0, 0, 0, 0.1)'
 };
 
-// Common chart options
-const commonOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'right' as const,
-      labels: {
-        padding: 20,
-        usePointStyle: true,
-        pointStyle: 'circle',
-        font: { size: 12 }
-      }
-    },
-    title: {
-      display: true,
-      align: 'start' as const,
-      font: { size: 16, weight: 'bold' as const },
-      padding: { bottom: 20 }
-    },
-    tooltip: {
-      callbacks: {
-        label: function(context: TooltipItem<'bar' | 'pie'>) {
-          const label = context.dataset?.label || '';
-          const value = context.parsed?.y || context.raw || 0;
-          const valueToShow = typeof value === 'number' ? value : 0;
-          return `${label}: ${valueToShow.toFixed(1)}`;
-        }
-      }
-    }
-  },
-};
+// Define chart data type
+type LineChartData = ChartData<'line', number[], string>;
 
 interface ChartsSectionProps {
   stats: StatisticsResponse | null;
 }
 
 export function ChartsSection({ stats }: ChartsSectionProps) {
-  // Early return if stats is null
+  // Log the entire stats object for debugging
+  console.log('Stats prop in ChartsSection:', JSON.parse(JSON.stringify(stats || {})));
+  
+  // Move all hooks to the top, before any conditional returns
+  const { metadata } = stats || {};
+  
+  // Prepare line chart data
+  const lineChartData = useMemo<LineChartData>(() => {
+    console.log('Preparing line chart data. Raw charts data:', JSON.parse(JSON.stringify(stats?.charts || {})));
+    
+    if (!stats?.charts?.line_chart) {
+      console.log('No line_chart data found in stats.charts');
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+    
+    console.log('Line chart data structure:', {
+      labels: stats.charts.line_chart.labels,
+      datasets: stats.charts.line_chart.datasets.map(d => ({
+        ...d,
+        data: d.data,
+        label: d.label
+      }))
+    });
+
+    // Log the datasets
+    console.log("Chart dataset preview:", JSON.stringify(stats.charts.line_chart.datasets, null, 2));
+    
+    // Map the datasets from the API to the format expected by Chart.js
+    const datasets = stats.charts.line_chart.datasets.map(dataset => ({
+      ...dataset,
+      borderWidth: 2,
+      fill: true,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      backgroundColor: (context: ScriptableContext<'line'>) => {
+        const chart = context.chart;
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return 'transparent';
+        
+        const isHR = dataset.label?.toLowerCase().includes('hr');
+        // Extract RGB values from the color
+        const color = isHR ? CHART_COLORS.hr : CHART_COLORS.technical;
+        const rgb = color.match(/\d+/g)?.map(Number);
+        if (!rgb || rgb.length < 3) return color; // Fallback to solid color if parsing fails
+        
+        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+        // Start with transparent (alpha 0.1)
+        gradient.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.1)`);
+        // End with semi-transparent (alpha 0.5)
+        gradient.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.5)`);
+        return gradient;
+      }
+    }));
+    
+    return {
+      labels: stats.charts.line_chart.labels || [],
+      datasets
+    };
+  }, [stats?.charts]);
+
+  // Add refs to track the chart container and instance
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<{
+    update: (mode?: string) => void;
+  } | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  
+  // Log when the chart data changes
+  useEffect(() => {
+    console.log('Line chart data updated:', lineChartData);
+    if (chartRef.current) {
+      console.log('Chart reference available');
+    }
+  }, [lineChartData]);
+
+  // Update container size on mount and window resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (chartContainerRef.current) {
+        setContainerSize({
+          width: chartContainerRef.current.offsetWidth,
+          height: chartContainerRef.current.offsetHeight
+        });
+      }
+    };
+
+    // Initial size
+    updateSize();
+    
+    // Add resize listener
+    window.addEventListener('resize', updateSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  const hasCharts = useMemo(() => {
+    console.log('Checking if charts should render:', {
+      hasLineData: lineChartData?.datasets?.length > 0,
+      hasStats: !!stats,
+      hasLineChart: !!stats?.charts?.line_chart,
+      lineChartData
+    });
+    return lineChartData?.datasets?.length > 0 && !!stats?.charts?.line_chart;
+  }, [lineChartData, stats, stats?.charts?.line_chart]);
+
+  // Handle loading or no stats
   if (!stats) {
     return (
       <div className="bg-white rounded-lg shadow p-6 mt-6">
         <div className="text-center py-8">
           <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No interview data available</h3>
-          <p className="mt-1 text-sm text-gray-500">Please complete an interview to see your statistics.</p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Loading interview data...</h3>
+          <p className="mt-1 text-sm text-gray-500">Please wait while we load your statistics.</p>
         </div>
       </div>
     );
   }
 
-  const { metadata } = stats;
-  // Process HR vs Technical performance data
-  const processHRvsTechnicalData = () => {
-    if (!stats?.charts?.bar_chart) {
-      return null;
-    }
+  // Handle case when no session data is available
+  if (stats.success === false || stats.has_data === false) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 mt-6">
+        <div className="text-center py-8">
+          <BarChart2 className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No active interview session</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {stats.message || 'Please complete an interview to see your statistics.'}
+          </p>
+          <div className="mt-4">
+            <a
+              href="/interview-simulator"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Start New Interview
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    const { labels, datasets } = stats.charts.bar_chart;
-    
-    return {
-      labels,
-      datasets: datasets.map((dataset, index) => ({
-        ...dataset,
-        backgroundColor: index === 0 ? CHART_COLORS.hr : CHART_COLORS.technical,
-        borderColor: index === 0 ? CHART_COLORS.hr : CHART_COLORS.technical,
-        borderWidth: 1,
-        borderRadius: 4,
-        barPercentage: 0.8,
-        categoryPercentage: 0.8,
-      }))
-    };
-  };
+  console.log('Chart data:', { lineChartData });
 
-  // Process Theory vs Practical performance data
-  const processTheoryVsPracticalData = () => {
-    if (!stats?.charts?.pie_chart) {
-      return null;
-    }
+  console.log('Rendering charts with data:', {
+    hasLineData: !!lineChartData,
+    lineChartData,
+    metadata: stats?.metadata
+  });
 
-    const { labels, datasets } = stats.charts.pie_chart;
-    
-    return {
-      labels,
-      datasets: datasets.map(dataset => ({
-        ...dataset,
-        backgroundColor: [CHART_COLORS.theory, CHART_COLORS.practical],
-        borderColor: CHART_COLORS.border,
-        borderWidth: 1,
-      }))
-    };
-  };
+  // Show message when no chart data is available but we have session data
+  if (!hasCharts) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="text-center py-8">
+          <PieChart className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Insufficient data for charts</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {metadata?.has_hr ? 'HR interview completed. ' : ''}
+            {metadata?.has_tech_theory ? 'Technical theory questions answered. ' : ''}
+            {metadata?.has_tech_practical ? 'Technical practical questions answered.' : ''}
+            {!metadata?.has_tech_theory && !metadata?.has_tech_practical && !metadata?.has_hr 
+              ? 'No interview data available.' 
+              : 'Complete more questions to see detailed charts.'}
+          </p>
+          {process.env.NODE_ENV === 'development' && (
+            <pre className="mt-4 p-4 bg-gray-100 rounded text-left text-xs">
+              {JSON.stringify(stats?.metadata, null, 2)}
+            </pre>
+          )}
+        </div>
+      </div>
+    );
+  }
 
-  const barChartData = processHRvsTechnicalData();
-  const pieChartData = processTheoryVsPracticalData();
-
-  // Chart options with type safety
-  // Bar chart specific options
-  const barChartOptions = {
-    ...commonOptions,
+  const chartOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
     animation: {
-      duration: 1000,
-      easing: 'easeInOutQuart'
-    } as const,
+      duration: 0 // Disable animations for better debugging
+    },
+    onResize: (chart, size) => {
+      console.log('Chart resized:', { width: size.width, height: size.height });
+      // Force update on resize
+      chart.update('none');
+    },
+    // Ensure we have proper interaction
+    interaction: {
+      intersect: false,
+      mode: 'index' as const,
+    },
+    // Explicitly set device pixel ratio
+    devicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
     plugins: {
-      ...commonOptions.plugins,
-      title: {
-        ...commonOptions.plugins.title,
-        text: 'Interview Performance by Type',
+      legend: {
+        position: 'top' as const,
       },
-      tooltip: {
-        callbacks: {
-          label: function(context: TooltipItem<'bar'>) {
-            if (!stats?.scores?.by_category) return '';
-            
-            const label = context.dataset.label || '';
-            const value = context.parsed?.y || 0;
-            const category = context.label?.toLowerCase() as keyof typeof stats.scores.by_category;
-            const totalQuestions = stats.scores.by_category[category]?.total_questions || 1;
-            const average = value / totalQuestions;
-            
-            return [
-              `${label}: ${average.toFixed(1)}/10 avg`,
-              `Total: ${value.toFixed(1)}`,
-              `Questions: ${totalQuestions}`
-            ];
-          }
-        }
-      }
+      title: {
+        display: true,
+        text: 'Your Performance',
+      },
     },
     scales: {
       y: {
         beginAtZero: true,
         max: 10,
+        min: 0,
         title: {
           display: true,
-          text: 'Score (out of 10)'
+          text: 'Score (1-10)'
+        },
+        ticks: {
+          stepSize: 1,
+          precision: 0
         }
-      }
-    }
-  };
-
-  // Pie chart specific options
-  const pieChartOptions = {
-    ...commonOptions,
-    animation: {
-      animateScale: true,
-      animateRotate: true,
-      duration: 1000
-    } as const,
-    plugins: {
-      ...commonOptions.plugins,
-      title: {
-        ...commonOptions.plugins.title,
-        text: 'Technical Performance Breakdown',
       },
-      tooltip: {
-        callbacks: {
-          label: function(context: TooltipItem<'pie'>) {
-            const label = context.label || '';
-            const value = context.raw as number || 0;
-            const dataset = context.dataset as { data: number[] };
-            const total = dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = Math.round((value / total) * 100);
-            const category = label.toLowerCase().includes('theory') ? 'tech_theory' : 'tech_practical';
-            const totalQuestions = stats.scores.by_category[category]?.total_questions || 1;
-            const average = value / totalQuestions;
-            
-            return [
-              `${label}: ${average.toFixed(1)}/10 avg`,
-              `Percentage: ${percentage}%`,
-              `Questions: ${totalQuestions}`
-            ];
-          }
+      x: {
+        title: {
+          display: true,
+          text: 'Questions'
         }
       }
     }
   };
 
-  // Check if we have any charts to show
-  const hasCharts = barChartData || pieChartData;
-  const showHRTechnicalChart = barChartData && (metadata.has_hr || metadata.has_technical);
-  const showTheoryPracticalChart = pieChartData && metadata.has_tech_theory && metadata.has_tech_practical;
-
-  if (!hasCharts) {
-    return (
-      <div className="bg-white rounded-lg shadow p-6 mt-6">
-        <div className="text-center py-8">
-          <BarChart2 className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No chart data available</h3>
-          <p className="mt-1 text-sm text-gray-500">Complete more questions to see your performance charts.</p>
-        </div>
-      </div>
-    );
-  }
+  // Log the final chart data and options
+  console.log('Rendering charts with:', {
+    lineChartData,
+    hasCharts,
+    chartOptions,
+    chartContainer: document.getElementById('chart-container')
+  });
 
   return (
     <div className="space-y-6">
       {/* HR vs Technical Performance Chart */}
-      {showHRTechnicalChart && barChartData && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="h-80">
-            <Bar data={barChartData} options={barChartOptions} />
-          </div>
-        </div>
-      )}
-
-      {/* Theory vs Practical Performance Chart */}
-      {showTheoryPracticalChart && pieChartData && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="h-80">
-            <Pie data={pieChartData} options={pieChartOptions} />
+      {hasCharts && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Performance Over Time</h3>
+          <div 
+            ref={chartContainerRef}
+            className="h-80 relative"
+            id="chart-container"
+          >
+            <div className="h-full w-full">
+              <Line 
+                data={lineChartData}
+                options={chartOptions}
+                ref={(node) => {
+                  if (node) {
+                    console.log('Chart mounted');
+                    // Store the chart reference
+                    chartRef.current = node as unknown as { update: (mode?: string) => void };
+                    
+                    // Force update after a short delay
+                    setTimeout(() => {
+                      try {
+                        if (chartRef.current) {
+                          chartRef.current.update('none');
+                          console.log('Chart updated');
+                        }
+                      } catch (e) {
+                        console.error('Error updating chart:', e);
+                      }
+                    }, 100);
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
 
       {/* Fallback message if no charts are shown but we have data */}
-      {!showHRTechnicalChart && !showTheoryPracticalChart && metadata.total_questions > 0 && (
+      {!hasCharts && metadata?.total_questions && metadata.total_questions > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-center py-8">
             <PieChart className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Insufficient data for charts</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {metadata.has_hr ? 'HR interview completed. ' : ''}
-              {metadata.has_tech_theory ? 'Technical theory questions answered. ' : ''}
-              {metadata.has_tech_practical ? 'Technical practical questions answered.' : ''}
-              {!metadata.has_tech_theory && !metadata.has_tech_practical && !metadata.has_hr 
+              {metadata?.has_hr ? 'HR interview completed. ' : ''}
+              {metadata?.has_tech_theory ? 'Technical theory questions answered. ' : ''}
+              {metadata?.has_tech_practical ? 'Technical practical questions answered.' : ''}
+              {!metadata?.has_tech_theory && !metadata?.has_tech_practical && !metadata?.has_hr 
                 ? 'No interview data available.' 
                 : 'Complete more questions to see detailed charts.'}
             </p>
