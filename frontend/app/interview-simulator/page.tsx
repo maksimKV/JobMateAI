@@ -9,14 +9,41 @@ import {
   AnswerSubmissionRequest, 
   AnswerSubmissionResponse,
   InterviewType,
-  InterviewSessionState,
-  InterviewFeedback,
-  InterviewLength,
-  INTERVIEW_LENGTHS,
-  MIXED_INTERVIEW_LENGTHS,
-  NON_TECHNICAL_LENGTHS
+  InterviewLength
 } from '@/types';
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { 
+  Loader2, 
+  AlertCircle, 
+  CheckCircle 
+} from 'lucide-react';
+
+// Define the question type
+type InterviewQuestion = {
+  text: string;
+  type: 'hr' | 'technical' | 'non_technical';
+};
+
+// Define the feedback type
+type InterviewFeedback = {
+  question: string;
+  answer: string;
+  evaluation: string;
+  type: 'hr' | 'technical' | 'non_technical';
+  score?: number;
+  question_type?: 'hr' | 'technical_theory' | 'technical_practical';
+};
+
+// Define the session state type
+interface InterviewSessionState {
+  sessionId: string | null;
+  questions: InterviewQuestion[];
+  currentQuestionIndex: number;
+  feedback: InterviewFeedback[];
+  interviewType: InterviewType;
+  isComplete: boolean;
+  detected_role?: string;
+  detected_domain?: string;
+}
 
 // Define the initial session state with proper typing
 const initialSessionState: InterviewSessionState = {
@@ -44,10 +71,10 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
   const [showCompletion, setShowCompletion] = useState(false);
   
   // Session state with proper typing
-  const [session, setSession] = useState<InterviewSessionState>(() => ({
+  const [session, setSession] = useState(() => ({
     ...initialSessionState,
-    questions: [],
-    feedback: []
+    questions: [] as InterviewQuestion[],
+    feedback: [] as InterviewFeedback[]
   }));
 
   // Destructure session for easier access
@@ -78,23 +105,24 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
       // Reset session with proper typing
       setSession({
         ...initialSessionState,
-        questions: [],
-        feedback: [],
+        questions: [] as InterviewQuestion[],
+        feedback: [] as InterviewFeedback[],
         interviewType,
       });
       
       const res: InterviewQuestionResponse = await interviewAPI.generateQuestions(req);
       
       // Update session with new question
+      const questionType = res.question_type as 'hr' | 'technical' | 'non_technical';
       setSession({
         ...initialSessionState,
         sessionId: res.session_id,
         interviewType,
         questions: [{
           text: res.current_question,
-          type: res.question_type as 'hr' | 'technical' | 'non_technical'
+          type: questionType
         }],
-        feedback: [],
+        feedback: [] as InterviewFeedback[],
         currentQuestionIndex: 0,
         isComplete: false,
         detected_role: res.detected_role,
@@ -134,7 +162,9 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
         question: currentQuestion.text,
         answer,
         evaluation: 'Evaluating your answer...',
-        type: currentQuestion.type as 'hr' | 'technical' | 'non_technical'
+        type: currentQuestion.type,
+        score: undefined,
+        question_type: undefined
       };
       
       // Make the API call first
@@ -160,7 +190,7 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
           };
         }
         
-        const updatedSession: InterviewSessionState = {
+        const updatedSession = {
           ...prev,
           questions: updatedQuestions,
           currentQuestionIndex: nextQuestionIndex,
@@ -195,11 +225,11 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
 
   // Handle restarting the interview
   const handleRestart = useCallback((): void => {
-    setSession((prev: InterviewSessionState) => ({
+    setSession((prev) => ({
       ...initialSessionState,
       interviewType: prev.interviewType, // Use the current session's interviewType
-      questions: [],
-      feedback: []
+      questions: [] as InterviewQuestion[],
+      feedback: [] as InterviewFeedback[]
     }));
     // Reset other states
     setJobDescription('');
@@ -208,289 +238,232 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
     setShowCompletion(false);
   }, [setSession, setJobDescription, setAnswer, setError, setShowCompletion]);
 
-  // Render interview type selection
-  const renderInterviewTypeSelection = () => (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-1">
-          <label htmlFor="jobDescription" className="block text-base font-semibold text-gray-900">
-            Job Description
-          </label>
-          {jobDescription && (
-            <button
-              type="button"
-              onClick={() => setJobDescription('')}
-              className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading}
-              title="Clear job description"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        <div className="relative">
-          <textarea
-            id="jobDescription"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste the job description here..."
-            rows={8}
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-      
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Select Interview Type</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { value: 'hr' as const, label: 'HR Interview', description: 'Behavioral and situational questions' },
-            { value: 'technical' as const, label: 'Technical Interview', description: 'Coding and technical questions' },
-            { value: 'mixed' as const, label: 'Mixed Interview', description: 'Combination of HR and technical questions' },
-            { value: 'non_technical' as const, label: 'Non-Technical Role', description: 'For non-technical positions (e.g., marketing, sales, HR)' },
-          ].map((type) => (
-            <div 
-              key={type.value}
-              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                interviewType === type.value 
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' 
-                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-              onClick={() => setInterviewType(type.value)}
-            >
-              <h3 className="font-medium">{type.label}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{type.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Interview Length</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Object.entries(
-            interviewType === 'mixed' 
-              ? MIXED_INTERVIEW_LENGTHS 
-              : interviewType === 'non_technical'
-                ? NON_TECHNICAL_LENGTHS
-                : INTERVIEW_LENGTHS
-          ).map(([length, { label }]) => (
-            <div 
-              key={length}
-              className={`p-4 border rounded-lg cursor-pointer text-center ${
-                interviewLength === length 
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' 
-                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-              onClick={() => setInterviewLength(length as InterviewLength)}
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-        <p className="text-sm text-gray-500 mt-2">
-          {interviewType === 'mixed' 
-            ? `This will include ${MIXED_INTERVIEW_LENGTHS[interviewLength].questions.hr} HR questions and ${MIXED_INTERVIEW_LENGTHS[interviewLength].questions.technical} technical questions.`
-            : interviewType === 'non_technical'
-              ? `This interview will include ${NON_TECHNICAL_LENGTHS[interviewLength].questions} non-technical questions.`
-              : `This interview will include ${INTERVIEW_LENGTHS[interviewLength].questions} ${interviewType} questions.`
-          }
-        </p>
-      </div>
-
-      <div className="text-center">
-        <button
-          className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={handleStartInterview}
-          disabled={isLoading || !jobDescription.trim()}
-        >
-          {isLoading ? (
-            <span className="flex items-center justify-center">
-              <Loader2 className="animate-spin h-5 w-5 mr-2" />
-              Generating...
-            </span>
-          ) : (
-            'Start Interview'
-          )}
-        </button>
-      </div>
-    </div>
-  );
-
-  // Render question with role information if available
-  const renderQuestion = () => {
-    if (!currentQuestion) return null;
-    
-    return (
-      <div className="space-y-6">
-        {session.detected_role && session.detected_domain && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              Detected Role: <span className="font-medium">{session.detected_role}</span> in <span className="font-medium">{session.detected_domain}</span>
-            </p>
-          </div>
-        )}
-        
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Question {session.currentQuestionIndex + 1}
-            </h2>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-              {currentQuestion.type === 'hr' 
-                ? 'HR' 
-                : currentQuestion.type === 'technical' 
-                  ? 'Technical' 
-                  : 'Non-Technical'}
-            </span>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4 text-gray-800">
-            {currentQuestion.text.replace(/^\d+[.)]\s*/, '')}
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-gray-700 font-semibold mb-2">Your Answer</label>
-          <textarea
-            className="w-full border rounded-lg px-3 py-2 min-h-[120px]"
-            value={answer}
-            onChange={e => setAnswer(e.target.value)}
-            placeholder="Type your answer here..."
-            disabled={isLoading}
-          />
-        </div>
-        
-        <div className="text-center">
-          <button
-            className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleSubmit}
-            disabled={isLoading || !answer.trim()}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                Submitting...
-              </span>
-            ) : (
-              'Submit Answer'
-            )}
-          </button>
-        </div>
-        
-        {/* Show feedback for current question if available */}
-        {session.feedback[session.currentQuestionIndex - 1] && (
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center mb-2">
-              <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
-              <span className="text-blue-800 font-semibold">AI Feedback</span>
-            </div>
-            <div className="text-gray-700 whitespace-pre-wrap">
-              {session.feedback[session.currentQuestionIndex - 1].evaluation}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <Navigation />
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          {/* Only show the main heading when not in completion state */}
-          {!showCompletion && (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">💬</div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Interview Simulator</h1>
-              <p className="text-gray-600">
-                Practice HR and technical interviews with AI-generated questions and feedback.
-              </p>
-            </div>
-          )}
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-blue-600 mr-3">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <h1 className="text-3xl font-bold text-gray-900">Interview Simulator</h1>
+          </div>
+          <p className="text-gray-600">Practice your interview skills with AI-powered simulations</p>
+        </div>
 
-          {/* Setup */}
-          {showInterviewTypeSelection && (
-            renderInterviewTypeSelection()
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-red-700">{error}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Question/Answer Flow */}
-          {showQuestion && currentQuestion && (
-            renderQuestion()
-          )}
-
-          {/* Interview Completion Message */}
-          {showCompletion && session.feedback && session.feedback.length > 0 && (
+        {showInterviewTypeSelection && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
             <div className="space-y-6">
-              <div className="text-center py-12">
-                <div className="text-5xl mb-4">💬</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Interview Complete!</h2>
-                <p className="text-gray-600 mb-6">Thank you for completing the interview. Here&apos;s the feedback for your last question.</p>
-                
-                {/* Last Question and Feedback */}
-                <div className="bg-white rounded-lg shadow-md p-6 max-w-3xl mx-auto text-left">
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Last Question:</h3>
-                    <p className="text-gray-700">{session.questions[session.questions.length - 1]?.text}</p>
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 bg-blue-100 text-blue-800">
-                      {session.questions[session.questions.length - 1]?.type === 'hr' ? 'HR' : session.questions[session.questions.length - 1]?.type === 'technical' ? 'Technical' : 'Non-Technical'}
-                    </span>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 mb-1">Your Answer:</h4>
-                    <p className="text-gray-700 bg-gray-50 p-3 rounded">
-                      {session.feedback[session.feedback.length - 1]?.answer || 'No answer provided'}
-                    </p>
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center mb-3">
-                      <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
-                      <span className="text-blue-800 font-semibold">AI Feedback</span>
+              <div>
+                <label htmlFor="jobDescription" className="block text-gray-700 font-semibold mb-2">
+                  Job Description
+                </label>
+                <textarea
+                  id="jobDescription"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                  placeholder="Paste the job description here..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">
+                  Interview Type
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { value: 'hr' as const, label: 'HR Interview', description: 'Behavioral and situational questions' },
+                    { value: 'technical' as const, label: 'Technical Interview', description: 'Coding and technical questions' },
+                    { value: 'mixed' as const, label: 'Mixed Interview', description: 'Combination of HR and technical' },
+                    { value: 'non_technical' as const, label: 'Non-Technical', description: 'For non-technical roles' },
+                  ].map((type) => (
+                    <div 
+                      key={type.value}
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        interviewType === type.value 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                      onClick={() => setInterviewType(type.value)}
+                    >
+                      <h3 className="font-medium text-gray-900">{type.label}</h3>
+                      <p className="text-sm text-gray-500">{type.description}</p>
                     </div>
-                    <div className="text-gray-700 whitespace-pre-wrap">
-                      {session.feedback[session.feedback.length - 1]?.evaluation || 'No feedback available'}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-              
-              <div className="text-center space-y-4">
-                <p className="text-gray-600">
-                  View your complete interview summary and detailed statistics on the statistics page.
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">
+                  Interview Length
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { value: 'short' as const, label: 'Short (4 questions)' },
+                    { value: 'medium' as const, label: 'Medium (8 questions)' },
+                    { value: 'long' as const, label: 'Long (12 questions)' },
+                  ].map((length) => (
+                    <div 
+                      key={length.value}
+                      className={`p-4 border rounded-lg cursor-pointer text-center ${
+                        interviewLength === length.value 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                      onClick={() => setInterviewLength(length.value)}
+                    >
+                      {length.label}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {interviewType === 'mixed' 
+                    ? `This will include ${4} HR questions and ${4} technical questions.`
+                    : interviewType === 'non_technical'
+                      ? `This interview will include ${8} non-technical questions.`
+                      : `This interview will include ${8} ${interviewType} questions.`
+                  }
                 </p>
-                
-                <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-                  <a
-                    href="/statistics"
-                    className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-                  >
-                    View Full Statistics
-                  </a>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={handleStartInterview}
+                  disabled={isLoading || !jobDescription.trim()}
+                  className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Preparing Interview...
+                    </>
+                  ) : (
+                    'Start Interview'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showQuestion && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Question {currentQuestionIndex + 1} of {questions.length}
+                  </h2>
+                  {session.detected_role && (
+                    <p className="text-sm text-gray-500">
+                      Detected Role: <span className="font-medium">{session.detected_role}</span>
+                    </p>
+                  )}
+                </div>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {currentQuestion.type.charAt(0).toUpperCase() + currentQuestion.type.slice(1)}
+                </span>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <p className="text-gray-800">{currentQuestion.text}</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="answer" className="block text-sm font-medium text-gray-700 mb-1">
+                    Your Answer
+                  </label>
+                  <textarea
+                    id="answer"
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    rows={4}
+                    placeholder="Type your answer here..."
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-2">
                   <button
-                    onClick={handleRestart}
-                    className="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                    onClick={handleSubmit}
+                    disabled={isLoading || !answer.trim()}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Start New Interview
+                    {isLoading ? (
+                      <span className="flex items-center">
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Processing...
+                      </span>
+                    ) : (
+                      currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question'
+                    )}
                   </button>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+
+            {session.feedback.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Feedback</h3>
+                {session.feedback.map((feedback, index) => (
+                  <div key={index} className="mb-6 last:mb-0">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-gray-900">Question {index + 1}</h4>
+                        <p className="text-sm text-gray-700 mt-1">{feedback.evaluation}</p>
+                      </div>
+                    </div>
+                    {index < session.feedback.length - 1 && <hr className="my-4" />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showCompletion && (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+            <h2 className="mt-3 text-xl font-semibold text-gray-900">Interview Complete!</h2>
+            <p className="mt-2 text-gray-600">
+              You&apos;ve completed all the questions. Great job!
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={handleRestart}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Start New Interview
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
