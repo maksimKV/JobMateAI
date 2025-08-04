@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
 import { 
@@ -9,10 +9,11 @@ import {
   FeedbackItem, 
   SessionData 
 } from '@/types';
-import { Loader2, AlertCircle, BarChart2 } from 'lucide-react';
+import { Loader2, AlertCircle, BarChart2, Download } from 'lucide-react';
 import { SessionInfo } from './components/SessionInfo';
 import { QuestionsList } from './components/QuestionsList';
 import { ChartsSection } from './components/ChartsSection';
+import { generatePdf } from '@/lib/pdfUtils';
 
 // Number of questions to show per page
 const QUESTIONS_PER_PAGE = 1;
@@ -27,6 +28,9 @@ export default function StatisticsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [questionType, setQuestionType] = useState<QuestionType>('all');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   // Check if there are HR, Technical, or Non-Technical questions
   const hasHRQuestions = useMemo(() => {
@@ -170,11 +174,14 @@ export default function StatisticsPage() {
     }
   }, []);
 
-  // Load session data and statistics
   useEffect(() => {
-    const loadSessionData = async () => {
+    setIsClient(true);
+    
+    const loadData = async () => {
       try {
-        console.log('Loading session data...');
+        setIsLoading(true);
+        setError(null);
+        
         const savedSession = localStorage.getItem('interviewSession');
         
         if (savedSession) {
@@ -213,7 +220,7 @@ export default function StatisticsPage() {
       }
     };
 
-    loadSessionData();
+    loadData();
     
     // Cleanup function
     return () => {
@@ -221,92 +228,182 @@ export default function StatisticsPage() {
     };
   }, [fetchStatistics]);
 
+  // Handle PDF download
+  const handleDownloadPdf = useCallback(async () => {
+    if (!contentRef.current) return;
+    
+    try {
+      setIsGeneratingPdf(true);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `JobMateAI-Statistics-${timestamp}`;
+      
+      await generatePdf(contentRef.current, filename);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      // You might want to show an error toast here
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, []);
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Main render with unified state handling
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <Navigation />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Interview Statistics</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Interview Statistics</h1>
+            {!isLoading && !error && stats && sessionData?.feedback && sessionData.feedback.length > 0 && (
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="-ml-1 mr-2 h-4 w-4" />
+                    Download PDF
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           
-          {/* Loading State */}
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mr-3" />
-              <p className="text-gray-600">Loading your interview statistics...</p>
+          {/* Content wrapper for PDF generation */}
+          <div ref={contentRef} className="printable-content">
+            {/* Add a title that will only show in the PDF */}
+            <div className="hidden print:block mb-6">
+              <h1 className="text-2xl font-bold text-center mb-2">Interview Statistics</h1>
+              <p className="text-center text-gray-600 text-sm">
+                Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+              </p>
             </div>
-          ) : error ? (
-            /* Error State */
-            <div className="space-y-6">
-              <div className="bg-red-50 border-l-4 border-red-400 p-4">
-                <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-red-700">{error}</p>
-                    <p className="text-sm text-red-600 mt-1">
-                      {error.includes('No interview session')
-                        ? 'Please complete an interview first to see your statistics.'
-                        : 'Please try again later or contact support if the issue persists.'}
-                    </p>
+            
+            {/* Rest of your content */}
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mr-3" />
+                <p className="text-gray-600">Loading your interview statistics...</p>
+              </div>
+            ) : error ? (
+              <div className="space-y-6">
+                <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                  <div className="flex">
+                    <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-red-700">{error}</p>
+                      <p className="text-sm text-red-600 mt-1">
+                        {error.includes('No interview session')
+                          ? 'Please complete an interview first to see your statistics.'
+                          : 'Please try again later or contact support if the issue persists.'}
+                      </p>
+                    </div>
                   </div>
                 </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h2 className="text-lg font-semibold text-blue-800 mb-2">What to do next?</h2>
+                  <ul className="list-disc pl-5 space-y-1 text-blue-700">
+                    <li>Start a new interview session from the dashboard</li>
+                    <li>Complete all interview questions to generate statistics</li>
+                    <li>Return to the dashboard to view your interview history</li>
+                  </ul>
+                </div>
               </div>
-              
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h2 className="text-lg font-semibold text-blue-800 mb-2">What to do next?</h2>
-                <ul className="list-disc pl-5 space-y-1 text-blue-700">
-                  <li>Start a new interview session from the dashboard</li>
-                  <li>Complete all interview questions to generate statistics</li>
-                  <li>Return to the dashboard to view your interview history</li>
-                </ul>
+            ) : !stats || !sessionData?.feedback?.length ? (
+              <div className="text-center py-12">
+                <BarChart2 className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                <h2 className="text-xl font-medium text-gray-900">No Interview Data Found</h2>
+                <p className="mt-2 text-gray-600 max-w-md mx-auto">
+                  Complete an interview session to view your detailed statistics and performance analysis.
+                </p>
+                <div className="mt-6">
+                  <a
+                    href="/dashboard"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Go to Dashboard
+                  </a>
+                </div>
               </div>
-            </div>
-          ) : !stats || !sessionData?.feedback?.length ? (
-            /* No Data State */
-            <div className="text-center py-12">
-              <BarChart2 className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h2 className="text-xl font-medium text-gray-900">No Interview Data Found</h2>
-              <p className="mt-2 text-gray-600 max-w-md mx-auto">
-                Complete an interview session to view your detailed statistics and performance analysis.
-              </p>
-              <div className="mt-6">
-                <a
-                  href="/dashboard"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Go to Dashboard
-                </a>
-              </div>
-            </div>
-          ) : (
-            /* Content when data is available */
-            <>
-              {/* Session Info */}
-              <SessionInfo sessionData={sessionData} />
-              
-              {/* Charts Section */}
-              <div className="mt-8">
-                <ChartsSection stats={stats} />
-              </div>
-              
-              {/* Questions List */}
-              <div id="questions-section" className="mt-8">
-                <QuestionsList 
-                  questions={getCurrentQuestions}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  questionType={questionType}
-                  hasHRQuestions={hasHRQuestions}
-                  hasTechnicalQuestions={hasTechnicalQuestions}
-                  hasNonTechnicalQuestions={hasNonTechnicalQuestions}
-                  onPageChange={handlePageChange}
-                  onTypeChange={handleTypeChange}
-                />
-              </div>
-            </>
-          )}
+            ) : (
+              <>
+                {/* Session Info */}
+                <SessionInfo sessionData={sessionData} />
+                
+                {/* Charts Section */}
+                <div className="mt-8">
+                  <ChartsSection stats={stats} />
+                </div>
+                
+                {/* Questions List */}
+                <div id="questions-section" className="mt-8">
+                  <QuestionsList 
+                    questions={getCurrentQuestions}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    questionType={questionType}
+                    hasHRQuestions={hasHRQuestions}
+                    hasTechnicalQuestions={hasTechnicalQuestions}
+                    hasNonTechnicalQuestions={hasNonTechnicalQuestions}
+                    onPageChange={handlePageChange}
+                    onTypeChange={handleTypeChange}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+// Add some print-specific styles
+const printStyles = `
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .printable-content, .printable-content * {
+      visibility: visible;
+    }
+    .printable-content {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    /* Hide elements that shouldn't be in the PDF */
+    .no-print, .no-print * {
+      display: none !important;
+    }
+  }
+`;
+
+// Add the print styles to the document head
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = printStyles;
+  document.head.appendChild(styleElement);
 }
