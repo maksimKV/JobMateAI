@@ -126,27 +126,61 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
         
         // Calculate text dimensions for page breaking
         const questionNumber = index + 1;
-        const questionLines = pdf.splitTextToSize(`Question ${questionNumber}: ${cleanQuestionText}`, pageWidth);
+        const questionPrefix = `Question ${questionNumber}: `;
+        const questionText = cleanQuestionText;
+        
+        // First, render the question text with full width
+        pdf.setFont('helvetica', 'bold');
+        const questionLines = pdf.splitTextToSize(questionPrefix + questionText, pageWidth);
+        const questionHeight = questionLines.length * (fontSize * lineHeight) / 2.8;
+        
+        // Add answer and feedback lines calculation
         const answerLines = answerText ? pdf.splitTextToSize(`Your Answer: ${answerText}`, pageWidth) : [];
         const feedbackLines = feedbackText ? pdf.splitTextToSize(`Feedback: ${feedbackText}`, pageWidth) : [];
         const scoreLines = score ? pdf.splitTextToSize(score, pageWidth) : [];
         
-        const questionHeight = questionLines.length * (fontSize * lineHeight) / 2.8;
         const answerHeight = answerLines.length * (fontSize * lineHeight) / 2.8;
         const feedbackHeight = feedbackLines.length * (fontSize * lineHeight) / 2.8;
         const scoreHeight = scoreLines.length * (fontSize * lineHeight) / 2.8;
-        const totalHeight = questionHeight + answerHeight + feedbackHeight + scoreHeight + 20; // Add padding
+        const totalHeight = questionHeight + answerHeight + feedbackHeight + scoreHeight + 20;
         
-        // Add new page if needed
-        if (yPosition + totalHeight > pdf.internal.pageSize.getHeight() - margin) {
+        // Add new page only if we don't have enough space for the entire question
+        const minSpaceNeeded = (fontSize * lineHeight * 3) + 20; // At least 3 lines of text + padding
+        if (yPosition > margin + minSpaceNeeded && yPosition + totalHeight > pdf.internal.pageSize.getHeight() - margin) {
           pdf.addPage();
           yPosition = margin;
         }
-
-        // Add question
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(questionLines, margin, yPosition, { maxWidth: pageWidth });
-        yPosition += questionHeight + 5;
+        
+        // Render question lines
+        for (let i = 0; i < questionLines.length; i++) {
+          const line = questionLines[i];
+          const isLastLine = i === questionLines.length - 1;
+          
+          if (isLastLine && type) {
+            // For the last line, calculate space for the badge
+            const lineWidth = pdf.getTextWidth(line);
+            const badgeWidth = getBadgeWidth(pdf, type, fontSize);
+            
+            if (lineWidth + badgeWidth + 5 < pageWidth) {
+              // If there's space, add the badge on the same line
+              pdf.text(line, margin, yPosition);
+              addQuestionTypeBadge(pdf, type, margin + lineWidth + 2, yPosition, fontSize);
+            } else {
+              // Otherwise, add the line and then the badge on a new line
+              pdf.text(line, margin, yPosition);
+              yPosition += (fontSize * lineHeight) / 2.8;
+              addQuestionTypeBadge(pdf, type, margin, yPosition, fontSize);
+            }
+          } else {
+            // Regular line, just render it
+            pdf.text(line, margin, yPosition);
+          }
+          
+          yPosition += (fontSize * lineHeight) / 2.8;
+        }
+        
+        // Add space after question
+        yPosition += 5;
 
         // Add answer if exists
         if (answerLines.length > 0) {
@@ -159,21 +193,20 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
         // Add feedback if exists
         if (feedbackLines.length > 0) {
           pdf.setFont('helvetica', 'italic');
-          pdf.setTextColor(0, 100, 0); // Dark green for feedback
+          pdf.setTextColor(0, 100, 0);
           
-          // Add score if available
           if (scoreLines.length > 0) {
             pdf.text(scoreLines, margin, yPosition, { maxWidth: pageWidth });
             yPosition += scoreHeight + 2;
           }
           
           pdf.text(feedbackLines, margin, yPosition, { maxWidth: pageWidth });
-          yPosition += feedbackHeight + 10; // Extra space after each question
+          yPosition += feedbackHeight + 10;
           
           // Reset text color
           pdf.setTextColor(0, 0, 0);
         } else {
-          yPosition += 10; // Extra space if no feedback
+          yPosition += 5; // Extra space if no feedback
         }
         
         // Add a separator line between questions if there's space
@@ -192,4 +225,77 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
     console.error('Error generating PDF:', error);
     return false;
   }
+}
+
+// Helper function to add question type badge with minimal padding
+function addQuestionTypeBadge(pdf: jsPDF, type: string, x: number, y: number, baseFontSize: number) {
+  // Map question types to their display names and colors
+  let typeDisplay = type;
+  let bgColor: [number, number, number] = [200, 200, 200];
+  let textColor: [number, number, number] = [0, 0, 0];
+  
+  // Set colors based on question type
+  if (type.toLowerCase() === 'hr') {
+    bgColor = [224, 231, 255];
+    textColor = [55, 48, 163];
+    typeDisplay = 'HR';
+  } else if (type.toLowerCase().includes('tech')) {
+    bgColor = [252, 231, 243];
+    textColor = [157, 23, 77];
+    typeDisplay = type.toLowerCase() === 'tech_theory' ? 'Technical (Theory)' : 
+                 type.toLowerCase() === 'tech_practical' ? 'Technical (Practical)' : 'Technical';
+  } else if (type.toLowerCase() === 'non_technical') {
+    bgColor = [254, 243, 199];
+    textColor = [146, 64, 14];
+    typeDisplay = 'Non-Technical';
+  }
+  
+  // Calculate badge dimensions with minimal padding
+  const typeText = typeDisplay;
+  const textWidth = pdf.getTextWidth(typeText);
+  const badgeHeight = baseFontSize * 0.8;
+  const textY = y - (badgeHeight * 0.25); // Slight vertical adjustment
+  
+  // Save current styles
+  const currentFontSize = pdf.getFontSize();
+  const currentTextColor = pdf.getTextColor();
+  
+  // Draw the badge background with minimal padding (reduced from 4 to 2)
+  pdf.setFillColor(...bgColor);
+  pdf.roundedRect(
+    x,
+    textY - 1,
+    textWidth + 2, // Reduced padding from 4 to 2
+    badgeHeight,
+    2,
+    2,
+    'F'
+  );
+  
+  // Add the type text with minimal offset (reduced from 2 to 1)
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(baseFontSize * 0.8);
+  pdf.setTextColor(...textColor);
+  pdf.text(typeText, x + 1, y); // Reduced x-offset from 2 to 1
+  
+  // Restore styles
+  pdf.setFontSize(currentFontSize);
+  pdf.setTextColor(currentTextColor);
+}
+
+// Helper function to get badge width for calculations
+function getBadgeWidth(pdf: jsPDF, type: string, baseFontSize: number): number {
+  let typeDisplay = type;
+  if (type.toLowerCase() === 'hr') {
+    typeDisplay = 'HR';
+  } else if (type.toLowerCase() === 'tech_theory') {
+    typeDisplay = 'Technical (Theory)';
+  } else if (type.toLowerCase() === 'tech_practical') {
+    typeDisplay = 'Technical (Practical)';
+  } else if (type.toLowerCase() === 'non_technical') {
+    typeDisplay = 'Non-Technical';
+  }
+  
+  const textWidth = pdf.getTextWidth(typeDisplay);
+  return textWidth + 2; // Reduced padding from 4 to 2 to match the badge
 }
