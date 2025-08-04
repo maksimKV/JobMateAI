@@ -255,7 +255,7 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
       ),
       datasets: [{
         data: validCategories.map(([_, data]) => 
-          data.count > 0 ? (data.score / data.count).toFixed(1) : 0
+          data.count > 0 ? parseFloat((data.score / data.count).toFixed(1)) : 0
         ),
         backgroundColor: [
           'rgba(79, 70, 229, 0.7)', // HR - indigo
@@ -359,9 +359,10 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
       {/* Pie Chart */}
       {pieChartData && (
         <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance by Category</h2>
-          <div className="h-80 flex items-center justify-center">
-            <div className="w-full max-w-md">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">Performance by Category</h2>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {/* Chart Container */}
+            <div className="w-full md:w-1/2 h-64">
               <Doughnut
                 data={pieChartData}
                 options={{
@@ -369,21 +370,87 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                   maintainAspectRatio: false,
                   plugins: {
                     legend: {
-                      position: 'right' as const,
+                      position: 'right',
+                      align: 'center',
+                      labels: {
+                        boxWidth: 12,
+                        padding: 16,
+                        font: {
+                          size: 13,
+                        },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                      },
                     },
                     tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      padding: 12,
+                      titleFont: {
+                        size: 14,
+                        weight: 'bold' as const,
+                      },
+                      bodyFont: {
+                        size: 13,
+                      },
                       callbacks: {
                         label: (context) => {
                           const label = context.label || '';
                           const value = context.raw as number;
-                          return `${label}: ${value}/10`;
+                          return `${label}: ${value.toFixed(1)}/10`;
                         }
                       }
-                    }
+                    },
                   },
-                  cutout: '60%',
+                  cutout: '65%',
+                  radius: '90%',
                 }}
               />
+            </div>
+
+            {/* Stats Summary */}
+            <div className="w-full md:w-1/2 space-y-4">
+              {pieChartData.labels.map((label, index) => {
+                const score = pieChartData.datasets[0].data[index] as number;
+                const color = pieChartData.datasets[0].backgroundColor?.[index] || '#6b7280';
+                
+                return (
+                  <div key={label} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center">
+                        <span 
+                          className="w-3 h-3 rounded-full mr-2" 
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="font-medium text-gray-700">{label}</span>
+                      </div>
+                      <span className="font-semibold text-gray-900">
+                        {score.toFixed(1)}/10
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full" 
+                        style={{
+                          width: `${(score / 10) * 100}%`,
+                          backgroundColor: color
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Overall Average</span>
+                  <span className="text-sm font-semibold text-indigo-600">
+                    {(
+                      (pieChartData.datasets[0].data as number[]).reduce((a, b) => a + b, 0) / 
+                      pieChartData.datasets[0].data.length
+                    ).toFixed(1)}/10
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
