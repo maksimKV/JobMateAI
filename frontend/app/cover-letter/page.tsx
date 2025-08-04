@@ -6,19 +6,7 @@ import { coverLetterAPI, cvAPI } from '@/lib/api';
 import { CoverLetterRequest, CVData } from '@/types';
 import { Mail, Loader2, AlertCircle, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-
-// Type definition for html2canvas options
-interface Html2CanvasOptions {
-  scale: number;
-  logging: boolean;
-  useCORS: boolean;
-  allowTaint: boolean;
-  backgroundColor: string | null;
-  removeContainer: boolean;
-  ignoreElements?: (element: HTMLElement) => boolean;
-  onclone?: (document: Document) => void;
-}
+import html2canvas, { type Options } from 'html2canvas';
 
 export default function CoverLetterPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -291,44 +279,48 @@ export default function CoverLetterPage() {
                       document.body.appendChild(tempContainer);
                       
                       try {
-                        const options: Html2CanvasOptions = {
+                        const options: Partial<Options> = {
                           scale: 2,
-                          logging: true, // Enable logging to help with debugging
+                          logging: false,
                           useCORS: true,
                           allowTaint: true,
-                          backgroundColor: '#FFFFFF',
+                          backgroundColor: null,
                           removeContainer: true,
-                          ignoreElements: () => {
-                            // Ignore elements that might cause issues
+                          ignoreElements: (element: Element) => {
+                            // Skip elements with 'no-print' class
+                            if (element.classList?.contains('no-print')) {
+                              return true;
+                            }
                             return false;
                           },
                           onclone: (clonedDoc) => {
-                            // Clean up any remaining styles on the cloned document
-                            const styleSheets = Array.from(clonedDoc.styleSheets);
-                            for (const styleSheet of styleSheets) {
+                            // Handle any cloning logic here
+                            const style = document.createElement('style');
+                            style.textContent = `
+                              @media print {
+                                body {
+                                  -webkit-print-color-adjust: exact !important;
+                                  print-color-adjust: exact !important;
+                                }
+                              }
+                            `;
+                            clonedDoc.head.appendChild(style);
+
+                            // Handle any other DOM modifications needed for printing
+                            const elements = clonedDoc.querySelectorAll('*');
+                            for (let i = 0; i < elements.length; i++) {
+                              const element = elements[i];
                               try {
-                                const rules = styleSheet.cssRules ? Array.from(styleSheet.cssRules) : [];
-                                for (const rule of rules) {
-                                  if ('style' in rule && rule.style) {
-                                    // Type assertion for CSSStyleRule
-                                    const cssRule = rule as CSSStyleRule;
-                                    const style = cssRule.style;
-                                    // Convert CSSStyleDeclaration to array of property names
-                                    const properties = Array.from(style);
-                                    for (const prop of properties) {
-                                      if (prop.includes('oklch') || 
-                                          prop.includes('gradient') || 
-                                          prop.includes('filter') ||
-                                          prop.includes('blend') ||
-                                          prop.includes('backdrop')) {
-                                        style.setProperty(prop, '');
-                                      }
-                                    }
-                                  }
+                                // Handle any element-specific logic here
+                                if (element instanceof HTMLElement) {
+                                  // Ensure elements have proper styling for print
+                                  element.style.boxSizing = 'border-box';
+                                  element.style.margin = '0';
+                                  element.style.padding = '0';
                                 }
                               } catch (error) {
-                                // Skip cross-origin stylesheets that throw errors
-                                console.error('Error processing CSS:', error);
+                                // Skip any elements that cause errors
+                                console.error('Error processing element:', error);
                                 continue;
                               }
                             }
