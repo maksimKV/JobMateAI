@@ -157,16 +157,24 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           const isLastLine = i === questionLines.length - 1;
           
           if (isLastLine && type) {
-            // For the last line, calculate space for the badge
-            const lineWidth = pdf.getTextWidth(line);
-            const badgeWidth = addQuestionTypeBadge(pdf, type, margin + lineWidth + 1, yPosition, fontSize);
+            // First, render the question text
+            pdf.text(line, margin, yPosition);
             
-            if (lineWidth + badgeWidth + 5 < pageWidth) {
-              // If there's space, add the badge on the same line
-              pdf.text(line, margin, yPosition);
+            // Calculate the actual rendered width of the text
+            const textWidth = pdf.getTextWidth(line);
+            
+            // Get badge width without rendering it yet
+            const badgeWidth = getBadgeWidth(pdf, type, fontSize);
+            
+            // Add 2px spacing between the question text and the badge
+            const desiredSpacing = 2;
+            
+            // Check if there's enough space for the badge on the same line
+            if (textWidth + badgeWidth + desiredSpacing < pageWidth - margin * 2) {
+              // If there's space, position the badge with desired spacing after the text
+              addQuestionTypeBadge(pdf, type, margin + textWidth + desiredSpacing, yPosition, fontSize);
             } else {
-              // Otherwise, add the line and then the badge on a new line
-              pdf.text(line, margin, yPosition);
+              // Otherwise, move to a new line for the badge
               yPosition += (fontSize * lineHeight) / 2.8;
               addQuestionTypeBadge(pdf, type, margin, yPosition, fontSize);
             }
@@ -262,13 +270,13 @@ function addQuestionTypeBadge(pdf: jsPDF, type: string, x: number, y: number, ba
   const textHeight = badgeFontSize * 0.8; // Approximate text height
   
   // Calculate badge dimensions with minimal padding
-  const paddingX = 3; // Horizontal padding
-  const paddingY = 1; // Vertical padding
+  const paddingX = 2;
+  const paddingY = 1;
   const badgeWidth = textWidth + (paddingX * 2);
   const badgeHeight = textHeight + (paddingY * 2);
   
-  // Calculate vertical position to align with text baseline
-  const badgeY = y - (textHeight * 0.7); // Fine-tuned vertical alignment
+  // Position the badge relative to the text baseline
+  const badgeY = y - (textHeight * 0.7);
   
   // Draw the badge background
   pdf.setFillColor(...bgColor);
@@ -290,7 +298,6 @@ function addQuestionTypeBadge(pdf: jsPDF, type: string, x: number, y: number, ba
   pdf.setFontSize(currentFontSize);
   pdf.setTextColor(currentTextColor);
   
-  // Return the actual badge width used for calculations
   return badgeWidth;
 }
 
@@ -309,7 +316,8 @@ function getBadgeWidth(pdf: jsPDF, type: string, baseFontSize: number): number {
   
   // Set the same font size as used in rendering
   const currentFontSize = pdf.getFontSize();
-  pdf.setFontSize(baseFontSize * 0.8);
+  const badgeFontSize = baseFontSize * 0.8;
+  pdf.setFontSize(badgeFontSize);
   pdf.setFont('helvetica', 'normal');
   
   const textWidth = pdf.getTextWidth(typeDisplay);
@@ -317,6 +325,6 @@ function getBadgeWidth(pdf: jsPDF, type: string, baseFontSize: number): number {
   // Restore font size
   pdf.setFontSize(currentFontSize);
   
-  // Return width with the same padding as in addQuestionTypeBadge
-  return textWidth + 6; // 3px padding on each side
+  // Return width with minimal padding (2px on each side)
+  return textWidth + 4;
 }
