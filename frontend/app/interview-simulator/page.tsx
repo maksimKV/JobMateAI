@@ -399,13 +399,16 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
       <div className="max-w-3xl mx-auto px-4 py-8">
         <Navigation />
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center py-12">
-            <div className="text-5xl mb-4">💬</div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Interview Simulator</h1>
-            <p className="text-gray-600">
-              Practice HR and technical interviews with AI-generated questions and feedback.
-            </p>
-          </div>
+          {/* Only show the main heading when not in completion state */}
+          {!showCompletion && (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">💬</div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Interview Simulator</h1>
+              <p className="text-gray-600">
+                Practice HR and technical interviews with AI-generated questions and feedback.
+              </p>
+            </div>
+          )}
 
           {/* Setup */}
           {showInterviewTypeSelection && (
