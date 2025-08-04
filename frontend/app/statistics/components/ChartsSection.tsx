@@ -118,6 +118,33 @@ interface ChartsSectionProps {
 }
 
 export function ChartsSection({ stats }: ChartsSectionProps) {
+  // Calculate the max x-axis value based on whether it's a mixed interview
+  const getXAxisMax = useMemo(() => {
+    if (!stats?.session?.feedback) return 0;
+    const feedback = stats.session.feedback;
+    const hasTechnical = feedback.some(item => item.type?.toLowerCase() === 'technical');
+    const hasNonTechnical = feedback.some(item => item.type?.toLowerCase() === 'non_technical');
+    const isMixedInterview = hasTechnical && hasNonTechnical;
+    
+    // For mixed interviews, use half the questions, otherwise use all
+    const maxValue = isMixedInterview 
+      ? Math.ceil(feedback.length / 2) - 1  // -1 because it's 0-based
+      : Math.max(0, feedback.length - 1);    // Ensure it's never negative
+    
+    console.log('X-Axis Max Calculation:', {
+      feedbackLength: feedback.length,
+      hasTechnical,
+      hasNonTechnical,
+      isMixedInterview,
+      maxValue
+    });
+    
+    return maxValue;
+  }, [stats]);
+
+  const xAxisTicks = getXAxisMax + 1;
+  console.log('X-Axis Ticks:', xAxisTicks);
+
   const lineChartData = useMemo(() => {
     if (!stats) {
       console.log('No stats provided for line chart');
@@ -136,6 +163,13 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
       console.log('No feedback data available for line chart');
       return null;
     }
+
+    const isMixedInterview = stats.session?.interview_type?.toLowerCase() === 'mixed';
+    console.log('Processing feedback:', {
+      totalQuestions: feedback.length,
+      interviewType: stats.session?.interview_type,
+      isMixedInterview,
+    });
 
     const categoryConfig = {
       hr: { label: 'HR', color: '#4f46e5' },
@@ -171,8 +205,6 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
       scoresByCategory[category.label].count++;
       scoresByCategory[category.label].runningTotal += score;
     });
-
-    const labels = Array.from({ length: feedback.length }, (_, i) => `Q${i + 1}`);
     
     const datasets = Object.entries(scoresByCategory).map(([category, data]) => {
       const cumulativeAverages: number[] = [];
@@ -183,9 +215,17 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
         cumulativeAverages.push(parseFloat((runningSum / (i + 1)).toFixed(2)));
       });
       
+      // For mixed interviews, spread the data points out to fill the x-axis
+      const chartData = isMixedInterview 
+        ? cumulativeAverages.map((value, index) => ({
+            x: index * 2, // Spread points out to maintain spacing
+            y: value
+          }))
+        : cumulativeAverages;
+      
       return {
         label: `${category} (Avg: ${(data.runningTotal / data.count).toFixed(1)})`,
-        data: cumulativeAverages,
+        data: chartData,
         fill: false,
         borderColor: data.color,
         backgroundColor: data.color + '33',
@@ -201,6 +241,17 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
       return null;
     }
 
+    // Generate labels based on the feedback length
+    const maxQuestions = isMixedInterview ? Math.ceil(feedback.length / 2) : feedback.length;
+    const labels = Array.from({ length: maxQuestions }, (_, i) => `Q${i + 1}`);
+
+    console.log('Generated chart data:', { 
+      labels, 
+      datasets,
+      isMixedInterview,
+      xAxisMax: isMixedInterview ? feedback.length - 1 : feedback.length - 1
+    });
+
     return {
       labels,
       datasets,
@@ -210,6 +261,11 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
   if (!lineChartData) {
     return null;
   }
+
+  const isMixedInterview = stats?.session?.interview_type?.toLowerCase() === 'mixed';
+  const maxQuestions = isMixedInterview && stats?.session?.feedback?.length 
+    ? Math.ceil(stats.session.feedback.length / 2) 
+    : stats?.session?.feedback?.length || 0;
 
   return (
     <div className="space-y-8">
@@ -228,6 +284,13 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                 tooltip: {
                   mode: 'index',
                   intersect: false,
+                  callbacks: {
+                    label: (context) => {
+                      const label = context.dataset.label || '';
+                      const value = context.parsed.y;
+                      return `${label}: ${value}`;
+                    }
+                  }
                 },
               },
               scales: {
@@ -240,9 +303,26 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                   },
                 },
                 x: {
+                  type: 'linear',
                   title: {
                     display: true,
                     text: 'Question Number',
+                  },
+                  min: 0,
+                  max: isMixedInterview 
+                    ? (stats?.session?.feedback?.length || 1) - 1 
+                    : Math.max(0, (stats?.session?.feedback?.length || 1) - 1),
+                  ticks: {
+                    stepSize: 1,
+                    callback: isMixedInterview 
+                      ? (value) => {
+                          // For mixed interviews, show Q1, Q2, etc. at half the interval
+                          const qNum = Math.floor(Number(value) / 2) + 1;
+                          return qNum <= maxQuestions ? `Q${qNum}` : '';
+                        }
+                      : undefined,
+                    maxTicksLimit: maxQuestions,
+                    autoSkip: true,
                   },
                 },
               },
