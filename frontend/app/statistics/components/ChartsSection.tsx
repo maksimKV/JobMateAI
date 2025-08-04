@@ -244,18 +244,18 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
 
     // Filter out categories with no questions
     const validCategories = Object.entries(categories)
-      .filter(([_, data]) => data.count > 0);
+      .filter((entry) => entry[1].count > 0);
 
     if (validCategories.length === 0) return null;
 
     // Prepare chart data
     return {
-      labels: validCategories.map(([category]) => 
-        category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ')
+      labels: validCategories.map(entry => 
+        entry[0].charAt(0).toUpperCase() + entry[0].slice(1).replace('_', ' ')
       ),
       datasets: [{
-        data: validCategories.map(([_, data]) => 
-          data.count > 0 ? parseFloat((data.score / data.count).toFixed(1)) : 0
+        data: validCategories.map(entry => 
+          entry[1].count > 0 ? parseFloat((entry[1].score / entry[1].count).toFixed(1)) : 0
         ),
         backgroundColor: [
           'rgba(79, 70, 229, 0.7)', // HR - indigo
