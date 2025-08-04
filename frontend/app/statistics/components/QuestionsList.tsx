@@ -10,7 +10,10 @@ interface QuestionsListProps {
   hasNonTechnicalQuestions: boolean;
   onPageChange: (page: number) => void;
   onTypeChange: (type: 'all' | 'hr' | 'technical' | 'non_technical') => void;
+  questionsPerPage: number;
 }
+
+const QUESTIONS_PER_PAGE = 10; // Define the number of questions per page
 
 export function QuestionsList({
   questions,
@@ -22,6 +25,7 @@ export function QuestionsList({
   hasNonTechnicalQuestions,
   onPageChange,
   onTypeChange,
+  questionsPerPage,
 }: QuestionsListProps) {
   if (!questions.length) {
     return (
@@ -131,32 +135,37 @@ export function QuestionsList({
       </div>
       
       <div className="space-y-6 mb-6">
-        {questions.map((item, index) => (
-          <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-medium text-gray-900">
-                Question {index + 1}: {item.question.replace(/^\d+[.)]\s*/, '')}
-              </h3>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBadgeColor(item.type || '')}`}>
-                {getTypeDisplayName(item.type || '')}
-              </span>
-            </div>
-            <p className="text-sm text-gray-700 mb-3">
-              <span className="font-medium">Your Answer:</span> {item.answer}
-            </p>
-            <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
-              <div className="flex justify-between items-start">
-                <h4 className="font-medium text-blue-800 mb-1">Feedback</h4>
-                {item.score !== undefined && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Score: {item.score}/10
-                  </span>
-                )}
+        {questions.map((item, index) => {
+          // Calculate the question number based on current page and index
+          const questionNumber = (currentPage - 1) * questionsPerPage + index + 1;
+          
+          return (
+            <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-medium text-gray-900">
+                  Question {questionNumber}: {item.question.replace(/^\d+[.)]\s*/, '')}
+                </h3>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBadgeColor(item.type || '')}`}>
+                  {getTypeDisplayName(item.type || '')}
+                </span>
               </div>
-              <p className="text-sm text-gray-700 whitespace-pre-line">{item.evaluation}</p>
+              <p className="text-sm text-gray-700 mb-3">
+                <span className="font-medium">Your Answer:</span> {item.answer}
+              </p>
+              <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-medium text-blue-800 mb-1">Feedback</h4>
+                  {item.score !== undefined && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Score: {item.score}/10
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-700 whitespace-pre-line">{item.evaluation}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       
       {/* Pagination Controls */}

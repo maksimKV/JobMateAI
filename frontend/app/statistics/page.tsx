@@ -368,6 +368,7 @@ export default function StatisticsPage() {
                     hasNonTechnicalQuestions={hasNonTechnicalQuestions}
                     onPageChange={handlePageChange}
                     onTypeChange={handleTypeChange}
+                    questionsPerPage={QUESTIONS_PER_PAGE}
                   />
                 </div>
               </>
