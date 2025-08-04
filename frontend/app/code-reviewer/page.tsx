@@ -27,23 +27,23 @@ export default function CodeReviewerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <Navigation />
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <Code className="h-12 w-12 text-red-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Code Reviewer</h1>
-            <p className="text-gray-600">
-              Paste your code and get AI-powered feedback, bug detection, and optimization tips.
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-2">
+            <Code className="h-8 w-8 text-blue-600 mr-3" />
+            <h1 className="text-3xl font-bold text-gray-900">AI Code Reviewer</h1>
           </div>
+          <p className="text-gray-600">Paste your code and get AI-powered feedback, bug detection, and optimization tips.</p>
+        </div>
 
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           {/* Code Input */}
           <div className="mb-6">
             <label className="block text-gray-700 font-semibold mb-2">Paste Your Code</label>
             <textarea
-              className="w-full border rounded-lg px-3 py-2 min-h-[180px] font-mono"
+              className="w-full border rounded-lg px-4 py-3 min-h-[200px] font-mono text-sm"
               value={code}
               onChange={e => setCode(e.target.value)}
               placeholder="Paste your code here..."
@@ -51,14 +51,17 @@ export default function CodeReviewerPage() {
           </div>
 
           {/* Review Button */}
-          <div className="mb-6 text-center">
+          <div className="flex justify-center mb-6">
             <button
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               onClick={handleReview}
               disabled={isLoading || !code}
             >
               {isLoading ? (
-                <span className="flex items-center justify-center"><Loader2 className="animate-spin h-5 w-5 mr-2" />Reviewing...</span>
+                <>
+                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                  Reviewing...
+                </>
               ) : (
                 'Review Code'
               )}
@@ -67,10 +70,14 @@ export default function CodeReviewerPage() {
 
           {/* Error */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-red-700">{error}</span>
+            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               </div>
             </div>
           )}
@@ -78,18 +85,20 @@ export default function CodeReviewerPage() {
           {/* Result */}
           {result && (
             <div className="mt-8 space-y-4">
-              <div className="flex items-center gap-2 text-gray-700">
+              <div className="flex items-center gap-2 text-gray-700 mb-4">
                 <Sparkles className="h-5 w-5 text-blue-600" />
-                <span className="font-semibold">Detected Language:</span>
-                <span className="text-blue-800 font-mono">{result.detected_language}</span>
+                <span className="font-medium">Detected Language:</span>
+                <span className="text-blue-800 font-mono bg-blue-50 px-2 py-0.5 rounded">
+                  {result.detected_language}
+                </span>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-gray-800">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 whitespace-pre-wrap text-gray-800 text-sm font-mono">
                 {result.review}
               </div>
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
