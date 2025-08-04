@@ -268,6 +268,7 @@ export default function StatisticsPage() {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Centered Header Section */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-2">
             <BarChart2 className="h-8 w-8 text-blue-600 mr-3" />
@@ -276,31 +277,8 @@ export default function StatisticsPage() {
           <p className="text-gray-600">View detailed statistics and feedback from your interview sessions</p>
         </div>
 
-        {/* Download PDF Button */}
-        {!isLoading && !error && stats && sessionData?.feedback && sessionData.feedback.length > 0 && (
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGeneratingPdf ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Download className="-ml-1 mr-2 h-4 w-4" />
-                  Download PDF
-                </>
-              )}
-            </button>
-          </div>
-        )}
-        
         {/* Content wrapper for PDF generation */}
-        <div ref={contentRef} className="printable-content">
+        <div ref={contentRef} className="bg-white rounded-lg shadow p-6">
           {/* Add a title that will only show in the PDF */}
           <div className="hidden print:block mb-6">
             <h1 className="text-2xl font-bold text-center mb-2">Interview Statistics</h1>
@@ -309,7 +287,6 @@ export default function StatisticsPage() {
             </p>
           </div>
           
-          {/* Rest of your content */}
           {isLoading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 text-blue-600 animate-spin mr-3" />
@@ -317,9 +294,9 @@ export default function StatisticsPage() {
             </div>
           ) : error ? (
             <div className="space-y-6">
-              <div className="bg-red-50 border-l-4 border-red-400 p-4">
+              <div className="bg-red-50 border-l-4 border-red-500 p-4">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
                   <div className="ml-3">
                     <p className="text-sm font-medium text-red-700">{error}</p>
                     <p className="text-sm text-red-600 mt-1">
@@ -358,8 +335,30 @@ export default function StatisticsPage() {
             </div>
           ) : (
             <>
-              {/* Session Info */}
-              <SessionInfo sessionData={sessionData} />
+              {/* Session Info with Download PDF Button */}
+              <SessionInfo 
+                sessionData={sessionData}
+                actionButton={
+                  <button
+                    onClick={handleDownloadPdf}
+                    disabled={isGeneratingPdf}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                    title="Download full report as PDF"
+                  >
+                    {isGeneratingPdf ? (
+                      <>
+                        <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="-ml-1 mr-2 h-4 w-4" />
+                        Download PDF
+                      </>
+                    )}
+                  </button>
+                }
+              />
               
               {/* Charts Section */}
               <div className="mt-8">

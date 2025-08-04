@@ -1,10 +1,12 @@
 import { SessionData } from '@/types';
+import { ReactNode } from 'react';
 
 interface SessionInfoProps {
   sessionData: SessionData | null;
+  actionButton?: ReactNode;
 }
 
-export function SessionInfo({ sessionData }: SessionInfoProps) {
+export function SessionInfo({ sessionData, actionButton }: SessionInfoProps) {
   if (!sessionData) {
     return (
       <div className="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-400">
@@ -15,7 +17,10 @@ export function SessionInfo({ sessionData }: SessionInfoProps) {
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Interview Session</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-800">Interview Session</h2>
+        {actionButton}
+      </div>
       <div className="bg-gray-50 p-4 rounded-lg">
         <p className="text-sm text-gray-600 mb-2">
           <span className="font-medium">Session ID:</span> {sessionData.sessionId || 'N/A'}
