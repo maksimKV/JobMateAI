@@ -1,177 +1,147 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { Options as Html2CanvasOptions } from 'html2canvas/dist/types';
 
-// Extend the Html2CanvasOptions type to include additional properties
-type ExtendedHtml2CanvasOptions = Partial<Omit<Html2CanvasOptions, 'onclone'>> & {
-  scale?: number;
-  width?: number;
-  height?: number;
-  onclone?: (document: Document, element: HTMLElement) => void;
+type PDFOptions = {
+  title?: string;
+  margin?: number;
+  fontSize?: number;
+  lineHeight?: number;
 };
 
-export async function generatePdf(container: HTMLElement, filename: string): Promise<boolean> {
+export async function generatePdf(container: HTMLElement, filename: string, options: PDFOptions = {}): Promise<boolean> {
+  const {
+    title = 'Interview Statistics',
+    margin = 20,
+    fontSize = 12,
+    lineHeight = 1.5,
+  } = options;
+
   try {
-    // Create a deep clone of the container
-    const containerClone = container.cloneNode(true) as HTMLElement;
-    
-    // Make the clone invisible and add it to the body
-    containerClone.style.position = 'absolute';
-    containerClone.style.left = '-9999px';
-    containerClone.style.top = '0';
-    containerClone.style.width = '800px';
-    containerClone.style.backgroundColor = '#ffffff';
-    containerClone.style.color = '#000000';
-    containerClone.style.padding = '20px';
-    containerClone.style.boxSizing = 'border-box';
-    
-    // Remove any existing styles and classes
-    containerClone.removeAttribute('style');
-    containerClone.removeAttribute('class');
-    
-    // Process all elements to remove problematic styles and classes
-    const processElement = (element: Element) => {
-      // Remove all inline styles
-      element.removeAttribute('style');
-      
-      // Remove all classes
-      element.removeAttribute('class');
-      
-      // Process all child elements
-      const children = element.children;
-      for (let i = 0; i < children.length; i++) {
-        processElement(children[i]);
-      }
-    };
-    
-    // Process the entire cloned container
-    processElement(containerClone);
-    
-    // Add the clone to the DOM
-    document.body.appendChild(containerClone);
-    
-    // Define html2canvas options with proper typing
-    const canvasOptions: ExtendedHtml2CanvasOptions = {
-      // Required properties with default values
-      x: 0,
-      y: 0,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: window.innerWidth,
-      windowHeight: window.innerHeight,
-      
-      // Custom properties
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      width: 800,
-      height: containerClone.scrollHeight,
-      onclone: (clonedDoc, element) => {
-        // Ensure the body has proper styles
-        const body = clonedDoc.body;
-        body.style.margin = '0';
-        body.style.padding = '20px';
-        body.style.backgroundColor = '#ffffff';
-        body.style.color = '#000000';
-        body.style.fontFamily = 'Arial, sans-serif';
-        
-        // Process all elements to ensure no color styles remain
-        const allElements = element.getElementsByTagName('*');
-        for (let i = 0; i < allElements.length; i++) {
-          const el = allElements[i] as HTMLElement;
-          
-          // Remove all inline styles
-          el.removeAttribute('style');
-          
-          // Remove all classes
-          el.removeAttribute('class');
-          
-          // Apply safe styles
-          el.style.color = '#000000';
-          el.style.backgroundColor = '#ffffff';
-          el.style.border = '1px solid #dddddd';
-          el.style.margin = '5px 0';
-          el.style.padding = '5px';
-          
-          // Special handling for specific elements
-          if (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3') {
-            el.style.fontWeight = 'bold';
-            el.style.margin = '10px 0';
-            el.style.fontSize = el.tagName === 'H1' ? '24px' : 
-                              el.tagName === 'H2' ? '20px' : '16px';
-          }
-          
-          if (el.tagName === 'P') {
-            el.style.margin = '5px 0';
-            el.style.lineHeight = '1.5';
-          }
-        }
-      }
-    };
-    
-    // Convert the container to canvas with html2canvas
-    // Using type assertion to the extended type
-    const canvas = await html2canvas(containerClone, canvasOptions as unknown as Html2CanvasOptions);
-    
-    // Remove the clone from the DOM
-    document.body.removeChild(containerClone);
-    
-    // Calculate the PDF dimensions
-    const imgData = canvas.toDataURL('image/png');
-    const pdfWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
-    const imgWidth = pdfWidth - 20; // 10mm margin on each side
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    // Create PDF
+    // Create a new PDF document
     const pdf = new jsPDF({
-      orientation: imgHeight > pageHeight ? 'portrait' : 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
     });
+
+    // Set default font
+    pdf.setFont('helvetica');
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(0, 0, 0);
+
+    // Add title
+    pdf.setFontSize(18);
+    pdf.text(title, margin, margin + 10);
     
-    // Add the image to the PDF
-    let heightLeft = imgHeight;
-    let position = 10; // Start 10mm from top
-    let page = 1;
+    // Add date
+    pdf.setFontSize(10);
+    pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 16);
     
-    // Handle multi-page PDFs if content is taller than one page
-    while (heightLeft > 0) {
-      if (page > 1) {
-        pdf.addPage();
-        position = 10; // Reset position for new page
+    // Reset font size for content
+    pdf.setFontSize(fontSize);
+    
+    // Current y-position in the document
+    let yPosition = margin + 30;
+    const pageWidth = pdf.internal.pageSize.getWidth() - (margin * 2);
+
+    // Process charts/graphics
+    const charts = container.querySelectorAll('canvas, img');
+    for (const chart of Array.from(charts)) {
+      if (chart instanceof HTMLCanvasElement || chart instanceof HTMLImageElement) {
+        try {
+          // Convert canvas/image to data URL
+          let dataUrl: string;
+          
+          if (chart instanceof HTMLCanvasElement) {
+            dataUrl = chart.toDataURL('image/png');
+          } else {
+            dataUrl = chart.src;
+          }
+          
+          // Calculate dimensions to maintain aspect ratio
+          const imgWidth = pageWidth;
+          const imgHeight = (chart.height / chart.width) * imgWidth;
+          
+          // Add new page if needed (with some margin at the bottom)
+          if (yPosition + imgHeight > pdf.internal.pageSize.getHeight() - margin) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          
+          // Add the image
+          pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth, imgHeight);
+          yPosition += imgHeight + 10; // Add some space after the image
+          
+        } catch (error) {
+          console.warn('Could not process chart:', error);
+        }
       }
-      
-      pdf.addImage(
-        imgData,
-        'PNG',
-        10, // x position (10mm from left)
-        position, // y position
-        imgWidth,
-        Math.min(imgHeight, pageHeight - 20) // Ensure we don't exceed page height
-      );
-      
-      heightLeft -= (pageHeight - 20); // Subtract page height (with 10mm top and bottom margins)
-      position = 10 - (pageHeight - 20) * (page - 1);
-      page++;
     }
-    
-    // Add footer with date and page number
-    const pageCount = pdf.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(10);
-      pdf.setTextColor(0);
-      pdf.text(
-        `JobMateAI - ${new Date().toLocaleDateString()} - Page ${i} of ${pageCount}`, 
-        pdfWidth / 2, 
-        pageHeight - 5, // 5mm from bottom
-        { align: 'center' as const }
-      );
+
+    // Process questions and answers
+    const questions = container.querySelectorAll('.question-container, [data-question]');
+    for (const question of Array.from(questions)) {
+      // Skip hidden elements
+      if (question instanceof HTMLElement && 
+          (question.offsetParent === null || 
+           window.getComputedStyle(question).display === 'none')) {
+        continue;
+      }
+
+      // Get question text
+      const questionHeader = question.querySelector('h3, h4, .question-text');
+      const questionText = questionHeader?.textContent?.trim() || 'Question';
+      
+      // Get answer if available
+      const answerEl = question.querySelector('.answer, [data-answer]');
+      const answerText = answerEl?.textContent?.trim() || '';
+      
+      // Get feedback if available
+      const feedbackEl = question.querySelector('.feedback, [data-feedback]');
+      const feedbackText = feedbackEl?.textContent?.trim() || '';
+
+      // Calculate total height needed for this question block
+      const questionHeight = pdf.getTextDimensions(questionText, { maxWidth: pageWidth }).h * lineHeight;
+      const answerHeight = answerText ? pdf.getTextDimensions(answerText, { maxWidth: pageWidth }).h * lineHeight : 0;
+      const feedbackHeight = feedbackText ? pdf.getTextDimensions(feedbackText, { maxWidth: pageWidth }).h * lineHeight : 0;
+      const totalHeight = questionHeight + answerHeight + feedbackHeight + 15; // Add some padding
+
+      // Add new page if needed
+      if (yPosition + totalHeight > pdf.internal.pageSize.getHeight() - margin) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      // Add question
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(questionText, margin, yPosition, { maxWidth: pageWidth });
+      yPosition += questionHeight + 5;
+
+      // Add answer if exists
+      if (answerText) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('Your Answer:', margin, yPosition, { maxWidth: pageWidth });
+        yPosition += 5;
+        
+        pdf.text(answerText, margin, yPosition, { maxWidth: pageWidth });
+        yPosition += answerHeight + 5;
+      }
+
+      // Add feedback if exists
+      if (feedbackText) {
+        pdf.setFont('helvetica', 'italic');
+        pdf.setTextColor(0, 100, 0); // Dark green for feedback
+        pdf.text('Feedback:', margin, yPosition, { maxWidth: pageWidth });
+        yPosition += 5;
+        
+        pdf.text(feedbackText, margin, yPosition, { maxWidth: pageWidth });
+        yPosition += feedbackHeight + 10; // Extra space after each question
+        pdf.setTextColor(0, 0, 0); // Reset color
+      } else {
+        yPosition += 10; // Extra space if no feedback
+      }
     }
-    
+
     // Save the PDF
     pdf.save(`${filename}.pdf`);
     return true;
