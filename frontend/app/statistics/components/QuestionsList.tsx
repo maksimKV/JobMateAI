@@ -135,7 +135,7 @@ export function QuestionsList({
           <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-medium text-gray-900">
-                Question {index + 1}: {item.question}
+                Question {index + 1}: {item.question.replace(/^\d+[.)]\s*/, '')}
               </h3>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBadgeColor(item.type || '')}`}>
                 {getTypeDisplayName(item.type || '')}
