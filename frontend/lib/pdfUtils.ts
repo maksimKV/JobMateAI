@@ -117,7 +117,8 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
       
       // Process all questions from the provided data
       allQuestions.forEach((item, index) => {
-        const questionText = item.question?.trim() || 'Question';
+        // Remove any existing question numbers from the question text
+        const cleanQuestionText = item.question?.trim().replace(/^\s*\d+[.)]\s*/, '') || 'Question';
         const answerText = item.answer?.trim() || '';
         const feedbackText = item.evaluation?.trim() || '';
         const score = item.score !== undefined ? `Score: ${item.score}/10` : '';
@@ -125,7 +126,7 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
         
         // Calculate text dimensions for page breaking
         const questionNumber = index + 1;
-        const questionLines = pdf.splitTextToSize(`Question ${questionNumber}: ${questionText}`, pageWidth);
+        const questionLines = pdf.splitTextToSize(`Question ${questionNumber}: ${cleanQuestionText}`, pageWidth);
         const answerLines = answerText ? pdf.splitTextToSize(`Your Answer: ${answerText}`, pageWidth) : [];
         const feedbackLines = feedbackText ? pdf.splitTextToSize(`Feedback: ${feedbackText}`, pageWidth) : [];
         const scoreLines = score ? pdf.splitTextToSize(score, pageWidth) : [];
