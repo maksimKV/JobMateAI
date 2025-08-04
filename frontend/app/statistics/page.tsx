@@ -242,10 +242,35 @@ export default function StatisticsPage() {
       // Get all questions regardless of pagination
       const allQuestions = sessionData?.feedback || [];
       
+      // Create a properly typed sessionData object for the PDF
+      const pdfSessionData = stats?.scores ? {
+        scores: {
+          byCategory: {
+            hr: {
+              average: stats.scores.by_category?.hr?.score || 0,
+              count: stats.scores.by_category?.hr?.total_questions || 0
+            },
+            technical: {
+              // Combine tech_theory and tech_practical for technical category
+              average: stats.scores.by_category?.tech_theory?.score || 
+                      stats.scores.by_category?.tech_practical?.score || 0,
+              count: (stats.scores.by_category?.tech_theory?.total_questions || 0) + 
+                    (stats.scores.by_category?.tech_practical?.total_questions || 0)
+            },
+            non_technical: {
+              average: stats.scores.by_category?.non_technical?.score || 0,
+              count: stats.scores.by_category?.non_technical?.total_questions || 0
+            }
+          },
+          overallAverage: stats.scores.overall?.average || 0
+        }
+      } : undefined;
+
       await generatePdf(contentRef.current, filename, {
         includeCharts: true,
         includeQuestions: true,
-        allQuestions: allQuestions, // Pass all questions to the PDF generator
+        allQuestions,
+        sessionData: pdfSessionData
       });
       
       console.log('PDF generated successfully');
@@ -255,7 +280,7 @@ export default function StatisticsPage() {
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, [sessionData]);
+  }, [sessionData, stats]);
 
   if (!isClient) {
     return (
