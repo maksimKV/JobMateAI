@@ -13,8 +13,6 @@ interface QuestionsListProps {
   questionsPerPage: number;
 }
 
-const QUESTIONS_PER_PAGE = 10; // Define the number of questions per page
-
 export function QuestionsList({
   questions,
   currentPage,
