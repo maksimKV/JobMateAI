@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { interviewAPI, APIError } from '@/lib/api';
 import { 
@@ -60,6 +60,24 @@ const initialSessionState: InterviewSessionState = {
 // Define the component props type
 type InterviewSimulatorPageProps = Record<string, never>;
 
+const INTERVIEW_LENGTHS = {
+  short: { questions: 4 },
+  medium: { questions: 8 },
+  long: { questions: 12 }
+} as const;
+
+const MIXED_INTERVIEW_LENGTHS = {
+  short: { questions: { hr: 4, technical: 4 } },
+  medium: { questions: { hr: 8, technical: 8 } },
+  long: { questions: { hr: 12, technical: 12 } }
+} as const;
+
+const NON_TECHNICAL_LENGTHS = {
+  short: { questions: 4 },
+  medium: { questions: 8 },
+  long: { questions: 12 }
+} as const;
+
 export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) {
   // State management
   const [jobDescription, setJobDescription] = useState('');
@@ -76,6 +94,10 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
     questions: [] as InterviewQuestion[],
     feedback: [] as InterviewFeedback[]
   }));
+
+  useEffect(() => {
+    setInterviewLength('medium');
+  }, [interviewType]);
 
   // Destructure session for easier access
   const { questions, currentQuestionIndex, isComplete, sessionId } = session;
@@ -305,29 +327,40 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
-                    { value: 'short' as const, label: 'Short (4 questions)' },
-                    { value: 'medium' as const, label: 'Medium (8 questions)' },
-                    { value: 'long' as const, label: 'Long (12 questions)' },
-                  ].map((length) => (
-                    <div 
-                      key={length.value}
-                      className={`p-4 border rounded-lg cursor-pointer text-center ${
-                        interviewLength === length.value 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:bg-gray-50'
-                      }`}
-                      onClick={() => setInterviewLength(length.value)}
-                    >
-                      {length.label}
-                    </div>
-                  ))}
+                    { value: 'short' as const, label: 'Short', questions: interviewType === 'mixed' ? 8 : 4 },
+                    { value: 'medium' as const, label: 'Medium', questions: interviewType === 'mixed' ? 16 : 8 },
+                    { value: 'long' as const, label: 'Long', questions: interviewType === 'mixed' ? 24 : 12 },
+                  ].map((length) => {
+                    const questionCount = interviewType === 'mixed' 
+                      ? length.questions
+                      : interviewType === 'non_technical'
+                        ? length.questions
+                        : length.questions;
+                        
+                    return (
+                      <div 
+                        key={length.value}
+                        className={`p-4 border rounded-lg cursor-pointer text-center ${
+                          interviewLength === length.value 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setInterviewLength(length.value)}
+                      >
+                        <div className="font-medium text-gray-900">{length.label}</div>
+                        <div className="text-sm text-gray-600">
+                          {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
                   {interviewType === 'mixed' 
-                    ? `This will include ${4} HR questions and ${4} technical questions.`
+                    ? `This will include ${MIXED_INTERVIEW_LENGTHS[interviewLength].questions.hr} HR questions and ${MIXED_INTERVIEW_LENGTHS[interviewLength].questions.technical} technical questions.`
                     : interviewType === 'non_technical'
-                      ? `This interview will include ${8} non-technical questions.`
-                      : `This interview will include ${8} ${interviewType} questions.`
+                      ? `This interview will include ${NON_TECHNICAL_LENGTHS[interviewLength].questions} non-technical questions.`
+                      : `This interview will include ${INTERVIEW_LENGTHS[interviewLength].questions} ${interviewType} questions.`
                   }
                 </p>
               </div>
