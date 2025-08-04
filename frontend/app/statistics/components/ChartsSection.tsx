@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import { 
   Chart as ChartJS, 
   CategoryScale,
@@ -9,7 +10,8 @@ import {
   Title,
   Tooltip, 
   Legend,
-  Filler
+  Filler,
+  ArcElement
 } from 'chart.js';
 
 // Register only the necessary components
@@ -21,7 +23,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ArcElement
 );
 
 interface ScoreCategory {
@@ -212,6 +215,63 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
     return { labels, datasets };
   }, [stats]);
 
+  const pieChartData = useMemo(() => {
+    if (!stats) return null;
+    
+    // Calculate scores by category
+    const categories = {
+      hr: { score: 0, count: 0 },
+      technical: { score: 0, count: 0 },
+      non_technical: { score: 0, count: 0 }
+    };
+
+    // Process feedback to calculate average scores per category
+    stats.session?.feedback?.forEach(item => {
+      const type = item.type?.toLowerCase() || 'hr';
+      const score = item.score || 0;
+      
+      if (type.includes('hr')) {
+        categories.hr.score += score;
+        categories.hr.count++;
+      } else if (type.includes('tech') || type.includes('technical')) {
+        categories.technical.score += score;
+        categories.technical.count++;
+      } else if (type.includes('non_technical')) {
+        categories.non_technical.score += score;
+        categories.non_technical.count++;
+      }
+    });
+
+    // Filter out categories with no questions
+    const validCategories = Object.entries(categories)
+      .filter(([_, data]) => data.count > 0);
+
+    if (validCategories.length === 0) return null;
+
+    // Prepare chart data
+    return {
+      labels: validCategories.map(([category]) => 
+        category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ')
+      ),
+      datasets: [{
+        data: validCategories.map(([_, data]) => 
+          data.count > 0 ? (data.score / data.count).toFixed(1) : 0
+        ),
+        backgroundColor: [
+          'rgba(79, 70, 229, 0.7)', // HR - indigo
+          'rgba(16, 185, 129, 0.7)', // Technical - emerald
+          'rgba(245, 158, 11, 0.7)'  // Non-technical - amber
+        ],
+        borderColor: [
+          'rgba(79, 70, 229, 1)',
+          'rgba(16, 185, 129, 1)',
+          'rgba(245, 158, 11, 1)'
+        ],
+        borderWidth: 1,
+      }]
+    };
+  }, [stats]);
+
   if (!lineChartData) return null;
 
   const isMixedInterview = stats?.session?.interview_type?.toLowerCase() === 'mixed';
@@ -221,6 +281,7 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
 
   return (
     <div className="space-y-8">
+      {/* Line Chart */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance Over Time</h2>
         <div className="h-80">
@@ -257,8 +318,8 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                   title: { display: true, text: 'Question Number' },
                   offset: false,
                   grid: { display: false },
-                  min: -0.02, // Add small padding at start
-                  max: questionCount - 0.98, // Add small padding at end
+                  min: -0.02,
+                  max: questionCount - 0.98,
                   ticks: {
                     stepSize: 1,
                     autoSkip: false,
@@ -269,7 +330,6 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                       return index >= 0 && index < questionCount ? `Q${index + 1}` : '';
                     },
                   },
-                  // Remove extra padding
                   afterBuildTicks: (axis) => {
                     axis.ticks = Array.from({ length: questionCount }, (_, i) => ({
                       value: i,
@@ -279,7 +339,7 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                 },
               },
               layout: {
-                padding: 0, // Remove all padding
+                padding: 0,
               },
               elements: {
                 point: {
@@ -295,6 +355,39 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
           />
         </div>
       </div>
+
+      {/* Pie Chart */}
+      {pieChartData && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Performance by Category</h2>
+          <div className="h-80 flex items-center justify-center">
+            <div className="w-full max-w-md">
+              <Doughnut
+                data={pieChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'right' as const,
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label || '';
+                          const value = context.raw as number;
+                          return `${label}: ${value}/10`;
+                        }
+                      }
+                    }
+                  },
+                  cutout: '60%',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
