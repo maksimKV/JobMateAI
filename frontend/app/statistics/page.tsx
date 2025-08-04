@@ -9,7 +9,7 @@ import {
   FeedbackItem, 
   SessionData 
 } from '@/types';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, BarChart2 } from 'lucide-react';
 import { SessionInfo } from './components/SessionInfo';
 import { QuestionsList } from './components/QuestionsList';
 import { ChartsSection } from './components/ChartsSection';
@@ -208,49 +208,6 @@ export default function StatisticsPage() {
     };
   }, [fetchStatistics]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading your interview statistics...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="max-w-md bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-start">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-red-700 font-medium">{error}</p>
-              <p className="text-sm text-red-600 mt-1">
-                {error.includes('No interview session')
-                  ? 'Please complete an interview first to see your statistics.'
-                  : 'Please try again later or contact support if the issue persists.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">No statistics data available.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Session data is now loaded in the main useEffect
-
   // Main render with unified state handling
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -260,70 +217,80 @@ export default function StatisticsPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Interview Statistics</h1>
           
           {/* Loading State */}
-          {isLoading && (
+          {isLoading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 text-indigo-500 animate-spin mr-3" />
               <p className="text-gray-600">Loading your interview statistics...</p>
             </div>
-          )}
-          
-          {/* Error State */}
-          {error && !isLoading && (
-            <div className="mb-6">
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          ) : error ? (
+            /* Error State */
+            <div className="space-y-6">
+              <div className="bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
                   <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">
-                      {error} {error.includes('No interview session') ? 'Please complete an interview first to see your statistics.' : 'Please try again later or contact support if the issue persists.'}
+                    <p className="text-sm font-medium text-red-700">{error}</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      {error.includes('No interview session')
+                        ? 'Please complete an interview first to see your statistics.'
+                        : 'Please try again later or contact support if the issue persists.'}
                     </p>
                   </div>
                 </div>
               </div>
               
-              {!sessionData && (
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                  <h2 className="text-lg font-semibold text-blue-800 mb-2">What to do next?</h2>
-                  <ul className="list-disc pl-5 space-y-1 text-blue-700">
-                    <li>Start a new interview session from the dashboard</li>
-                    <li>Complete all interview questions to generate statistics</li>
-                    <li>Return to the dashboard to view your interview history</li>
-                  </ul>
-                </div>
-              )}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h2 className="text-lg font-semibold text-blue-800 mb-2">What to do next?</h2>
+                <ul className="list-disc pl-5 space-y-1 text-blue-700">
+                  <li>Start a new interview session from the dashboard</li>
+                  <li>Complete all interview questions to generate statistics</li>
+                  <li>Return to the dashboard to view your interview history</li>
+                </ul>
+              </div>
             </div>
-          )}
-          
-          {/* Session Info */}
-          {!isLoading && !error && <SessionInfo sessionData={sessionData} />}
-          
-          {/* Charts Section */}
-          <div className="mt-8">
-            <ChartsSection stats={stats} />
-          </div>
-          
-          {/* Questions List */}
-          {!isLoading && !error && sessionData?.feedback && sessionData.feedback.length > 0 && (
-            <div id="questions-section" className="mt-8">
-              <QuestionsList 
-                questions={getCurrentQuestions}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                questionType={questionType}
-                hasHRQuestions={hasHRQuestions}
-                hasTechnicalQuestions={hasTechnicalQuestions}
-                hasNonTechnicalQuestions={hasNonTechnicalQuestions}
-                onPageChange={handlePageChange}
-                onTypeChange={handleTypeChange}
-              />
+          ) : !stats || !sessionData?.feedback?.length ? (
+            /* No Data State */
+            <div className="text-center py-12">
+              <BarChart2 className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h2 className="text-xl font-medium text-gray-900">No Interview Data Found</h2>
+              <p className="mt-2 text-gray-600 max-w-md mx-auto">
+                Complete an interview session to view your detailed statistics and performance analysis.
+              </p>
+              <div className="mt-6">
+                <a
+                  href="/dashboard"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Go to Dashboard
+                </a>
+              </div>
             </div>
-          )}
-          
-          {/* Empty State - No questions */}
-          {!isLoading && !error && (!sessionData?.feedback || sessionData.feedback.length === 0) && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No interview questions found.</p>
-            </div>
+          ) : (
+            /* Content when data is available */
+            <>
+              {/* Session Info */}
+              <SessionInfo sessionData={sessionData} />
+              
+              {/* Charts Section */}
+              <div className="mt-8">
+                <ChartsSection stats={stats} />
+              </div>
+              
+              {/* Questions List */}
+              <div id="questions-section" className="mt-8">
+                <QuestionsList 
+                  questions={getCurrentQuestions}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  questionType={questionType}
+                  hasHRQuestions={hasHRQuestions}
+                  hasTechnicalQuestions={hasTechnicalQuestions}
+                  hasNonTechnicalQuestions={hasNonTechnicalQuestions}
+                  onPageChange={handlePageChange}
+                  onTypeChange={handleTypeChange}
+                />
+              </div>
+            </>
           )}
         </div>
       </div>
