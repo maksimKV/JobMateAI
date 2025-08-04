@@ -19,7 +19,7 @@ interface PDFOptions {
       };
       overallAverage: number;
     };
-  };
+  } | null;
 }
 
 interface CategoryScore {
@@ -35,7 +35,7 @@ interface RenderStatsPanelOptions {
   startY: number;
   width: number;
   allQuestions: FeedbackItem[];
-  sessionData: PDFOptions['sessionData'];
+  sessionData: PDFOptions['sessionData'] | null;
   fontSize: number;
   isPieChartPanel?: boolean;
 }
@@ -49,7 +49,7 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
     includeCharts = true,
     includeQuestions = true,
     allQuestions = [],
-    sessionData = null
+    sessionData = undefined
   } = options;
 
   try {
@@ -107,33 +107,44 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           const chartElement = chartContainer.querySelector('canvas');
           if (!chartElement) continue;
           
-          // Calculate dimensions
-          const chartHeight = 200;
-          const chartWidth = chartHeight * 1.2;
+          // Calculate dimensions - make pie chart smaller and better positioned
+          const maxAvailableWidth = pageWidth * 0.4; // Take up to 40% of page width
+          const maxAvailableHeight = 180; // Fixed max height for pie chart
+          
+          // Calculate dimensions to maintain aspect ratio but respect max dimensions
+          const aspectRatio = chartElement.width / chartElement.height;
+          const chartWidth = Math.min(maxAvailableWidth, maxAvailableHeight * aspectRatio);
+          const chartHeight = chartWidth / aspectRatio;
+          
+          // Center the chart vertically in the available space
+          const chartY = yPosition + 10; // Small top margin
           
           try {
             // Convert canvas to data URL
             const dataUrl = chartElement.toDataURL('image/png', 1.0);
             
             // Add the chart image
-            pdf.addImage(dataUrl, 'PNG', margin, yPosition, chartWidth, chartHeight);
+            pdf.addImage(dataUrl, 'PNG', margin, chartY, chartWidth, chartHeight);
             
-            // Add stats panel to the right
-            if (sessionData) {
-              const statsPanelWidth = pageWidth - chartWidth - margin - 20;
-              
-              await renderStatsPanel(pdf, {
-                startX: margin + chartWidth + 20,
-                startY: yPosition,
-                width: statsPanelWidth,
-                allQuestions: allQuestions,
-                sessionData: sessionData,
-                fontSize: fontSize,
-                isPieChartPanel: true
-              });
-            }
+            // Calculate position for stats panel (right of the chart)
+            const statsPanelX = margin + chartWidth + 20; // 20px gap
+            const statsPanelWidth = pageWidth - chartWidth - margin - 30; // 30px right margin
             
-            yPosition += chartHeight + 30; // Add space after the chart row
+            await renderStatsPanel(pdf, {
+              startX: statsPanelX,
+              startY: chartY,
+              width: statsPanelWidth,
+              allQuestions: allQuestions,
+              sessionData: sessionData,
+              fontSize: fontSize,
+              isPieChartPanel: true
+            });
+            
+            // Update yPosition for next element (use the taller of chart or stats panel)
+            yPosition = Math.max(
+              chartY + chartHeight,
+              chartY + (chartContainer.clientHeight || 0)
+            ) + 30; // Add some space after the section
           } catch (error) {
             console.error('Error processing pie chart:', error);
           }
