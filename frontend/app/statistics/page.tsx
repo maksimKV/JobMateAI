@@ -29,11 +29,24 @@ export default function StatisticsPage() {
   const [questionType, setQuestionType] = useState<QuestionType>('all');
   
   // Check if there are HR, Technical, or Non-Technical questions
-  const hasHRQuestions = (stats?.scores?.by_category?.hr?.total_questions || 0) > 0;
-  const hasTechnicalQuestions = 
-    ((stats?.scores?.by_category?.tech_theory?.total_questions || 0) + 
-    (stats?.scores?.by_category?.tech_practical?.total_questions || 0)) > 0;
-  const hasNonTechnicalQuestions = (stats?.scores?.by_category?.non_technical?.total_questions || 0) > 0;
+  const hasHRQuestions = useMemo(() => {
+    return sessionData?.feedback?.some(item => 
+      item.type?.toLowerCase() === 'hr'
+    ) || false;
+  }, [sessionData]);
+
+  const hasTechnicalQuestions = useMemo(() => {
+    return sessionData?.feedback?.some(item => {
+      const type = item.type?.toLowerCase();
+      return type === 'technical' || type === 'tech_theory' || type === 'tech_practical';
+    }) || false;
+  }, [sessionData]);
+
+  const hasNonTechnicalQuestions = useMemo(() => {
+    return sessionData?.feedback?.some(item => 
+      item.type?.toLowerCase() === 'non_technical'
+    ) || false;
+  }, [sessionData]);
   
   // Calculate total pages when sessionData or questionType changes
   useEffect(() => {
