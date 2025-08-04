@@ -257,8 +257,8 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                   title: { display: true, text: 'Question Number' },
                   offset: false,
                   grid: { display: false },
-                  min: 0,
-                  max: questionCount - 1, // Set exact max to prevent extra space
+                  min: -0.02, // Add small padding at start
+                  max: questionCount - 0.98, // Add small padding at end
                   ticks: {
                     stepSize: 1,
                     autoSkip: false,
