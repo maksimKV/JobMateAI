@@ -118,55 +118,19 @@ interface ChartsSectionProps {
 }
 
 export function ChartsSection({ stats }: ChartsSectionProps) {
-  // Calculate the max x-axis value based on whether it's a mixed interview
-  const getXAxisMax = useMemo(() => {
-    if (!stats?.session?.feedback) return 0;
-    const feedback = stats.session.feedback;
-    const hasTechnical = feedback.some(item => item.type?.toLowerCase() === 'technical');
-    const hasNonTechnical = feedback.some(item => item.type?.toLowerCase() === 'non_technical');
-    const isMixedInterview = hasTechnical && hasNonTechnical;
-    
-    // For mixed interviews, use half the questions, otherwise use all
-    const maxValue = isMixedInterview 
-      ? Math.ceil(feedback.length / 2) - 1  // -1 because it's 0-based
-      : Math.max(0, feedback.length - 1);    // Ensure it's never negative
-    
-    console.log('X-Axis Max Calculation:', {
-      feedbackLength: feedback.length,
-      hasTechnical,
-      hasNonTechnical,
-      isMixedInterview,
-      maxValue
-    });
-    
-    return maxValue;
-  }, [stats]);
-
-  const xAxisTicks = getXAxisMax + 1;
-  console.log('X-Axis Ticks:', xAxisTicks);
-
   const lineChartData = useMemo(() => {
-    if (!stats) {
-      console.log('No stats provided for line chart');
-      return null;
-    }
+    if (!stats) return null;
+    if (stats.charts?.line_chart) return stats.charts.line_chart;
 
-    if (stats.charts?.line_chart) {
-      console.log('Using backend line chart data:', stats.charts.line_chart);
-      return stats.charts.line_chart;
-    }
-
-    console.log('Processing session data to generate line chart');
     const feedback = stats.session?.feedback || [];
-    
-    if (!feedback.length) {
-      console.log('No feedback data available for line chart');
-      return null;
-    }
+    if (!feedback.length) return null;
 
     const isMixedInterview = stats.session?.interview_type?.toLowerCase() === 'mixed';
+    const questionCount = isMixedInterview ? Math.ceil(feedback.length / 2) : feedback.length;
+
     console.log('Processing feedback:', {
       totalQuestions: feedback.length,
+      questionCount,
       interviewType: stats.session?.interview_type,
       isMixedInterview,
     });
@@ -215,17 +179,11 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
         cumulativeAverages.push(parseFloat((runningSum / (i + 1)).toFixed(2)));
       });
       
-      // For mixed interviews, spread the data points out to fill the x-axis
-      const chartData = isMixedInterview 
-        ? cumulativeAverages.map((value, index) => ({
-            x: index * 2, // Spread points out to maintain spacing
-            y: value
-          }))
-        : cumulativeAverages;
-      
       return {
         label: `${category} (Avg: ${(data.runningTotal / data.count).toFixed(1)})`,
-        data: chartData,
+        data: isMixedInterview 
+          ? cumulativeAverages.map((y, x) => ({ x, y })) // Map to {x, y} points for better control
+          : cumulativeAverages,
         fill: false,
         borderColor: data.color,
         backgroundColor: data.color + '33',
@@ -236,35 +194,29 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
       };
     });
 
-    if (datasets.length === 0) {
-      console.log('No valid line chart data could be generated');
-      return null;
-    }
+    if (datasets.length === 0) return null;
 
-    // Generate labels based on the feedback length
-    const maxQuestions = isMixedInterview ? Math.ceil(feedback.length / 2) : feedback.length;
-    const labels = Array.from({ length: maxQuestions }, (_, i) => `Q${i + 1}`);
+    // Generate labels for all questions
+    const labels = Array.from(
+      { length: questionCount },
+      (_, i) => `Q${i + 1}`
+    );
 
     console.log('Generated chart data:', { 
-      labels, 
-      datasets,
-      isMixedInterview,
-      xAxisMax: isMixedInterview ? feedback.length - 1 : feedback.length - 1
-    });
-
-    return {
       labels,
       datasets,
-    };
+      questionCount,
+      feedbackLength: feedback.length
+    });
+
+    return { labels, datasets };
   }, [stats]);
 
-  if (!lineChartData) {
-    return null;
-  }
+  if (!lineChartData) return null;
 
   const isMixedInterview = stats?.session?.interview_type?.toLowerCase() === 'mixed';
-  const maxQuestions = isMixedInterview && stats?.session?.feedback?.length 
-    ? Math.ceil(stats.session.feedback.length / 2) 
+  const questionCount = isMixedInterview && stats?.session?.feedback?.length
+    ? Math.ceil(stats.session.feedback.length / 2)
     : stats?.session?.feedback?.length || 0;
 
   return (
@@ -278,17 +230,18 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
-                legend: {
+                legend: { 
                   position: 'top' as const,
+                  align: 'end',
                 },
                 tooltip: {
                   mode: 'index',
                   intersect: false,
                   callbacks: {
                     label: (context) => {
-                      const label = context.dataset.label || '';
+                      const label = context.dataset.label?.split(' (Avg:')?.[0] || '';
                       const value = context.parsed.y;
-                      return `${label}: ${value}`;
+                      return `${label}: ${value.toFixed(1)}`;
                     }
                   }
                 },
@@ -297,33 +250,45 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                 y: {
                   beginAtZero: true,
                   max: 10,
-                  title: {
-                    display: true,
-                    text: 'Average Score',
-                  },
+                  title: { display: true, text: 'Average Score' },
                 },
                 x: {
-                  type: 'linear',
-                  title: {
-                    display: true,
-                    text: 'Question Number',
-                  },
+                  type: 'linear' as const,
+                  title: { display: true, text: 'Question Number' },
+                  offset: false,
+                  grid: { display: false },
                   min: 0,
-                  max: isMixedInterview 
-                    ? (stats?.session?.feedback?.length || 1) - 1 
-                    : Math.max(0, (stats?.session?.feedback?.length || 1) - 1),
+                  max: questionCount - 1, // Set exact max to prevent extra space
                   ticks: {
                     stepSize: 1,
-                    callback: isMixedInterview 
-                      ? (value) => {
-                          // For mixed interviews, show Q1, Q2, etc. at half the interval
-                          const qNum = Math.floor(Number(value) / 2) + 1;
-                          return qNum <= maxQuestions ? `Q${qNum}` : '';
-                        }
-                      : undefined,
-                    maxTicksLimit: maxQuestions,
-                    autoSkip: true,
+                    autoSkip: false,
+                    maxRotation: 0,
+                    minRotation: 0,
+                    callback: (value) => {
+                      const index = Number(value);
+                      return index >= 0 && index < questionCount ? `Q${index + 1}` : '';
+                    },
                   },
+                  // Remove extra padding
+                  afterBuildTicks: (axis) => {
+                    axis.ticks = Array.from({ length: questionCount }, (_, i) => ({
+                      value: i,
+                      label: `Q${i + 1}`
+                    }));
+                  },
+                },
+              },
+              layout: {
+                padding: 0, // Remove all padding
+              },
+              elements: {
+                point: {
+                  radius: 4,
+                  hoverRadius: 6,
+                },
+                line: {
+                  tension: 0.3,
+                  borderWidth: 2,
                 },
               },
             }}
