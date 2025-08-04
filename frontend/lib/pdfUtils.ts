@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { Chart } from 'chart.js';
 import { FeedbackItem } from '@/types';
 
 interface PDFOptions {
@@ -97,60 +98,104 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           const chartContainer = mainContainer.querySelector('.flex.flex-col.md\\:flex-row');
           if (!chartContainer) continue;
           
-          // Add title
-          pdf.setFont('helvetica', 'bold');
+          // Add title with same styling as performance chart
+          pdf.setFont('helvetica', 'semibold');
           pdf.setFontSize(14);
-          pdf.text(title, margin, yPosition);
-          yPosition += 10;
+          pdf.text('Performance by Category', margin, yPosition);
+          yPosition += 8; // Slightly reduced spacing after title
+          
+          // Add subtle divider line like in the performance chart
+          pdf.setDrawColor(229, 231, 235); // gray-200
+          pdf.setLineWidth(0.5);
+          pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 12; // Space after divider
           
           // Find the chart canvas
           const chartElement = chartContainer.querySelector('canvas');
           if (!chartElement) continue;
           
-          // Calculate dimensions - make pie chart smaller and better positioned
-          const maxAvailableWidth = pageWidth * 0.4; // Take up to 40% of page width
-          const maxAvailableHeight = 180; // Fixed max height for pie chart
+          // Calculate dimensions to match performance chart
+          const maxChartSize = 180; // Slightly larger to match performance chart
+          const chartPadding = 30; // Increased padding for better spacing
+          const statsPanelWidth = 200; // Width for the stats panel
           
-          // Calculate dimensions to maintain aspect ratio but respect max dimensions
-          const aspectRatio = chartElement.width / chartElement.height;
-          const chartWidth = Math.min(maxAvailableWidth, maxAvailableHeight * aspectRatio);
-          const chartHeight = chartWidth / aspectRatio;
+          // Calculate available width for chart (total width - margins - stats panel - padding)
+          const availableWidth = pageWidth - margin * 2 - statsPanelWidth - chartPadding;
+          const chartSize = Math.min(maxChartSize, availableWidth);
           
-          // Center the chart vertically in the available space
-          const chartY = yPosition + 10; // Small top margin
+          // Calculate vertical centering with more space at the top
+          const chartY = yPosition + 20; // More top margin for better spacing
           
           try {
-            // Convert canvas to data URL
+            // Wait for the chart to be fully rendered
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Convert canvas to data URL with higher quality
             const dataUrl = chartElement.toDataURL('image/png', 1.0);
             
-            // Add the chart image
-            pdf.addImage(dataUrl, 'PNG', margin, chartY, chartWidth, chartHeight);
+            // Calculate positions - center the chart vertically with the stats panel
+            const chartX = margin;
+            const statsPanelX = chartX + chartSize + chartPadding;
             
-            // Calculate position for stats panel (right of the chart)
-            const statsPanelX = margin + chartWidth + 20; // 20px gap
-            const statsPanelWidth = pageWidth - chartWidth - margin - 30; // 30px right margin
+            // Add the chart image with fixed aspect ratio
+            pdf.addImage(dataUrl, 'PNG', chartX, chartY, chartSize, chartSize);
             
+            // Get the actual chart data from the Chart.js instance
+            const chart = Chart.getChart(chartElement);
+            const chartData = chart?.data;
+            
+            // Extract category data from the chart if available
+            const categoryData: Record<string, { average: number; count: number }> = {};
+            
+            if (chartData?.datasets?.[0]?.data) {
+              chartData.labels?.forEach((label, index) => {
+                const value = chartData.datasets[0].data[index];
+                if (label && typeof value === 'number') {
+                  const category = String(label).toLowerCase();
+                  categoryData[category] = {
+                    average: value,
+                    count: 1 // Default count, adjust if you have actual count data
+                  };
+                }
+              });
+            }
+            
+            // Create a session data object with the extracted or existing data
+            const effectiveSessionData = {
+              ...(sessionData || {}),
+              scores: {
+                ...(sessionData?.scores || {}),
+                byCategory: {
+                  ...(sessionData?.scores?.byCategory || {}),
+                  ...categoryData
+                },
+                overallAverage: sessionData?.scores?.overallAverage || 
+                  (Array.isArray(chartData?.datasets?.[0]?.data) 
+                    ? (chartData.datasets[0].data as number[]).reduce((a, b) => a + b, 0) / 
+                      (chartData.datasets[0].data.length || 1)
+                    : 0)
+              }
+            };
+            
+            // Render stats panel with the effective session data
             await renderStatsPanel(pdf, {
               startX: statsPanelX,
-              startY: chartY,
+              startY: chartY, // Align with the top of the chart
               width: statsPanelWidth,
               allQuestions: allQuestions,
-              sessionData: sessionData,
+              sessionData: effectiveSessionData,
               fontSize: fontSize,
               isPieChartPanel: true
             });
             
-            // Update yPosition for next element (use the taller of chart or stats panel)
-            yPosition = Math.max(
-              chartY + chartHeight,
-              chartY + (chartContainer.clientHeight || 0)
-            ) + 30; // Add some space after the section
+            // Update yPosition for next element (use the maximum of chart bottom or stats panel bottom)
+            yPosition = Math.max(chartY + chartSize, yPosition) + 30; // More space after section
           } catch (error) {
             console.error('Error processing pie chart:', error);
+            yPosition += 20; // Add some space even if chart fails
           }
-          
         } else {
-          // Handle regular charts (line chart)
+          // Handle other chart containers (like line charts) if needed
           const chartElement = mainContainer.querySelector('canvas');
           if (!chartElement) continue;
           
@@ -188,14 +233,13 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
       }
     }
 
-    // Process questions and answers if enabled
+    // Process interview questions if enabled
     if (includeQuestions && allQuestions.length > 0) {
       console.log(`Processing ${allQuestions.length} questions for PDF`);
       
-      // Add a section header
-      const sectionTitle = 'Interview Questions & Feedback';
-      const titleLines = pdf.splitTextToSize(sectionTitle, pageWidth);
-      const titleHeight = (titleLines.length * fontSize * lineHeight) / 2.8;
+      // Ensure we have enough space for the section title
+      const titleLines = ['Interview Questions and Answers'];
+      const titleHeight = (fontSize * lineHeight * 1.2) / 2.8; // Slightly larger for section title
       
       // Add new page if needed for the section title
       if (yPosition + titleHeight > pdf.internal.pageSize.getHeight() - margin) {
@@ -205,7 +249,7 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
       
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(fontSize + 2);
-      pdf.text(titleLines, margin, yPosition, { maxWidth: pageWidth });
+      pdf.text(titleLines, margin, yPosition);
       yPosition += titleHeight + 10;
       pdf.setFontSize(fontSize);
       
@@ -433,21 +477,20 @@ async function renderStatsPanel(
   
   // Set styles for the stats panel
   pdf.setFont('helvetica', 'normal');
-  const panelFontSize = Math.max(fontSize - 2, 10);
+  const panelFontSize = Math.max(fontSize - 1, 10); // Slightly larger font for better readability
   pdf.setFontSize(panelFontSize);
   
-  // Add section header with background
-  pdf.setFillColor(249, 250, 251); // gray-50
-  pdf.roundedRect(startX - 2, y - 4, width + 4, 24, 2, 2, 'F');
+  // Section header with better spacing
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Performance by Category', startX + 4, y + 6);
-  y += 16;
+  pdf.setFontSize(panelFontSize + 1);
+  pdf.text('Performance by Category', startX, y);
+  y += 12; // Increased spacing after header
   
-  // Add divider line
-  pdf.setDrawColor(209, 213, 219); // gray-300
-  pdf.setLineWidth(0.3);
+  // Add divider line (lighter color for subtlety)
+  pdf.setDrawColor(229, 231, 235); // gray-200
+  pdf.setLineWidth(0.2);
   pdf.line(startX, y, startX + width, y);
-  y += 8;
+  y += 14; // Slightly more space after divider
   
   // Define category colors and display names
   const categories = [
@@ -462,152 +505,155 @@ async function renderStatsPanel(
     : categories;
   
   // Get scores from sessionData if available, otherwise calculate from questions
-  let categoryScores: CategoryScore[] = [];
+  const categoryScores: CategoryScore[] = [];
   
+  // First, initialize with all categories to ensure they appear even if no data
+  filteredCategories.forEach(category => {
+    categoryScores.push({
+      ...category,
+      avgScore: 0,
+      count: 0
+    });
+  });
+  
+  // Process session data if available
   if (sessionData?.scores?.byCategory) {
-    // Use scores from session data if available
-    categoryScores = Object.entries(sessionData.scores.byCategory)
-      .filter(([category]) => 
-        isPieChartPanel 
-          ? ['hr', 'technical', 'tech_theory', 'tech_practical'].includes(category.toLowerCase())
-          : true
-      )
-      .map(([category, scoreData]) => {
-        // Combine tech_theory and tech_practical into Technical
-        const normalizedCategory = 
-          category.toLowerCase() === 'tech_theory' || category.toLowerCase() === 'tech_practical'
-            ? 'technical'
-            : category.toLowerCase();
-            
-        const categoryInfo = filteredCategories.find(c => c.id === normalizedCategory) || 
-                           { id: normalizedCategory, name: normalizedCategory, color: '#6B7280' };
-        return {
-          ...categoryInfo,
-          avgScore: scoreData.average || 0,
-          count: scoreData.count || 0
-        };
+    Object.entries(sessionData.scores.byCategory).forEach(([category, scoreData]) => {
+      if (!scoreData) return;
+      
+      // Normalize category names
+      const normalizedCategory = 
+        category.toLowerCase() === 'tech_theory' || category.toLowerCase() === 'tech_practical'
+          ? 'technical'
+          : category.toLowerCase();
+      
+      // Find the category in our scores
+      const existingCategory = categoryScores.find(c => c.id === normalizedCategory);
+      
+      if (existingCategory) {
+        existingCategory.avgScore = scoreData.average || 0;
+        existingCategory.count = scoreData.count || 0;
+      }
+    });
+  }
+  
+  // Fallback to calculating from questions if no session data or missing scores
+  if (categoryScores.every(cat => cat.count === 0)) {
+    filteredCategories.forEach(category => {
+      const categoryQuestions = allQuestions.filter(q => {
+        if (!q.type) return false;
+        const questionType = q.type.toLowerCase();
+        return questionType === category.id.toLowerCase() ||
+               (category.id === 'technical' && 
+                (questionType === 'tech_theory' || questionType === 'tech_practical'));
       });
       
-    // Combine scores for technical categories
-    if (isPieChartPanel) {
-      const technicalScores = categoryScores.filter(cat => 
-        ['technical', 'tech_theory', 'tech_practical'].includes(cat.id)
-      );
-      
-      if (technicalScores.length > 1) {
-        const combinedTechnical = {
-          id: 'technical',
-          name: 'Technical',
-          color: '#10B981',
-          avgScore: technicalScores.reduce((sum, cat) => sum + (cat.avgScore * (cat.count || 1)), 0) / 
-                   technicalScores.reduce((sum, cat) => sum + (cat.count || 1), 0) || 0,
-          count: technicalScores.reduce((sum, cat) => sum + (cat.count || 0), 0)
-        };
+      if (categoryQuestions.length > 0) {
+        const totalScore = categoryQuestions.reduce((sum, q) => sum + (q.score || 0), 0);
+        const avgScore = totalScore / categoryQuestions.length;
         
-        // Remove individual technical categories and add combined one
-        categoryScores = [
-          ...categoryScores.filter(cat => !['technical', 'tech_theory', 'tech_practical'].includes(cat.id)),
-          combinedTechnical
-        ];
+        const existingCategory = categoryScores.find(c => c.id === category.id);
+        if (existingCategory) {
+          existingCategory.avgScore = Math.round(avgScore * 10) / 10; // Round to 1 decimal place
+          existingCategory.count = categoryQuestions.length;
+        }
       }
-    }
-  } else {
-    // Fallback to calculating from questions
-    categoryScores = filteredCategories
-      .map(category => {
-        const categoryQuestions = allQuestions.filter(q => 
-          q.type?.toLowerCase() === category.id.toLowerCase() ||
-          (category.id === 'technical' && 
-           ['technical', 'tech_theory', 'tech_practical'].includes(q.type?.toLowerCase() || ''))
-        );
-        
-        const categoryScore = categoryQuestions.reduce((sum, q) => sum + (q.score || 0), 0);
-        const avgScore = categoryQuestions.length > 0 ? categoryScore / categoryQuestions.length : 0;
-        
-        return {
-          ...category,
-          count: categoryQuestions.length,
-          avgScore: Math.round(avgScore * 10) / 10 // Round to 1 decimal place
-        };
-      })
-      .filter(cat => cat.count > 0); // Only show categories with questions
+    });
   }
   
-  // Add some spacing if there are no category scores
-  if (categoryScores.length === 0) {
-    pdf.setFont('helvetica', 'italic');
-    pdf.text('No category data available', startX, y);
-    y += 8;
-  } else {
-    // Render each category
-    for (const category of categoryScores) {
-      // Skip non-technical for pie chart panel
-      if (isPieChartPanel && category.id === 'non_technical') continue;
+  // Filter out categories with no data
+  const validScores = categoryScores.filter(cat => cat.count > 0);
+  
+  // Calculate overall average if we have valid scores
+  const hasValidScores = validScores.length > 0;
+  const overallAverage = hasValidScores
+    ? validScores.reduce((sum, cat) => sum + cat.avgScore, 0) / validScores.length
+    : 0;
+  
+  // If we have valid scores or the pie chart panel, show the data
+  if (hasValidScores || isPieChartPanel) {
+    // Render each category score
+    (isPieChartPanel ? categoryScores : validScores).forEach(category => {
+      // Skip non-technical for pie chart panel if needed
+      if (isPieChartPanel && category.id === 'non_technical') return;
       
-      // Add color indicator
+      // Category name with colored bullet
+      const bulletRadius = 2.5; // Slightly larger bullet points
       pdf.setFillColor(category.color);
-      pdf.circle(startX, y - 2, 3, 'F');
+      pdf.circle(startX + bulletRadius, y + bulletRadius, bulletRadius, 'F');
       
-      // Add category name
+      // Category name
       pdf.setFont('helvetica', 'normal');
-      pdf.text(category.name, startX + 8, y);
+      pdf.text(category.name, startX + 12, y + 4);
       
-      // Add score
-      const scoreText = `${category.avgScore.toFixed(1)}/10`;
+      // Score (right-aligned)
+      const scoreText = category.count > 0 ? `${category.avgScore.toFixed(1)}/10` : 'N/A';
       const scoreWidth = pdf.getTextWidth(scoreText);
-      pdf.text(scoreText, startX + width - scoreWidth, y);
+      pdf.text(scoreText, startX + width - scoreWidth, y + 4);
       
-      // Add progress bar
-      const progressWidth = width * 0.7;
-      const progressPercent = Math.min(100, (category.avgScore / 10) * 100);
+      // Only show score bar if we have data
+      if (category.count > 0) {
+        // Score bar
+        const barHeight = 5; // Slightly taller bars
+        const barY = y + 7; // Adjusted vertical position
+        const barWidth = width * 0.7;
+        
+        // Background bar
+        pdf.setFillColor(229, 231, 235); // gray-200
+        pdf.rect(startX, barY, barWidth, barHeight, 'F');
+        
+        // Filled bar based on score
+        const filledWidth = (category.avgScore / 10) * barWidth;
+        pdf.setFillColor(category.color);
+        pdf.rect(startX, barY, filledWidth, barHeight, 'F');
+      }
       
-      // Progress bar background
-      pdf.setDrawColor(229, 231, 235); // gray-200
-      pdf.setFillColor(229, 231, 235);
-      pdf.roundedRect(startX, y + 4, progressWidth, 4, 2, 2, 'F');
-      
-      // Progress bar fill
-      pdf.setFillColor(category.color);
-      pdf.roundedRect(startX, y + 4, (progressWidth * progressPercent) / 100, 4, 2, 2, 'F');
-      
-      y += 16; // Space between items
-    }
+      y += 20; // More vertical space between items
+    });
   }
   
-  // Add overall average if not in pie chart panel
-  if (!isPieChartPanel) {
-    // Add divider line
-    y += 4;
-    pdf.setDrawColor(209, 213, 219);
-    pdf.setLineWidth(0.3);
+  // Add overall average at the bottom if we have valid scores or it's the pie chart panel
+  if (hasValidScores || isPieChartPanel) {
+    y += 6; // Add some space before the divider
+    
+    // Divider line
+    pdf.setDrawColor(229, 231, 235); // gray-200
+    pdf.setLineWidth(0.2);
     pdf.line(startX, y, startX + width, y);
-    y += 8;
+    y += 14; // More space after divider
     
-    // Add overall average
-    const totalQuestions = allQuestions.length;
-    const totalScore = allQuestions.reduce((sum, q) => sum + (q.score || 0), 0);
-    const overallAvg = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 10) / 10 : 0;
-    
+    // Overall average label
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Overall Average', startX, y);
+    pdf.text('Overall Average', startX, y + 4);
     
-    const avgText = `${overallAvg.toFixed(1)}/10`;
-    const avgWidth = pdf.getTextWidth(avgText);
-    pdf.text(avgText, startX + width - avgWidth, y);
+    // Overall average value
+    const overallText = hasValidScores ? `${overallAverage.toFixed(1)}/10` : 'N/A';
+    const overallWidth = pdf.getTextWidth(overallText);
+    pdf.text(overallText, startX + width - overallWidth, y + 4);
     
-    // Overall progress bar
-    const progressWidth = width * 0.7;
-    const progressPercent = Math.min(100, (overallAvg / 10) * 100);
+    // Overall score bar (only if we have valid data)
+    if (hasValidScores) {
+      const barHeight = 6; // Slightly taller bar for overall score
+      const barY = y + 7;
+      const barWidth = width * 0.7;
+      
+      // Background bar
+      pdf.setFillColor(229, 231, 235); // gray-200
+      pdf.rect(startX, barY, barWidth, barHeight, 'F');
+      
+      // Filled bar based on overall score
+      const filledWidth = (overallAverage / 10) * barWidth;
+      pdf.setFillColor(79, 70, 229); // indigo-600
+      pdf.rect(startX, barY, filledWidth, barHeight, 'F');
+    }
     
-    // Progress bar background
-    pdf.setDrawColor(229, 231, 235);
-    pdf.setFillColor(229, 231, 235);
-    pdf.roundedRect(startX, y + 6, progressWidth, 6, 3, 3, 'F');
-    
-    // Progress bar fill
-    pdf.setFillColor(79, 70, 229); // indigo-600
-    pdf.roundedRect(startX, y + 6, (progressWidth * progressPercent) / 100, 6, 3, 3, 'F');
+    y += 24; // Space after the overall score
+  } else {
+    // If no valid scores and not in pie chart panel, show a message
+    pdf.setFont('helvetica', 'italic');
+    pdf.text('No category data available', startX, y + 4);
+    y += 16; // Space after the message
   }
   
-  return y;
+  return y; // Return the final y-position
 }
