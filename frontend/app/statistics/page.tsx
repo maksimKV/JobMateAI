@@ -232,19 +232,30 @@ export default function StatisticsPage() {
   const handleDownloadPdf = useCallback(async () => {
     if (!contentRef.current) return;
     
+    setIsGeneratingPdf(true);
     try {
-      setIsGeneratingPdf(true);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `JobMateAI-Statistics-${timestamp}`;
+        .replace('T', '_')
+        .slice(0, -9);
+      const filename = `JobMateAI_Interview_${timestamp}`;
       
-      await generatePdf(contentRef.current, filename);
+      // Get all questions regardless of pagination
+      const allQuestions = sessionData?.feedback || [];
+      
+      await generatePdf(contentRef.current, filename, {
+        includeCharts: true,
+        includeQuestions: true,
+        allQuestions: allQuestions, // Pass all questions to the PDF generator
+      });
+      
+      console.log('PDF generated successfully');
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      // You might want to show an error toast here
+      console.error('Error generating PDF:', error);
+      setError('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, []);
+  }, [sessionData]);
 
   if (!isClient) {
     return (
