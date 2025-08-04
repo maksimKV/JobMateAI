@@ -346,7 +346,7 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
             </span>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-gray-800">
-            {currentQuestion.text}
+            {currentQuestion.text.replace(/^\d+[.)]\s*/, '')}
           </div>
         </div>
         
