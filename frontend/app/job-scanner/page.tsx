@@ -23,7 +23,6 @@ export default function JobScannerPage() {
       }
     });
   }, []);
-  
 
   const handleMatch = async () => {
     setIsLoading(true);
@@ -45,164 +44,154 @@ export default function JobScannerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <Navigation />
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <Search className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Job Scanner</h1>
-            <p className="text-gray-600">
-              Paste a job description and see how your skills match up.
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-2">
+            <Search className="h-8 w-8 text-blue-600 mr-3" />
+            <h1 className="text-3xl font-bold text-gray-900">Job Scanner</h1>
           </div>
-
-          {/* Select CV */}
-          <div className="mb-6">
-            <label className="block text-gray-700 font-semibold mb-2">Select your CV</label>
-            <select
-              className="w-full border rounded-lg px-3 py-2"
-              value={selectedCv}
-              onChange={(e) => setSelectedCv(e.target.value)}
-            >
-              {cvList.length === 0 && <option value="">No CVs uploaded</option>}
-              {cvList.map((cv) => (
-                <option key={cv.id} value={cv.id}>
-                  {cv.filename}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Job Description */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <label htmlFor="jobDescription" className="block text-base font-semibold text-gray-900">
-                Job Description
-              </label>
-              {jobDescription && (
-                <button
-                  type="button"
-                  onClick={() => setJobDescription('')}
-                  className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isLoading}
-                  title="Clear job description"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            <div className="relative">
-              <textarea
-                id="jobDescription"
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                rows={8}
-                placeholder="Paste the job description here..."
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {/* Match Button */}
-          <div className="mb-6 text-center">
-            <button
-              className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleMatch}
-              disabled={isLoading || !selectedCv || !jobDescription}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center"><Loader2 className="animate-spin h-5 w-5 mr-2" />Analyzing...</span>
-              ) : (
-                'Analyze Match'
-              )}
-            </button>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-red-700">{error}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Result */}
-          {result && (
-            <div className="mt-8 space-y-6">
-              <div className="border-b border-gray-200 pb-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Skill Match</h2>
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-lg font-bold text-purple-700">{result.match_percent}%</span>
-                  <span className="text-gray-700">Matched Skills</span>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {result.matched_skills.map((skill, idx) => (
-                    <span key={idx} className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-1 text-purple-600" /> {skill}
-                    </span>
-                  ))}
-                  {result.matched_skills.length === 0 && <span className="text-gray-500">No matched skills</span>}
-                </div>
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-lg font-bold text-red-700">{result.missing_skills.length}</span>
-                  <span className="text-gray-700">Missing Skills</span>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {result.missing_skills.map((skill, idx) => (
-                    <span key={idx} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm flex items-center">
-                      <XCircle className="h-4 w-4 mr-1 text-red-600" /> {skill}
-                    </span>
-                  ))}
-                  {result.missing_skills.length === 0 && <span className="text-gray-500">No missing skills</span>}
-                </div>
-              </div>
-
-              {/* Soft Skills */}
-              <div className="border-b border-gray-200 pb-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Soft Skills Match</h2>
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-lg font-bold text-purple-700">{result.soft_skill_percent}%</span>
-                  <span className="text-gray-700">Matched Soft Skills</span>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {result.matched_soft_skills.map((skill, idx) => (
-                    <span key={idx} className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-1 text-purple-600" /> {skill}
-                    </span>
-                  ))}
-                  {result.matched_soft_skills.length === 0 && <span className="text-gray-500">No matched soft skills</span>}
-                </div>
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-lg font-bold text-red-700">{result.missing_soft_skills.length}</span>
-                  <span className="text-gray-700">Missing Soft Skills</span>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {result.missing_soft_skills.map((skill, idx) => (
-                    <span key={idx} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm flex items-center">
-                      <XCircle className="h-4 w-4 mr-1 text-red-600" /> {skill}
-                    </span>
-                  ))}
-                  {result.missing_soft_skills.length === 0 && <span className="text-gray-500">No missing soft skills</span>}
-                </div>
-              </div>
-
-              {/* Job Info */}
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Extracted Job Info</h2>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <pre className="text-xs text-gray-700 whitespace-pre-wrap">
-                    {JSON.stringify(result.job_info, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
+          <p className="text-gray-600">Paste a job description and see how your skills match up.</p>
         </div>
-      </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="space-y-6">
+            {/* Select CV */}
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2">Select your CV</label>
+              <select
+                className="w-full border rounded-lg px-3 py-2"
+                value={selectedCv}
+                onChange={(e) => setSelectedCv(e.target.value)}
+                disabled={isLoading}
+              >
+                {cvList.length === 0 && <option value="">No CVs uploaded</option>}
+                {cvList.map((cv) => (
+                  <option key={cv.id} value={cv.id}>
+                    {cv.filename}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Job Description */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="jobDescription" className="block text-base font-semibold text-gray-900">
+                  Job Description
+                </label>
+                {jobDescription && (
+                  <button
+                    type="button"
+                    onClick={() => setJobDescription('')}
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                    title="Clear job description"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <textarea
+                  id="jobDescription"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  rows={8}
+                  placeholder="Paste the job description here..."
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            {/* Match Button */}
+            <div className="pt-2">
+              <button
+                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                onClick={handleMatch}
+                disabled={isLoading || !selectedCv || !jobDescription}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-5 w-5 mr-2" />
+                    Analyze Job Match
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                  <span className="text-red-700">{error}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Results */}
+        {result && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Analysis Results</h2>
+            
+            <div className="space-y-6">
+              {/* Overall Match */}
+              <div className="border-b pb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Overall Match</h3>
+                <div className="flex items-center">
+                  <div className="w-full bg-gray-200 rounded-full h-4">
+                    <div 
+                      className="bg-green-500 h-4 rounded-full" 
+                      style={{ width: `${result.match_percent}%` }}
+                    ></div>
+                  </div>
+                  <span className="ml-4 text-gray-700 font-medium">{result.match_percent}%</span>
+                </div>
+              </div>
+
+              {/* Missing Skills */}
+              {result.missing_skills && result.missing_skills.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Missing Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {result.missing_skills.map((skill, index) => (
+                      <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                        <XCircle className="h-4 w-4 mr-1" />
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Matched Skills */}
+              {result.matched_skills && result.matched_skills.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Your Matching Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {result.matched_skills.map((skill, index) => (
+                      <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
