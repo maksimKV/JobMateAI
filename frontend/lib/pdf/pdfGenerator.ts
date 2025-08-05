@@ -1,5 +1,4 @@
 import { jsPDF } from 'jspdf';
-import { FeedbackItem } from '@/types';
 import { PDFOptions } from './types';
 import { enhanceChartImage } from './chartUtils';
 import { addQuestionTypeBadge, getBadgeWidth } from './badgeUtils';
@@ -19,8 +18,7 @@ export async function generatePdf(
     lineHeight = 1.5,
     includeCharts = true,
     includeQuestions = true,
-    allQuestions = [],
-    sessionData = undefined
+    allQuestions = []
   } = options;
 
   try {

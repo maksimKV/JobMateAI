@@ -1,5 +1,4 @@
 import { jsPDF } from 'jspdf';
-import { BadgeDimensions } from './types';
 
 /**
  * Gets the display text and colors for a question type badge
