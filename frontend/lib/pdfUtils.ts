@@ -103,8 +103,7 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           }
           
           // Add title with same styling as performance chart
-          // Use standard font weight instead of semibold
-      pdf.setFont('helvetica', 'bold');
+          pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(14);
           pdf.text('Performance by Category', margin, yPosition);
           yPosition += 8; // Slightly reduced spacing after title
@@ -125,10 +124,10 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           console.log('Found chart canvas:', chartElement);
           
           // Calculate dimensions with better space management
-          const maxChartSize = 80; // Reduced max size to ensure it fits with sidebar
-          const minChartSize = 60; // Minimum size for chart to be visible
-          const chartPadding = 10; // Reduced padding between chart and panel
-          const statsPanelWidth = 80; // Reduced panel width to fit better
+          const maxChartSize = 80; // Max size for chart
+          const minChartSize = 60; // Min size for chart
+          const chartPadding = 10; // Space between chart and panel
+          const statsPanelWidth = 60; // Fixed width for stats panel
           
           // Calculate available width for chart with new layout
           const totalAvailableWidth = pageWidth - margin * 2;
@@ -544,20 +543,19 @@ async function renderStatsPanel(
   
   // Set styles for the stats panel
   pdf.setFont('helvetica', 'normal');
-  const panelFontSize = Math.max(fontSize - 1, 10); // Slightly larger font for better readability
+  const panelFontSize = Math.max(fontSize - 1, 9); // Slightly smaller font
   pdf.setFontSize(panelFontSize);
   
-  // Section header with better spacing
+  // Section header
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(panelFontSize + 1);
-  pdf.text('Performance by Category', startX, y);
-  y += 12; // Increased spacing after header
+  y += 5; // Slight top padding
   
-  // Add divider line (lighter color for subtlety)
+  // Add subtle divider line
   pdf.setDrawColor(229, 231, 235); // gray-200
   pdf.setLineWidth(0.2);
   pdf.line(startX, y, startX + width, y);
-  y += 14; // Slightly more space after divider
+  y += 10; // Space after divider
   
   // Define category colors and display names
   const categories = [
