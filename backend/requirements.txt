@@ -11,4 +11,5 @@ pymupdf==1.23.8
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 aiofiles==23.2.1
-httpx==0.25.2 
+httpx==0.25.2
+setuptools>=65.5.0
