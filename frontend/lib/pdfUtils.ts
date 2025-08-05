@@ -44,8 +44,10 @@ async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<strin
   const { data } = chart.config;
   const datasets = 'datasets' in data ? data.datasets : [];
 
-  // Configure text styles with larger font
-  tempCtx.font = 'bold 14px Arial';
+  // Configure text styles
+  const fontSize = 20;
+  const pointRadius = 10;
+  tempCtx.font = `bold ${fontSize}px Arial`;
   tempCtx.textAlign = 'center';
   tempCtx.textBaseline = 'middle';
 
@@ -143,8 +145,7 @@ async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<strin
         ? dataset.borderColor[dataset.borderColor.length > index ? index : 0]
         : dataset.borderColor;
 
-      // Draw point (larger size)
-      const pointRadius = 8;
+      // Draw point (size already set above)
       tempCtx.beginPath();
       tempCtx.arc(x, y, pointRadius, 0, Math.PI * 2);
       tempCtx.fillStyle = typeof borderColor === 'string' ? borderColor : '#000';
@@ -155,12 +156,13 @@ async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<strin
 
       // Draw value label
       const label = value.toFixed(1);
-      const labelY = y - pointRadius - 8; // Position above the point with padding
+      // Position label above the point with more padding for larger text
+      const labelY = y - pointRadius - 12; // Increased from 8 to 12
       
-      // Draw text background with more padding
-      const textPadding = 6;
+      // Draw text background with more padding for larger text
+      const textPadding = 8; // Increased from 6 to 8
       const textMetrics = tempCtx.measureText(label);
-      const textHeight = 16; // Approximate text height
+      const textHeight = fontSize * 1.2; // Dynamic height based on font size
       const textWidth = textMetrics.width;
       const rectX = x - textWidth / 2 - textPadding;
       const rectY = labelY - textHeight / 2 - textPadding / 2;
