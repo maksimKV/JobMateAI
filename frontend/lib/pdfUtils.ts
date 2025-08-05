@@ -95,11 +95,16 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
         
         if (isPieChartContainer) {
           // Handle pie chart container specially
+          console.log('Processing pie chart container...');
           const chartContainer = mainContainer.querySelector('.flex.flex-col.md\\:flex-row');
-          if (!chartContainer) continue;
+          if (!chartContainer) {
+            console.warn('Chart container not found');
+            continue;
+          }
           
           // Add title with same styling as performance chart
-          pdf.setFont('helvetica', 'semibold');
+          // Use standard font weight instead of semibold
+      pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(14);
           pdf.text('Performance by Category', margin, yPosition);
           yPosition += 8; // Slightly reduced spacing after title
@@ -111,17 +116,35 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           yPosition += 12; // Space after divider
           
           // Find the chart canvas
+          console.log('Looking for chart canvas...');
           const chartElement = chartContainer.querySelector('canvas');
-          if (!chartElement) continue;
+          if (!chartElement) {
+            console.warn('Chart canvas element not found');
+            continue;
+          }
+          console.log('Found chart canvas:', chartElement);
           
-          // Calculate dimensions to match performance chart
-          const maxChartSize = 180; // Slightly larger to match performance chart
-          const chartPadding = 30; // Increased padding for better spacing
-          const statsPanelWidth = 200; // Width for the stats panel
+          // Calculate dimensions with better space management
+          const maxChartSize = 80; // Reduced max size to ensure it fits with sidebar
+          const minChartSize = 60; // Minimum size for chart to be visible
+          const chartPadding = 10; // Reduced padding between chart and panel
+          const statsPanelWidth = 80; // Reduced panel width to fit better
           
-          // Calculate available width for chart (total width - margins - stats panel - padding)
-          const availableWidth = pageWidth - margin * 2 - statsPanelWidth - chartPadding;
-          const chartSize = Math.min(maxChartSize, availableWidth);
+          // Calculate available width for chart with new layout
+          const totalAvailableWidth = pageWidth - margin * 2;
+          const availableWidth = totalAvailableWidth - statsPanelWidth - chartPadding;
+          
+          // Ensure chart size is within bounds
+          let chartSize = Math.min(maxChartSize, availableWidth);
+          chartSize = Math.max(minChartSize, chartSize);
+          
+          console.log('Chart dimensions:', { 
+            totalAvailableWidth,
+            availableWidth, 
+            chartSize, 
+            statsPanelWidth, 
+            chartPadding 
+          });
           
           // Calculate vertical centering with more space at the top
           const chartY = yPosition + 20; // More top margin for better spacing
@@ -133,23 +156,45 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
             // Convert canvas to data URL with higher quality
             const dataUrl = chartElement.toDataURL('image/png', 1.0);
             
-            // Calculate positions - center the chart vertically with the stats panel
+            // Calculate positions - ensure proper layout
             const chartX = margin;
             const statsPanelX = chartX + chartSize + chartPadding;
             
-            // Add the chart image with fixed aspect ratio
+            console.log('Panel positioning:', { 
+              chartX, 
+              statsPanelX, 
+              chartSize,
+              remainingSpace: pageWidth - statsPanelX - margin
+            });
+            
+            // Add chart with fixed aspect ratio
+            console.log('Adding chart image to PDF at:', { chartX, chartY, chartSize });
             pdf.addImage(dataUrl, 'PNG', chartX, chartY, chartSize, chartSize);
             
             // Get the actual chart data from the Chart.js instance
+            console.log('Getting chart instance and data...');
             const chart = Chart.getChart(chartElement);
             const chartData = chart?.data;
+            
+            console.log('Chart instance:', chart);
+            console.log('Chart data:', JSON.stringify({
+              labels: chartData?.labels,
+              datasets: chartData?.datasets?.map(d => ({
+                label: d.label,
+                data: d.data,
+                backgroundColor: d.backgroundColor,
+                borderColor: d.borderColor
+              }))
+            }, null, 2));
             
             // Extract category data from the chart if available
             const categoryData: Record<string, { average: number; count: number }> = {};
             
             if (chartData?.datasets?.[0]?.data) {
+              console.log('Extracting category data from chart...');
               chartData.labels?.forEach((label, index) => {
                 const value = chartData.datasets[0].data[index];
+                console.log(`Processing label: ${label}, value: ${value}`);
                 if (label && typeof value === 'number') {
                   const category = String(label).toLowerCase();
                   categoryData[category] = {
@@ -158,6 +203,9 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
                   };
                 }
               });
+              console.log('Extracted category data:', JSON.stringify(categoryData, null, 2));
+            } else {
+              console.warn('No chart data found in datasets');
             }
             
             // Create a session data object with the extracted or existing data
@@ -177,14 +225,28 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
               }
             };
             
+            console.log('Effective session data for stats panel:', JSON.stringify(effectiveSessionData, null, 2));
+            
+            // Position stats panel next to chart
+            const safeStartX = Math.max(margin, statsPanelX);
+            const safeStartY = chartY;
+            const panelWidth = Math.min(statsPanelWidth, pageWidth - safeStartX - margin);
+            
+            console.log('Rendering stats panel at:', { 
+              safeStartX, 
+              safeStartY, 
+              panelWidth,
+              remainingSpace: pageWidth - safeStartX - margin
+            });
+            
             // Render stats panel with the effective session data
             await renderStatsPanel(pdf, {
-              startX: statsPanelX,
-              startY: chartY, // Align with the top of the chart
-              width: statsPanelWidth,
+              startX: safeStartX,
+              startY: safeStartY,
+              width: panelWidth,
               allQuestions: allQuestions,
               sessionData: effectiveSessionData,
-              fontSize: fontSize,
+              fontSize: 9, // Fixed smaller font size
               isPieChartPanel: true
             });
             
@@ -472,6 +534,11 @@ async function renderStatsPanel(
   pdf: jsPDF,
   options: RenderStatsPanelOptions
 ) {
+  console.log('Rendering stats panel with options:', JSON.stringify({
+    ...options,
+    allQuestions: options.allQuestions?.length || 0,
+    sessionData: options.sessionData ? 'session data exists' : 'no session data'
+  }, null, 2));
   const { startX, startY, width, allQuestions, sessionData, fontSize, isPieChartPanel = false } = options;
   let y = startY;
   
@@ -518,6 +585,7 @@ async function renderStatsPanel(
   
   // Process session data if available
   if (sessionData?.scores?.byCategory) {
+    console.log('Category data:', JSON.stringify(sessionData.scores.byCategory, null, 2));
     Object.entries(sessionData.scores.byCategory).forEach(([category, scoreData]) => {
       if (!scoreData) return;
       
