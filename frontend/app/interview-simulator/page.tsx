@@ -391,7 +391,7 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">
-                    Question {currentQuestionIndex + 1} of {questions.length}
+                    Question {currentQuestionIndex + 1}
                   </h2>
                   {session.detected_role && (
                     <p className="text-sm text-gray-500">
@@ -405,7 +405,9 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <p className="text-gray-800">{currentQuestion.text}</p>
+                <p className="text-gray-800">
+                  {currentQuestion.text.replace(/^\d+\.?\s*/, '')}
+                </p>
               </div>
 
               <div className="space-y-4">
@@ -435,7 +437,7 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
                         Processing...
                       </span>
                     ) : (
-                      currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question'
+                      currentQuestionIndex === questions.length - 1 ? 'Submit' : 'Next Question'
                     )}
                   </button>
                 </div>
@@ -445,38 +447,45 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
             {session.feedback.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Feedback</h3>
-                {session.feedback.map((feedback, index) => (
-                  <div key={index} className="mb-6 last:mb-0">
-                    <div className="flex items-start">
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <div className="flex">
                       <div className="flex-shrink-0">
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       </div>
                       <div className="ml-3">
-                        <h4 className="text-sm font-medium text-gray-900">Question {index + 1}</h4>
-                        <p className="text-sm text-gray-700 mt-1">{feedback.evaluation}</p>
+                        <h4 className="text-sm font-medium text-gray-900">Your Answer Feedback</h4>
+                        <p className="mt-1 text-sm text-gray-700 whitespace-pre-line">
+                          {session.feedback[session.feedback.length - 1].evaluation}
+                        </p>
                       </div>
                     </div>
-                    {index < session.feedback.length - 1 && <hr className="my-4" />}
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
         )}
 
         {showCompletion && (
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="mt-3 text-xl font-semibold text-gray-900">Interview Complete!</h2>
-            <p className="mt-2 text-gray-600">
-              You&apos;ve completed all the questions. Great job!
+            <h2 className="text-2xl font-bold text-gray-900">Interview Complete!</h2>
+            <p className="mt-2 text-gray-600 max-w-md mx-auto">
+              You&apos;ve successfully completed the interview. Check out your detailed performance analysis.
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+              <a
+                href="/statistics"
+                className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                View Statistics
+              </a>
               <button
                 onClick={handleRestart}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Start New Interview
               </button>
