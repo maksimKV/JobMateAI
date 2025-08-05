@@ -299,6 +299,10 @@ export function ChartsSection({ stats }: ChartsSectionProps) {
                   mode: 'index',
                   intersect: false,
                   callbacks: {
+                    title: function(context) { 
+                      const questionNumber = parseInt(context[0].label) + 1;
+                      return `Question: ${questionNumber}`;
+                    },
                     label: (context) => {
                       const label = context.dataset.label?.split(' (Avg:')?.[0] || '';
                       const value = context.parsed.y;
