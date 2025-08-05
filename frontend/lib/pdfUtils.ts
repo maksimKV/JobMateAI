@@ -11,12 +11,31 @@ async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<strin
   const tempCtx = tempCanvas.getContext('2d');
   if (!tempCtx) return chartElement.toDataURL('image/png', 1.0);
 
-  // Set canvas size to match original chart
-  tempCanvas.width = chartElement.width;
-  tempCanvas.height = chartElement.height;
+  // Get the display scale factor (canvas might be scaled down via CSS)
+  const displayScaleX = chartElement.width / chartElement.offsetWidth;
+  const displayScaleY = chartElement.height / chartElement.offsetHeight;
+  
+  console.log('Original chart dimensions:', {
+    width: chartElement.width,
+    height: chartElement.height,
+    clientWidth: chartElement.clientWidth,
+    clientHeight: chartElement.clientHeight,
+    offsetWidth: chartElement.offsetWidth,
+    offsetHeight: chartElement.offsetHeight,
+    displayScaleX,
+    displayScaleY
+  });
 
-  // Draw the original chart
-  tempCtx.drawImage(chartElement, 0, 0);
+  // Double the canvas size for better quality
+  const scale = 2;
+  tempCanvas.width = chartElement.width * scale;
+  tempCanvas.height = chartElement.height * scale;
+
+  // Scale the context for higher resolution
+  tempCtx.scale(scale, scale);
+
+  // Draw the original chart at the correct scale
+  tempCtx.drawImage(chartElement, 0, 0, chartElement.width, chartElement.height, 0, 0, chartElement.width, chartElement.height);
 
   // Get the chart instance
   const chart = Chart.getChart(chartElement);
@@ -25,20 +44,55 @@ async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<strin
   const { data } = chart.config;
   const datasets = 'datasets' in data ? data.datasets : [];
 
-  // Configure text styles
-  tempCtx.font = '12px Arial';
+  // Configure text styles with larger font
+  tempCtx.font = 'bold 14px Arial';
   tempCtx.textAlign = 'center';
-  tempCtx.textBaseline = 'bottom';
+  tempCtx.textBaseline = 'middle';
 
   // Process each dataset
   datasets.forEach((dataset: ChartDataset, datasetIndex: number) => {
     if (!dataset.data || !chart.scales) return;
 
     // Get the scales
-    const xScale = chart.scales['x'] || chart.scales[chart.getDatasetMeta(datasetIndex).xAxisID || ''];
-    const yScale = chart.scales['y'] || chart.scales[chart.getDatasetMeta(datasetIndex).yAxisID || ''];
+    const meta = chart.getDatasetMeta(datasetIndex);
+    const xScale = chart.scales['x'] || chart.scales[meta.xAxisID || ''];
+    const yScale = chart.scales['y'] || chart.scales[meta.yAxisID || ''];
     
-    if (!xScale || !yScale) return;
+    if (!xScale || !yScale) {
+      console.warn('Missing scales:', { xScale: !!xScale, yScale: !!yScale });
+      return;
+    }
+
+    // Debug scale information
+    console.log('Chart scales:', {
+      xScale: {
+        type: xScale.type,
+        min: xScale.min,
+        max: xScale.max,
+        width: xScale.width,
+        height: xScale.height,
+        left: xScale.left,
+        right: xScale.right,
+        top: xScale.top,
+        bottom: xScale.bottom,
+      },
+      yScale: {
+        type: yScale.type,
+        min: yScale.min,
+        max: yScale.max,
+        width: yScale.width,
+        height: yScale.height,
+        left: yScale.left,
+        right: yScale.right,
+        top: yScale.top,
+        bottom: yScale.bottom,
+      },
+      meta: {
+        data: meta.data?.length,
+        xAxisID: meta.xAxisID,
+        yAxisID: meta.yAxisID,
+      }
+    });
 
     // Process each data point
     dataset.data.forEach((dataPoint, index) => {
@@ -58,43 +112,93 @@ async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<strin
       
       if (value === null || typeof value !== 'number') return;
 
-      const x = xScale.getPixelForValue(index);
-      const y = yScale.getPixelForValue(value);
+      // Get the raw pixel position from the scale
+      let x = xScale.getPixelForValue(index);
+      let y = yScale.getPixelForValue(value);
+      
+      // Adjust for display scaling
+      x = x * displayScaleX;
+      y = y * displayScaleY;
+
+      // Debug point position
+      console.log('Point position:', {
+        index,
+        value,
+        x,
+        y,
+        inBounds: x >= 0 && y >= 0 && x <= tempCanvas.width && y <= tempCanvas.height,
+        canvasWidth: tempCanvas.width,
+        canvasHeight: tempCanvas.height,
+        scale: scale
+      });
 
       // Skip points outside the chart area
-      if (x < 0 || y < 0 || x > tempCanvas.width || y > tempCanvas.height) return;
+      if (x < 0 || y < 0 || x > tempCanvas.width || y > tempCanvas.height) {
+        console.warn('Point outside chart area:', { x, y });
+        return;
+      }
 
       // Get border color safely
       const borderColor = Array.isArray(dataset.borderColor) 
         ? dataset.borderColor[dataset.borderColor.length > index ? index : 0]
         : dataset.borderColor;
 
-      // Draw point
+      // Draw point (larger size)
+      const pointRadius = 8;
       tempCtx.beginPath();
-      tempCtx.arc(x, y, 5, 0, Math.PI * 2);
+      tempCtx.arc(x, y, pointRadius, 0, Math.PI * 2);
       tempCtx.fillStyle = typeof borderColor === 'string' ? borderColor : '#000';
       tempCtx.fill();
       tempCtx.strokeStyle = '#fff';
-      tempCtx.lineWidth = 2;
+      tempCtx.lineWidth = 3;
       tempCtx.stroke();
 
       // Draw value label
       const label = value.toFixed(1);
-      const textY = y - 8; // Position above the point
+      const labelY = y - pointRadius - 8; // Position above the point with padding
       
-      // Draw text background
-      const textWidth = tempCtx.measureText(label).width;
-      tempCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      tempCtx.fillRect(
-        x - textWidth / 2 - 4,
-        textY - 12,
-        textWidth + 8,
-        16
+      // Draw text background with more padding
+      const textPadding = 6;
+      const textMetrics = tempCtx.measureText(label);
+      const textHeight = 16; // Approximate text height
+      const textWidth = textMetrics.width;
+      const rectX = x - textWidth / 2 - textPadding;
+      const rectY = labelY - textHeight / 2 - textPadding / 2;
+      
+      // Rounded rectangle background
+      const cornerRadius = 4;
+      tempCtx.beginPath();
+      tempCtx.moveTo(rectX + cornerRadius, rectY);
+      tempCtx.lineTo(rectX + textWidth + textPadding * 2 - cornerRadius, rectY);
+      tempCtx.quadraticCurveTo(
+        rectX + textWidth + textPadding * 2, rectY,
+        rectX + textWidth + textPadding * 2, rectY + cornerRadius
       );
+      tempCtx.lineTo(rectX + textWidth + textPadding * 2, rectY + textHeight + textPadding - cornerRadius);
+      tempCtx.quadraticCurveTo(
+        rectX + textWidth + textPadding * 2, rectY + textHeight + textPadding,
+        rectX + textWidth + textPadding * 2 - cornerRadius, rectY + textHeight + textPadding
+      );
+      tempCtx.lineTo(rectX + cornerRadius, rectY + textHeight + textPadding);
+      tempCtx.quadraticCurveTo(
+        rectX, rectY + textHeight + textPadding,
+        rectX, rectY + textHeight + textPadding - cornerRadius
+      );
+      tempCtx.lineTo(rectX, rectY + cornerRadius);
+      tempCtx.quadraticCurveTo(
+        rectX, rectY,
+        rectX + cornerRadius, rectY
+      );
+      tempCtx.closePath();
+      
+      tempCtx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      tempCtx.fill();
+      tempCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+      tempCtx.stroke();
       
       // Draw text
-      tempCtx.fillStyle = '#000';
-      tempCtx.fillText(label, x, textY);
+      tempCtx.fillStyle = '#1a1a1a';
+      tempCtx.fillText(label, x, labelY + textPadding / 2);
     });
   });
 
