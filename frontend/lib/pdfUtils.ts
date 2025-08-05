@@ -1,6 +1,105 @@
 import { jsPDF } from 'jspdf';
-import { Chart } from 'chart.js';
+import { Chart, ChartDataset } from 'chart.js';
 import { FeedbackItem } from '@/types';
+
+/**
+ * Helper function to enhance chart image with data point overlays
+ */
+async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<string> {
+  // Create a temporary canvas for drawing
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+  if (!tempCtx) return chartElement.toDataURL('image/png', 1.0);
+
+  // Set canvas size to match original chart
+  tempCanvas.width = chartElement.width;
+  tempCanvas.height = chartElement.height;
+
+  // Draw the original chart
+  tempCtx.drawImage(chartElement, 0, 0);
+
+  // Get the chart instance
+  const chart = Chart.getChart(chartElement);
+  if (!chart) return tempCanvas.toDataURL('image/png', 1.0);
+
+  const { data } = chart.config;
+  const datasets = 'datasets' in data ? data.datasets : [];
+
+  // Configure text styles
+  tempCtx.font = '12px Arial';
+  tempCtx.textAlign = 'center';
+  tempCtx.textBaseline = 'bottom';
+
+  // Process each dataset
+  datasets.forEach((dataset: ChartDataset, datasetIndex: number) => {
+    if (!dataset.data || !chart.scales) return;
+
+    // Get the scales
+    const xScale = chart.scales['x'] || chart.scales[chart.getDatasetMeta(datasetIndex).xAxisID || ''];
+    const yScale = chart.scales['y'] || chart.scales[chart.getDatasetMeta(datasetIndex).yAxisID || ''];
+    
+    if (!xScale || !yScale) return;
+
+    // Process each data point
+    dataset.data.forEach((dataPoint, index) => {
+      // Skip null or undefined values
+      if (dataPoint === null || dataPoint === undefined) return;
+      
+      // Extract numeric value from different possible data point formats
+      // Handle different data point formats
+      let value: number | null = null;
+      if (typeof dataPoint === 'number') {
+        value = dataPoint;
+      } else if (dataPoint && typeof dataPoint === 'object' && 'y' in dataPoint) {
+        value = (dataPoint as { y: number }).y;
+      } else if (Array.isArray(dataPoint) && dataPoint.length > 1) {
+        value = dataPoint[1];
+      }
+      
+      if (value === null || typeof value !== 'number') return;
+
+      const x = xScale.getPixelForValue(index);
+      const y = yScale.getPixelForValue(value);
+
+      // Skip points outside the chart area
+      if (x < 0 || y < 0 || x > tempCanvas.width || y > tempCanvas.height) return;
+
+      // Get border color safely
+      const borderColor = Array.isArray(dataset.borderColor) 
+        ? dataset.borderColor[dataset.borderColor.length > index ? index : 0]
+        : dataset.borderColor;
+
+      // Draw point
+      tempCtx.beginPath();
+      tempCtx.arc(x, y, 5, 0, Math.PI * 2);
+      tempCtx.fillStyle = typeof borderColor === 'string' ? borderColor : '#000';
+      tempCtx.fill();
+      tempCtx.strokeStyle = '#fff';
+      tempCtx.lineWidth = 2;
+      tempCtx.stroke();
+
+      // Draw value label
+      const label = value.toFixed(1);
+      const textY = y - 8; // Position above the point
+      
+      // Draw text background
+      const textWidth = tempCtx.measureText(label).width;
+      tempCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      tempCtx.fillRect(
+        x - textWidth / 2 - 4,
+        textY - 12,
+        textWidth + 8,
+        16
+      );
+      
+      // Draw text
+      tempCtx.fillStyle = '#000';
+      tempCtx.fillText(label, x, textY);
+    });
+  });
+
+  return tempCanvas.toDataURL('image/png', 1.0);
+}
 
 interface PDFOptions {
   title?: string;
@@ -280,10 +379,10 @@ export async function generatePdf(container: HTMLElement, filename: string, opti
           }
           
           try {
-            // Convert canvas to data URL
-            const dataUrl = chartElement.toDataURL('image/png', 1.0);
+            // Convert canvas to data URL with overlays
+            const dataUrl = await enhanceChartImage(chartElement);
             
-            // Add the chart image
+            // Add the enhanced chart image
             pdf.addImage(dataUrl, 'PNG', margin, yPosition, chartWidth, chartHeight);
             
             yPosition += chartHeight + 30; // Add space after the chart
