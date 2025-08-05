@@ -5,7 +5,8 @@ from typing import Optional, Dict, Any, List, Union
 import httpx
 import asyncio
 import logging
-from openai import OpenAI as OpenAIClient
+
+# OpenAI v0.28.1 doesn't have OpenAI class, using direct module functions
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,10 @@ class AIClient:
     
     @property
     def openai_client(self):
-        if self._openai_client is None and not self._initialized:
-            self._initialize_openai()
-        return self._openai_client
+        # For OpenAI v0.28.1, we don't maintain a client instance
+        if not hasattr(self, '_openai_initialized'):
+            self._openai_initialized = self._initialize_openai()
+        return self._openai_initialized
     
     def _initialize_cohere(self):
         cohere_api_key = os.getenv("COHERE_API_KEY")
@@ -48,33 +50,59 @@ class AIClient:
         return False
     
     def _initialize_openai(self):
+        # For OpenAI v0.28.1, we don't need to create a client instance
         openai_api_key = os.getenv("OPENAI_API_KEY")
-        if openai_api_key:
-            try:
-                self._openai_client = OpenAIClient(api_key=openai_api_key)
-                logger.info("OpenAI client initialized successfully")
-                # Test the OpenAI connection
-                self._openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": "Test connection"}],
-                    max_tokens=5
-                )
-                logger.info("OpenAI connection test successful")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to initialize OpenAI client: {str(e)}")
-                self._openai_client = None
-        else:
+        if not openai_api_key:
             logger.warning("OPENAI_API_KEY not found in environment variables")
-        return False
+            return False
+            
+        try:
+            openai.api_key = openai_api_key
+            # Test the connection with a simple completion using gpt-3.5-turbo-instruct
+            openai.Completion.create(
+                engine="gpt-3.5-turbo-instruct",
+                prompt="Test",
+                max_tokens=1
+            )
+            logger.info("OpenAI client initialized successfully")
+            return True
+            
+        except openai.error.RateLimitError as e:
+            logger.warning(f"OpenAI rate limit exceeded: {str(e)}. Falling back to Cohere.")
+            return False
+            
+        except openai.error.AuthenticationError as e:
+            logger.warning(f"OpenAI authentication failed: {str(e)}. Falling back to Cohere.")
+            return False
+            
+        except openai.error.APIError as e:
+            logger.warning(f"OpenAI API error: {str(e)}. Falling back to Cohere.")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Unexpected error initializing OpenAI client: {str(e)}")
+            return False
     
     def _initialize_clients(self):
         if not self._initialized:
+            # Always try to initialize Cohere first as it's our primary provider
             cohere_initialized = self._initialize_cohere()
-            openai_initialized = self._initialize_openai()
+            
+            # Only try OpenAI if Cohere failed
+            openai_initialized = False
+            if not cohere_initialized:
+                openai_initialized = self._initialize_openai()
+                
             self._initialized = cohere_initialized or openai_initialized
+            
             if not self._initialized:
-                logger.error("Failed to initialize any AI client")
+                logger.error("Failed to initialize any AI client. The application may have limited functionality.")
+            elif not cohere_initialized and openai_initialized:
+                logger.warning("Only OpenAI client is available. Some features may be limited.")
+            elif cohere_initialized and not openai_initialized:
+                logger.info("Cohere client initialized successfully. OpenAI is not available.")
+            else:
+                logger.info("Both Cohere and OpenAI clients initialized successfully.")
 
     async def generate_text(self, prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> str:
         """Generate text using available AI providers with fallback logic."""
@@ -98,13 +126,17 @@ class AIClient:
         # Fallback to OpenAI
         if self.openai_client:
             try:
-                response = self.openai_client.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}],
+                # For OpenAI v0.28.1, use the older API format with gpt-3.5-turbo-instruct
+                response = openai.Completion.create(
+                    engine="gpt-3.5-turbo-instruct",  # Compatible with older API versions
+                    prompt=prompt,
                     max_tokens=max_tokens,
-                    temperature=temperature
+                    temperature=temperature,
+                    top_p=1.0,
+                    frequency_penalty=0.0,
+                    presence_penalty=0.0
                 )
-                return response.choices[0].message.content.strip()
+                return response.choices[0].text.strip()
             except Exception as e:
                 print(f"OpenAI error: {e}")
         
