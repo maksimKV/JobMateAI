@@ -13,7 +13,7 @@ import { Loader2, AlertCircle, BarChart2, Download } from 'lucide-react';
 import { SessionInfo } from './components/SessionInfo';
 import { QuestionsList } from './components/QuestionsList';
 import { ChartsSection } from './components/ChartsSection';
-import { generatePdf } from '@/lib/pdfUtils';
+import { generatePdf } from '@/lib/pdf';
 
 // Number of questions to show per page
 const QUESTIONS_PER_PAGE = 1;
