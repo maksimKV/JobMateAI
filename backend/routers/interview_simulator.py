@@ -80,9 +80,14 @@ async def generate_questions(
                 detail="Failed to generate questions. Please try again."
             )
         
-        # Prepare session data with additional metadata for non_technical type
+        # Extract company name from job description
+        company_name = await ai_client.extract_company_name(job_description)
+        
+        # Prepare session data with additional metadata
         session_data = {
             "interview_type": interview_type,
+            "job_description": job_description,
+            "company_name": company_name,
             "questions": questions,
             "current_question_index": 0,
             "answers": [],

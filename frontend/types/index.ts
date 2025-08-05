@@ -207,6 +207,9 @@ export interface SessionData {
   questions: Array<{ text: string; type: string }>;
   feedback: FeedbackItem[];
   interviewType?: string;
+  company_name?: string;
+  position?: string;
+  job_description?: string;
 }
 
 export interface StatisticsRequest {

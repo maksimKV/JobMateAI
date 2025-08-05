@@ -43,6 +43,9 @@ interface InterviewSessionState {
   isComplete: boolean;
   detected_role?: string;
   detected_domain?: string;
+  company_name?: string;
+  position?: string;
+  job_description?: string;
 }
 
 // Define the initial session state with proper typing
@@ -54,7 +57,9 @@ const initialSessionState: InterviewSessionState = {
   interviewType: 'hr',
   isComplete: false,
   detected_role: undefined,
-  detected_domain: undefined
+  detected_domain: undefined,
+  company_name: undefined,
+  job_description: ''
 };
 
 // Define the component props type
@@ -136,19 +141,47 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
       
       // Update session with new question
       const questionType = res.question_type as 'hr' | 'technical' | 'non_technical';
+      // Extract company name and position from job description
+      const extractJobDetails = (desc: string): { company: string; position: string } => {
+        // Default values
+        let company = 'Company';
+        let position = 'Position';
+        
+        // Try to extract position (usually at the start of the description)
+        const positionMatch = desc.match(/^(.*?)(?=\s*at\s|\s*-|\s*\n|$)/i);
+        if (positionMatch) {
+          position = positionMatch[0].trim();
+          if (position.length > 30) position = position.substring(0, 30) + '...';
+        }
+        
+        // Try to extract company name (after 'at' or similar patterns)
+        const companyMatch = desc.match(/(?:at|@|for|from)\s+([A-Z][a-zA-Z0-9\s&,.\-']+?)(?=\s*[\n\(,\d]|$)/i);
+        if (companyMatch) {
+          company = companyMatch[1].trim();
+          // Clean up common patterns
+          company = company.replace(/^[\s\-\*•]+/, '').replace(/[\s\-\*•]+$/, '');
+        }
+        
+        return { company, position };
+      };
+      
+      const { company, position } = extractJobDetails(jobDescription);
+      
       setSession({
         ...initialSessionState,
         sessionId: res.session_id,
-        interviewType,
+        interviewType: interviewType as InterviewType,
         questions: [{
           text: res.current_question,
           type: questionType
         }],
-        feedback: [] as InterviewFeedback[],
         currentQuestionIndex: 0,
         isComplete: false,
         detected_role: res.detected_role,
-        detected_domain: res.detected_domain
+        detected_domain: res.detected_domain,
+        company_name: company,
+        position: position,
+        job_description: jobDescription
       });
       
       setError(null);
@@ -227,6 +260,8 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
             questions: updatedQuestions,
             feedback: updatedFeedback,
             interviewType: prev.interviewType,
+            company_name: prev.company_name, // Include company name
+            job_description: jobDescription, // Include job description
             timestamp: new Date().toISOString()
           }));
         }

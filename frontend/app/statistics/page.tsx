@@ -234,10 +234,19 @@ export default function StatisticsPage() {
     
     setIsGeneratingPdf(true);
     try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-        .replace('T', '_')
-        .slice(0, -9);
-      const filename = `JobMateAI_Interview_${timestamp}`;
+      // Get the current date in the format: DD Month YYYY (e.g., 05 August 2025)
+      const formatDate = (date: Date) => {
+        const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+      };
+      
+      // Get company name and position from session data or use defaults
+      console.log('Session data when generating PDF:', sessionData);
+      const companyName = sessionData?.company_name || 'Company';
+      const position = sessionData?.position ? `, for ${sessionData.position}` : '';
+      console.log('Using company name:', companyName, 'Position:', sessionData?.position);
+      const formattedDate = formatDate(new Date());
+      const filename = `Test interview for ${companyName} statistics${position} - ${formattedDate}`;
       
       // Get all questions regardless of pagination
       const allQuestions = sessionData?.feedback || [];

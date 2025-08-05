@@ -292,7 +292,40 @@ class AIClient:
                 "domain": "General Business"
             }
 
-    async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8) -> Dict[str, Any]:
+    async def extract_company_name(self, job_description: str) -> str:
+        """Extract the company name from a job description using AI."""
+        try:
+            # First try with OpenAI if available
+            if hasattr(openai, 'ChatCompletion'):
+                response = await asyncio.to_thread(
+                    openai.ChatCompletion.create,
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant that extracts company names from job descriptions. Only respond with the company name, nothing else."},
+                        {"role": "user", "content": f"Extract just the company name from this job description. Only respond with the company name, no other text or punctuation. If you can't determine the company, respond with 'Unknown Company'.\n\nJob Description: {job_description[:2000]}"}
+                    ],
+                    max_tokens=50,
+                    temperature=0.1
+                )
+                company_name = response.choices[0].message.content.strip()
+                return company_name if company_name and company_name != "Unknown Company" else "Company"
+            
+            # Fallback to Cohere if OpenAI is not available
+            if self.cohere_client:
+                response = self.cohere_client.chat(
+                    model="command",
+                    message=f"Extract just the company name from this job description. Only respond with the company name, no other text or punctuation. If you can't determine the company, respond with 'Unknown Company'.\n\nJob Description: {job_description[:2000]}",
+                    temperature=0.1
+                )
+                company_name = response.text.strip()
+                return company_name if company_name and company_name != "Unknown Company" else "Company"
+                
+        except Exception as e:
+            logger.error(f"Error extracting company name: {str(e)}")
+            
+        return "Company"
+    
+    async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8, extract_company: bool = False) -> Dict[str, Any]:
         """Generate interview questions based on job description and type."""
         
         if question_type == "non_technical":
