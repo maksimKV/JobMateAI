@@ -1,6 +1,5 @@
 import os
 import pdfplumber
-import fitz  # PyMuPDF
 from docx import Document
 from typing import Dict, Any, Optional
 import aiofiles
@@ -27,32 +26,25 @@ class FileParser:
     
     @staticmethod
     def extract_text_from_pdf(file_path: str) -> str:
-        """Extract text from PDF file using multiple methods for better coverage."""
+        """Extract text from PDF file using pdfplumber."""
         text = ""
         
-        # Try pdfplumber first
         try:
             with pdfplumber.open(file_path) as pdf:
                 for page in pdf.pages:
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
+            
+            if not text.strip():
+                raise ValueError("PDF appears to be empty or contains no extractable text")
+                
+            return text.strip()
+            
         except Exception as e:
-            print(f"pdfplumber failed: {e}")
-        
-        # If pdfplumber didn't work, try PyMuPDF
-        if not text.strip():
-            try:
-                doc = fitz.open(file_path)
-                for page in doc:
-                    page_text = page.get_text()
-                    if page_text:
-                        text += page_text + "\n"
-                doc.close()
-            except Exception as e:
-                print(f"PyMuPDF failed: {e}")
-        
-        return text.strip()
+            error_msg = f"Failed to extract text from PDF: {str(e)}"
+            print(error_msg)
+            raise ValueError(error_msg) from e
     
     @staticmethod
     def extract_text_from_docx(file_path: str) -> str:
