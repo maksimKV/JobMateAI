@@ -4,6 +4,20 @@ import { enhanceChartImage } from './chartUtils';
 import { addQuestionTypeBadge, getBadgeWidth } from './badgeUtils';
 
 /**
+ * Converts an rgba color string to an rgb string
+ * @param rgba - The rgba color string (e.g., 'rgba(79, 70, 229, 0.7)')
+ * @returns An rgb color string (e.g., 'rgb(79, 70, 229)')
+ */
+function rgbaToRgb(rgba: string): string {
+  // Handle rgb or rgba colors
+  const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
+  if (match) {
+    return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+  }
+  return rgba; // Return as is if not in expected format
+}
+
+/**
  * Generates a PDF document from the provided container element
  */
 export async function generatePdf(
@@ -58,13 +72,123 @@ export async function generatePdf(
       for (const mainContainer of Array.from(mainContainers)) {
         const title = mainContainer.querySelector('h2')?.textContent || '';
         
-        // Skip processing pie chart container
+        // Handle Performance by Category (donut chart) container
         if (title.includes('Performance by Category')) {
-          console.log('Skipping pie chart container...');
-          continue;
+          const chartElement = mainContainer.querySelector('canvas');
+          if (!chartElement) continue;
+          
+          // Add space before the section
+          yPosition += 20;
+          
+          // Calculate dimensions for the chart
+          const maxChartHeight = 150; // Smaller height for donut chart
+          const chartAspectRatio = chartElement.width / chartElement.height;
+          let chartWidth = pageWidth * 0.4; // Take 40% of the width for the chart
+          let chartHeight = chartWidth / chartAspectRatio;
+          
+          if (chartHeight > maxChartHeight) {
+            chartHeight = maxChartHeight;
+            chartWidth = chartHeight * chartAspectRatio;
+          }
+          
+          try {
+            // Add section title
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(14);
+            pdf.text(title, margin, yPosition);
+            yPosition += 10;
+            
+            // Convert canvas to data URL with overlays
+            const dataUrl = await enhanceChartImage(chartElement);
+            
+            // Add the enhanced chart image
+            pdf.addImage(dataUrl, 'PNG', margin, yPosition, chartWidth, chartHeight);
+            
+            // Add the legend and stats from the right side
+            const statsContainer = mainContainer.querySelector('.space-y-4');
+            if (statsContainer) {
+              // Position the stats to the right of the chart
+              const statsX = margin + chartWidth + 20;
+              let currentY = yPosition;
+              
+              // Add each stat item
+              const statItems = statsContainer.querySelectorAll('.space-y-1');
+              statItems.forEach(item => {
+                const text = item.textContent?.replace(/\s+/g, ' ').trim() || '';
+                if (text) {
+                  // Add the stat text
+                  pdf.setFont('helvetica');
+                  pdf.setFontSize(10);
+                  
+                  // Get the label and value
+                  const label = item.querySelector('.font-medium')?.textContent?.trim() || '';
+                  const value = item.querySelector('.font-semibold')?.textContent?.trim() || '';
+                  
+                  // Add a small colored square for the category
+                  const colorElement = item.querySelector('.w-3.h-3.rounded-full');
+                  if (colorElement) {
+                    const color = rgbaToRgb(window.getComputedStyle(colorElement).backgroundColor);
+                    pdf.setFillColor(color);
+                    pdf.rect(statsX - 15, currentY + 3, 6, 6, 'F');
+                  }
+                  
+                  // Add the label and value
+                  pdf.text(label, statsX - 5, currentY + 7);
+                  pdf.text(value, statsX + 60, currentY + 7, { align: 'right' });
+                  
+                  // Add the progress bar
+                  const progressBar = item.querySelector('.bg-gray-200');
+                  if (progressBar) {
+                    const progressFill = progressBar.querySelector('div');
+                    if (progressFill) {
+                      const width = parseFloat(progressFill.style.width || '0');
+                      const color = progressFill.style.backgroundColor || '#000000';
+                      
+                      // Draw the background
+                      pdf.setFillColor(200, 200, 200);
+                      pdf.rect(statsX, currentY + 15, 80, 4, 'F');
+                      
+                      // Draw the progress
+                      const rgbColor = rgbaToRgb(color);
+                      pdf.setFillColor(rgbColor);
+                      pdf.rect(statsX, currentY + 15, 80 * (width / 100), 4, 'F');
+                    }
+                  }
+                  
+                  currentY += 25; // Space for next item
+                }
+              });
+              
+              // Add the overall average at the bottom
+              const overallContainer = mainContainer.querySelector('.pt-4');
+              if (overallContainer) {
+                const overallLabel = overallContainer.querySelector('.font-medium')?.textContent?.trim() || '';
+                const overallValue = overallContainer.querySelector('.font-semibold')?.textContent?.trim() || '';
+                
+                if (overallLabel && overallValue) {
+                  currentY += 10;
+                  pdf.setFont('helvetica', 'bold');
+                  pdf.setFontSize(10);
+                  pdf.text(overallLabel, statsX, currentY + 5);
+                  pdf.text(overallValue, statsX + 60, currentY + 5, { align: 'right' });
+                }
+              }
+              
+              // Update yPosition to the maximum of chart bottom or stats bottom
+              yPosition = Math.max(yPosition + chartHeight, currentY + 20);
+            } else {
+              yPosition += chartHeight + 20; // Fallback if no stats container found
+            }
+            
+          } catch (error) {
+            console.error('Error processing donut chart:', error);
+            yPosition += 20; // Add some space even if there was an error
+          }
+          
+          continue; // Skip the default processing for this container
         }
         
-        // Handle other chart containers (like line charts) if needed
+        // Handle line chart containers
         const chartElement = mainContainer.querySelector('canvas');
         if (!chartElement) continue;
         
@@ -94,7 +218,7 @@ export async function generatePdf(
           // Add the enhanced chart image
           pdf.addImage(dataUrl, 'PNG', margin, yPosition, chartWidth, chartHeight);
           
-          yPosition += chartHeight + 30; // Add space after the chart
+          yPosition += chartHeight + 20; // Add space after the chart
         } catch (error) {
           console.error('Error processing chart:', error);
           // Skip to next chart on error
