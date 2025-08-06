@@ -86,6 +86,9 @@ const InterviewSimulatorPage = () => {
   
   // Toggle recording
   const toggleRecording = useCallback(async () => {
+    // Don't allow toggling if we're currently loading
+    if (isLoading) return;
+    
     try {
       if (listening) {
         stopListening();
@@ -96,7 +99,7 @@ const InterviewSimulatorPage = () => {
       console.error('Error toggling recording:', err);
       setUiError(err instanceof Error ? err.message : 'Failed to toggle recording');
     }
-  }, [listening, startListening, stopListening]);
+  }, [listening, startListening, stopListening, isLoading]);
   
   // Stop recording when component unmounts or interview completes
   useEffect(() => {
