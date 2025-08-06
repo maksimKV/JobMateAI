@@ -47,12 +47,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS with more permissive settings for development
+# Configure CORS with allowed origins for both development and production
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://jobmateai-frontend-service.onrender.com",
+    "https://www.jobmateai-frontend-service.onrender.com",
 ]
 
 app.add_middleware(
