@@ -109,34 +109,42 @@ export async function generatePdf(
             if (statsContainer) {
               // Position the stats to the right of the chart
               const statsX = margin + chartWidth + 20;
-              let currentY = yPosition;
+              const progressBarWidth = 60;
+              const lineHeight = 4;
+              const itemSpacing = 8;
+              const progressBarHeight = 2;
+              let currentY = yPosition + 5;
+              
+              // Set default font
+              pdf.setFont('helvetica');
+              pdf.setFontSize(9);
               
               // Add each stat item
               const statItems = statsContainer.querySelectorAll('.space-y-1');
-              statItems.forEach(item => {
+              statItems.forEach((item) => {
                 const text = item.textContent?.replace(/\s+/g, ' ').trim() || '';
                 if (text) {
-                  // Add the stat text
-                  pdf.setFont('helvetica');
-                  pdf.setFontSize(10);
-                  
-                  // Get the label and value
+                  // Add a small colored square for the category
+                  const colorElement = item.querySelector('.w-3.h-3.rounded-full');
                   const label = item.querySelector('.font-medium')?.textContent?.trim() || '';
                   const value = item.querySelector('.font-semibold')?.textContent?.trim() || '';
                   
-                  // Add a small colored square for the category
-                  const colorElement = item.querySelector('.w-3.h-3.rounded-full');
+                  // Draw rounded dot
                   if (colorElement) {
                     const color = rgbaToRgb(window.getComputedStyle(colorElement).backgroundColor);
                     pdf.setFillColor(color);
-                    pdf.rect(statsX - 15, currentY + 3, 6, 6, 'F');
+                    // Draw circle for the dot
+                    pdf.circle(statsX + 3, currentY + 5, 3, 'F');
                   }
                   
-                  // Add the label and value
-                  pdf.text(label, statsX - 5, currentY + 7);
-                  pdf.text(value, statsX + 60, currentY + 7, { align: 'right' });
+                  // Draw category name (bold)
+                  pdf.setFont('helvetica', 'bold');
+                  pdf.text(label, statsX + 10, currentY + 7);
                   
-                  // Add the progress bar
+                  // Draw score value (right-aligned)
+                  pdf.text(value, statsX + progressBarWidth + 10, currentY + 7, { align: 'right' });
+                  
+                  // Draw the progress bar
                   const progressBar = item.querySelector('.bg-gray-200');
                   if (progressBar) {
                     const progressFill = progressBar.querySelector('div');
@@ -144,33 +152,69 @@ export async function generatePdf(
                       const width = parseFloat(progressFill.style.width || '0');
                       const color = progressFill.style.backgroundColor || '#000000';
                       
-                      // Draw the background
-                      pdf.setFillColor(200, 200, 200);
-                      pdf.rect(statsX, currentY + 15, 80, 4, 'F');
+                      // Draw the background with rounded corners
+                      const bgY = currentY + 12;
+                      pdf.setFillColor(220, 220, 220); // Lighter gray for background
+                      // Draw rectangle with rounded corners (approximated with arcs and lines)
+                      const radius = progressBarHeight / 2;
+                      const bgX = statsX + 10;
                       
-                      // Draw the progress
-                      const rgbColor = rgbaToRgb(color);
-                      pdf.setFillColor(rgbColor);
-                      pdf.rect(statsX, currentY + 15, 80 * (width / 100), 4, 'F');
+                      // Background with rounded corners
+                      pdf.setFillColor(220, 220, 220);
+                      pdf.setDrawColor(220, 220, 220);
+                      pdf.roundedRect(bgX, bgY, progressBarWidth, progressBarHeight, radius, radius, 'F');
+                      
+                      // Draw the progress with rounded corners
+                      const progressWidth = progressBarWidth * (width / 100);
+                      if (progressWidth > 0) {
+                        const rgbColor = rgbaToRgb(color);
+                        pdf.setFillColor(rgbColor);
+                        pdf.setDrawColor(rgbColor);
+                        // If progress is very small, just draw a rounded rectangle with min width
+                        if (progressWidth < radius * 2) {
+                          pdf.circle(bgX + radius, bgY + radius, radius, 'F');
+                        } else {
+                          pdf.roundedRect(bgX, bgY, progressWidth, progressBarHeight, radius, radius, 'F');
+                        }
+                      }
                     }
                   }
                   
-                  currentY += 25; // Space for next item
+                  // Add more space after each item
+                  currentY += itemSpacing + lineHeight * 3;
                 }
               });
               
-              // Add the overall average at the bottom
+              // Add a divider before the overall average
+              currentY += 5;
+              pdf.setDrawColor(200, 200, 200);
+              pdf.setLineWidth(0.5);
+              pdf.line(statsX, currentY, statsX + progressBarWidth + 10, currentY);
+              currentY += 10;
+              
+              // Add the overall average at the bottom with more emphasis
               const overallContainer = mainContainer.querySelector('.pt-4');
               if (overallContainer) {
                 const overallLabel = overallContainer.querySelector('.font-medium')?.textContent?.trim() || '';
                 const overallValue = overallContainer.querySelector('.font-semibold')?.textContent?.trim() || '';
                 
                 if (overallLabel && overallValue) {
-                  currentY += 10;
+                  // Draw overall label (bold and slightly larger)
                   pdf.setFont('helvetica', 'bold');
                   pdf.setFontSize(10);
                   pdf.text(overallLabel, statsX, currentY + 5);
-                  pdf.text(overallValue, statsX + 60, currentY + 5, { align: 'right' });
+                  
+                  // Draw overall value (bold, larger, and in blue)
+                  pdf.setFont('helvetica', 'bold');
+                  pdf.setTextColor(59, 130, 246); // Blue color for emphasis
+                  pdf.text(overallValue, statsX + progressBarWidth + 10, currentY + 5, { 
+                    align: 'right'
+                  });
+                  
+                  // Reset text color for other elements
+                  pdf.setTextColor(0, 0, 0);
+                  
+                  currentY += 15; // Extra space after overall average
                 }
               }
               
