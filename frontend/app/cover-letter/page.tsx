@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Navigation from '@/components/Navigation';
 import { coverLetterAPI, cvAPI } from '@/lib/api';
 import { CoverLetterRequest, CVData } from '@/types';
 import { Mail, Loader2, AlertCircle, Download } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import html2canvas, { type Options } from 'html2canvas';
+import { generateCoverLetterPdf } from '@/lib/pdf/coverLetterPdf';
 
 export default function CoverLetterPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -16,7 +15,9 @@ export default function CoverLetterPage() {
   const [jobDescription, setJobDescription] = useState('');
   const [language, setLanguage] = useState('English');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const coverLetterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Fetch available CVs
@@ -175,6 +176,7 @@ export default function CoverLetterPage() {
               </button>
             </div>
             <div 
+              ref={coverLetterRef}
               id="cover-letter-content"
               className="bg-white border border-gray-300 rounded-lg p-4 text-gray-800 w-full min-h-[200px] max-h-[600px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
               contentEditable
@@ -192,182 +194,44 @@ export default function CoverLetterPage() {
             <div className="mt-4 flex justify-center">
               <button
                 onClick={async () => {
+                  if (!coverLetterRef.current || !companyName) return;
+                  
+                  setIsGeneratingPdf(true);
+                  setError(null);
+                  
                   try {
-                    const element = document.getElementById('cover-letter-content');
-                    if (!element) return;
-                    
-                    // Create a clone of the element to avoid affecting the original
-                    const elementClone = element.cloneNode(true) as HTMLElement;
-                    document.body.appendChild(elementClone);
-                    elementClone.style.position = 'fixed';
-                    elementClone.style.left = '-9999px';
-                    elementClone.style.top = '0';
-                    
-                    // Set a white background to ensure good contrast
-                    elementClone.style.backgroundColor = 'white';
-                    
-                    // Remove any problematic CSS properties
-                    const allElements = elementClone.getElementsByTagName('*');
-                    for (let i = 0; i < allElements.length; i++) {
-                      const el = allElements[i] as HTMLElement;
-                      // Remove any problematic color functions
-                      if (el.style.color.includes('oklch')) {
-                        el.style.color = '';
-                      }
-                      if (el.style.backgroundColor?.includes('oklch')) {
-                        el.style.backgroundColor = '';
-                      }
-                    }
-                    
-                    try {
-                      // Create a temporary container with A4 dimensions (210mm x 297mm at 96 DPI)
-                      const tempContainer = document.createElement('div');
-                      tempContainer.style.position = 'absolute';
-                      tempContainer.style.left = '-9999px';
-                      tempContainer.style.width = '794px'; // A4 width in pixels at 96 DPI
-                      tempContainer.style.padding = '20mm';
-                      tempContainer.style.backgroundColor = 'white';
-                      tempContainer.style.boxSizing = 'border-box';
-                      tempContainer.style.fontFamily = 'Arial, sans-serif';
-                      tempContainer.style.fontSize = '12pt';
-                      tempContainer.style.lineHeight = '1.6';
-                      
-                      // Clone the content and clean up problematic styles
-                      const contentClone = elementClone.cloneNode(true) as HTMLElement;
-                      contentClone.style.width = '100%';
-                      contentClone.style.height = 'auto';
-                      contentClone.style.margin = '0';
-                      contentClone.style.padding = '0';
-                      contentClone.style.border = 'none';
-                      contentClone.style.overflow = 'visible';
-                      
-                      // Remove any inline background colors or problematic styles
-                      const removeProblematicStyles = (element: HTMLElement) => {
-                        // Remove style attributes that might contain unsupported color functions
-                        if (element.style) {
-                          element.style.backgroundColor = '';
-                          element.style.backgroundImage = '';
-                          element.style.boxShadow = 'none';
-                          element.style.transform = 'none';
-                          element.style.color = ''; // Reset text color
-                          element.style.border = 'none';
-                          element.style.borderRadius = '';
-                          element.style.background = '';
-                          element.style.backgroundClip = '';
-                          element.style.webkitBackgroundClip = '';
-                          element.style.backgroundClip = '';
-                          element.style.webkitTextFillColor = '';
-                          element.style.filter = '';
-                          element.style.backdropFilter = '';
-                          element.style.backgroundBlendMode = '';
-                          element.style.mixBlendMode = '';
-                          element.style.isolation = '';
-                        }
-                      };
-
-                      // Process all elements including the root
-                      removeProblematicStyles(contentClone);
-                      contentClone.querySelectorAll('*').forEach(el => {
-                        removeProblematicStyles(el as HTMLElement);
-                      });
-
-                      // Force standard colors and fonts for better PDF rendering
-                      contentClone.style.color = '#000000';
-                      contentClone.style.fontFamily = 'Arial, sans-serif';
-                      
-                      tempContainer.appendChild(contentClone);
-                      document.body.appendChild(tempContainer);
-                      
-                      try {
-                        const options: Partial<Options> = {
-                          scale: 2,
-                          logging: false,
-                          useCORS: true,
-                          allowTaint: true,
-                          backgroundColor: null,
-                          removeContainer: true,
-                          ignoreElements: (element: Element) => {
-                            // Skip elements with 'no-print' class
-                            if (element.classList?.contains('no-print')) {
-                              return true;
-                            }
-                            return false;
-                          },
-                          onclone: (clonedDoc) => {
-                            // Handle any cloning logic here
-                            const style = document.createElement('style');
-                            style.textContent = `
-                              @media print {
-                                body {
-                                  -webkit-print-color-adjust: exact !important;
-                                  print-color-adjust: exact !important;
-                                }
-                              }
-                            `;
-                            clonedDoc.head.appendChild(style);
-
-                            // Handle any other DOM modifications needed for printing
-                            const elements = clonedDoc.querySelectorAll('*');
-                            for (let i = 0; i < elements.length; i++) {
-                              const element = elements[i];
-                              try {
-                                // Handle any element-specific logic here
-                                if (element instanceof HTMLElement) {
-                                  // Ensure elements have proper styling for print
-                                  element.style.boxSizing = 'border-box';
-                                  element.style.margin = '0';
-                                  element.style.padding = '0';
-                                }
-                              } catch (error) {
-                                // Skip any elements that cause errors
-                                console.error('Error processing element:', error);
-                                continue;
-                              }
-                            }
-                          }
-                        };
-                        const canvas = await html2canvas(tempContainer, options);
-                        
-                        const imgData = canvas.toDataURL('image/png');
-                        const pdf = new jsPDF({
-                          orientation: 'portrait',
-                          unit: 'mm',
-                          format: 'a4'
-                        });
-                        
-                        const imgProps = pdf.getImageProperties(imgData);
-                        const pdfWidth = pdf.internal.pageSize.getWidth();
-                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                        
-                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                        
-                        // Create a safe filename with the company name
-                        const safeCompanyName = companyName
-                          ? companyName.replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ').trim()
-                          : 'Company';
-                        const filename = `Cover Letter - ${safeCompanyName}.pdf`;
-                        
-                        pdf.save(filename);
-                      } catch (error) {
+                    await generateCoverLetterPdf({
+                      element: coverLetterRef.current,
+                      companyName,
+                      onError: (error) => {
                         console.error('Error generating PDF:', error);
                         setError('Failed to generate PDF. Please try again.');
-                      } finally {
-                        // Clean up
-                        document.body.removeChild(tempContainer);
-                      }
-                    } finally {
-                      // Clean up the cloned element
-                      document.body.removeChild(elementClone);
-                    }
+                      },
+                      onSuccess: () => {
+                        // Optional: Add any success handling here
+                      },
+                    });
                   } catch (error) {
                     console.error('Error generating PDF:', error);
                     setError('Failed to generate PDF. Please try again or copy the text manually.');
+                  } finally {
+                    setIsGeneratingPdf(false);
                   }
                 }}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center gap-2"
+                disabled={isGeneratingPdf}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Download className="h-5 w-5" />
-                Download as PDF
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-5 w-5" />
+                    Download as PDF
+                  </>
+                )}
               </button>
             </div>
           </div>
