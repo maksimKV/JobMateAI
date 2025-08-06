@@ -44,7 +44,8 @@ const InterviewSimulatorPage = () => {
     recognitionError,
     startListening,
     stopListening,
-    isBrowserSupported
+    isBrowserSupported,
+    clearTranscript  // Add clearTranscript to the destructured values
   } = useSpeechToText();
   
   // Interview session hook
@@ -144,9 +145,13 @@ const InterviewSimulatorPage = () => {
       stopListening();
     }
     
+    // Clear the current answer and transcript
+    const currentAnswer = answer;
+    setAnswer('');
+    clearTranscript();
+    
     try {
-      const isComplete = await submitAnswerToSession(answer, currentQuestion);
-      setAnswer('');
+      const isComplete = await submitAnswerToSession(currentAnswer, currentQuestion);
       
       if (isComplete) {
         setShowCompletion(true);
@@ -155,7 +160,7 @@ const InterviewSimulatorPage = () => {
       console.error('Failed to submit answer:', err);
       setUiError(err instanceof Error ? err.message : 'Failed to submit answer');
     }
-  }, [answer, currentQuestion, sessionId, submitAnswerToSession, listening, stopListening]);
+  }, [answer, currentQuestion, sessionId, submitAnswerToSession, listening, stopListening, clearTranscript]);
   
   // Handle restarting the interview
   const handleRestart = useCallback(() => {

@@ -41,6 +41,7 @@ interface UseSpeechToTextReturn {
   stopListening: () => void;
   toggleListening: () => void;
   resetTranscript: () => void;
+  clearTranscript: () => void;  // New function to clear the transcript
   interimTranscript: string;
 }
 
@@ -111,6 +112,12 @@ export const useSpeechToText = (): UseSpeechToTextReturn => {
     setInterimTranscript('');
     resetWebSpeechTranscript();
   }, [resetWebSpeechTranscript]);
+
+  // New function to clear just the transcript without affecting the Web Speech API
+  const clearTranscript = useCallback(() => {
+    finalTranscriptRef.current = '';
+    setInterimTranscript('');
+  }, []);
 
   const processResults = useCallback((event: SpeechRecognitionEvent) => {
     if (!isMounted.current) return;
@@ -227,5 +234,6 @@ export const useSpeechToText = (): UseSpeechToTextReturn => {
     stopListening,
     toggleListening,
     resetTranscript,
+    clearTranscript,  // Expose the clearTranscript function
   };
 };
