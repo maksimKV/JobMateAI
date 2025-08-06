@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Navigation from '@/components/Navigation';
 import { interviewAPI, APIError } from '@/lib/api';
 import { 
@@ -14,8 +14,11 @@ import {
 import { 
   Loader2, 
   AlertCircle, 
-  CheckCircle 
+  CheckCircle,
+  Mic,
+  MicOff
 } from 'lucide-react';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
 
 // Define the question type
 type InterviewQuestion = {
@@ -92,6 +95,42 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState('');
   const [showCompletion, setShowCompletion] = useState(false);
+  const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Use our enhanced speech recognition hook
+  const {
+    transcript,
+    listening,
+    recognitionError,
+    startListening,
+    stopListening,
+    isBrowserSupported
+  } = useSpeechToText();
+  
+  // Update answer when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setAnswer(transcript);
+    }
+  }, [transcript]);
+  
+  // Toggle recording
+  const toggleRecording = useCallback(async () => {
+    if (listening) {
+      stopListening();
+    } else {
+      await startListening();
+    }
+  }, [listening, startListening, stopListening]);
+  
+  // Stop recording when component unmounts or interview completes
+  useEffect(() => {
+    return () => {
+      if (listening) {
+        stopListening();
+      }
+    };
+  }, [listening, stopListening]);
   
   // Session state with proper typing
   const [session, setSession] = useState(() => ({
@@ -423,17 +462,64 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="answer" className="block text-sm font-medium text-gray-700 mb-1">
-                    Your Answer
-                  </label>
-                  <textarea
-                    id="answer"
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    rows={4}
-                    placeholder="Type your answer here..."
-                  />
+                  <div className="flex justify-between items-center mb-1">
+                    <label htmlFor="answer" className="block text-sm font-medium text-gray-700">
+                      Your Answer
+                    </label>
+                    <div className="flex items-center">
+                      {!isBrowserSupported && (
+                        <span className="text-xs text-yellow-600 mr-2">
+                          Speech recognition not supported in your browser
+                        </span>
+                      )}
+                      {recognitionError && (
+                        <span className="text-xs text-red-600 mr-2">
+                          {recognitionError}
+                        </span>
+                      )}
+                      {isBrowserSupported && (
+                        <button
+                          type="button"
+                          onClick={toggleRecording}
+                          className={`p-2 rounded-full ${listening ? 'text-red-500 animate-pulse' : 'text-gray-500 hover:text-gray-700'}`}
+                          title={listening ? 'Stop recording' : 'Start recording'}
+                        >
+                          {listening ? (
+                            <div className="flex items-center">
+                              <MicOff className="h-5 w-5 mr-1" />
+                              <span className="text-xs">Stop</span>
+                            </div>
+                          ) : (
+                            <Mic className="h-5 w-5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      id="answer"
+                      ref={answerTextareaRef}
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10"
+                      rows={4}
+                      placeholder={isBrowserSupported ? 'Type or speak your answer...' : 'Type your answer...'}
+                    />
+                    {listening && (
+                      <div className="absolute right-3 bottom-3 flex items-center">
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {isBrowserSupported && listening && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Speak now... {transcript && !transcript.endsWith(' ') && '✓'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-2">
