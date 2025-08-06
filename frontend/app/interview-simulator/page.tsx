@@ -136,6 +136,11 @@ const InterviewSimulatorPage = () => {
   const handleSubmitAnswer = useCallback(async () => {
     if (!currentQuestion || !answer.trim() || !sessionId) return;
     
+    // Stop speech recognition if it's active
+    if (listening) {
+      stopListening();
+    }
+    
     try {
       const isComplete = await submitAnswerToSession(answer, currentQuestion);
       setAnswer('');
@@ -147,7 +152,7 @@ const InterviewSimulatorPage = () => {
       console.error('Failed to submit answer:', err);
       setUiError(err instanceof Error ? err.message : 'Failed to submit answer');
     }
-  }, [answer, currentQuestion, sessionId, submitAnswerToSession]);
+  }, [answer, currentQuestion, sessionId, submitAnswerToSession, listening, stopListening]);
   
   // Handle restarting the interview
   const handleRestart = useCallback(() => {
