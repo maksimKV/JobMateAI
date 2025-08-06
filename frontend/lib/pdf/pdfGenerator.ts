@@ -43,7 +43,7 @@ export async function generatePdf(
       format: 'a4',
     });
 
-    // Set default font
+    // Set default font to Helvetica (jsPDF default)
     pdf.setFont('helvetica');
     pdf.setFontSize(fontSize);
     pdf.setTextColor(0, 0, 0);
@@ -108,17 +108,17 @@ export async function generatePdf(
             const statsContainer = mainContainer.querySelector('.space-y-4');
             if (statsContainer) {
               // Position the stats to the right of the chart with precise spacing
-              const statsX = margin + chartWidth + 15; // Reduced from 20
+              const statsX = margin + chartWidth + 15;
               const progressBarWidth = 60;
-              const lineHeight = 3.5; // Tighter line height
-              const itemSpacing = 10; // Slightly more space between items
-              const progressBarHeight = 1.5; // Thinner progress bars (was 2)
-              const dotSize = 2; // Smaller dots (was 3)
+              const lineHeight = 3.5;
+              const itemSpacing = 10;
+              const progressBarHeight = 1.5;
+              const dotSize = 2;
               let currentY = yPosition + 5;
               
-              // Set default font to match web version
-              pdf.setFont('sans-serif');
-              pdf.setFontSize(8); // Slightly smaller font
+              // Set default font to standard jsPDF font
+              pdf.setFont('helvetica');
+              pdf.setFontSize(8);
               
               // Add each stat item
               const statItems = statsContainer.querySelectorAll('.space-y-1');
@@ -140,11 +140,11 @@ export async function generatePdf(
                   
                   // Draw category name (bold)
                   // Draw label with adjusted position
-                  pdf.setFont('sans-serif', 'bold');
+                  pdf.setFont('helvetica', 'bold');
                   pdf.text(label, statsX + 12, currentY + 6.5);
                   
                   // Draw score value with adjusted position
-                  pdf.setFont('sans-serif', 'normal');
+                  pdf.setFont('helvetica', 'normal');
                   pdf.text(value, statsX + progressBarWidth + 10, currentY + 6.5, { align: 'right' });
                   
                   // Draw the progress bar
@@ -156,10 +156,10 @@ export async function generatePdf(
                       const color = progressFill.style.backgroundColor || '#000000';
                       
                       // Draw the background with rounded corners
-                      const bgY = currentY + 10; // Moved up slightly
-                      pdf.setFillColor(229, 231, 235); // Lighter gray to match web
-                      const radius = 1; // Smaller radius for subtle rounding
-                      const bgX = statsX + 12; // Align with text
+                      const bgY = currentY + 10;
+                      pdf.setFillColor(229, 231, 235);
+                      const radius = 1;
+                      const bgX = statsX + 12;
                       
                       // Background with subtle rounded corners
                       pdf.setFillColor(229, 231, 235);
@@ -183,16 +183,16 @@ export async function generatePdf(
                   }
                   
                   // Add space after each item
-                  currentY += itemSpacing + lineHeight * 2.5; // Tighter spacing
+                  currentY += itemSpacing + lineHeight * 2.5;
                 }
               });
               
               // Add a subtle divider before the overall average
-              currentY += 6; // Less space before divider
-              pdf.setDrawColor(226, 232, 240); // Lighter gray
-              pdf.setLineWidth(0.3); // Thinner line
+              currentY += 6;
+              pdf.setDrawColor(226, 232, 240);
+              pdf.setLineWidth(0.3);
               pdf.line(statsX, currentY, statsX + progressBarWidth + 10, currentY);
-              currentY += 8; // Less space after divider
+              currentY += 8;
               
               // Add the overall average at the bottom with more emphasis
               const overallContainer = mainContainer.querySelector('.pt-4');
@@ -202,13 +202,13 @@ export async function generatePdf(
                 
                 if (overallLabel && overallValue) {
                   // Draw overall label with consistent styling
-                  pdf.setFont('sans-serif', 'bold');
-                  pdf.setFontSize(8.5); // Slightly larger than regular text
+                  pdf.setFont('helvetica', 'bold');
+                  pdf.setFontSize(8.5);
                   pdf.text(overallLabel, statsX, currentY + 3);
                   
                   // Draw overall value with web-matching blue
-                  pdf.setFont('sans-serif', 'bold');
-                  pdf.setTextColor(37, 99, 235); // Brighter blue to match web
+                  pdf.setFont('helvetica', 'bold');
+                  pdf.setTextColor(37, 99, 235);
                   pdf.text(overallValue, statsX + progressBarWidth + 10, currentY + 5, { 
                     align: 'right'
                   });
@@ -216,19 +216,19 @@ export async function generatePdf(
                   // Reset text color for other elements
                   pdf.setTextColor(0, 0, 0);
                   
-                  currentY += 15; // Extra space after overall average
+                  currentY += 15;
                 }
               }
               
               // Update yPosition to the maximum of chart bottom or stats bottom
               yPosition = Math.max(yPosition + chartHeight, currentY + 20);
             } else {
-              yPosition += chartHeight + 20; // Fallback if no stats container found
+              yPosition += chartHeight + 20;
             }
             
           } catch (error) {
             console.error('Error processing donut chart:', error);
-            yPosition += 20; // Add some space even if there was an error
+            yPosition += 20;
           }
           
           continue; // Skip the default processing for this container
