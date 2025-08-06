@@ -244,20 +244,76 @@ async def job_match(
                     else:
                         job_skills_list.append(skill)
         
+        # Generate structured suggestions
+        suggestions = []
+        
+        # 1. Skills to add
+        if missing_skills:
+            suggestions.append({
+                "id": "skills_to_add",
+                "title": "Add Missing Skills",
+                "icon": "code",
+                "category": "skills",
+                "priority": "high",
+                "items": [{"text": skill, "action": "add"} for skill in missing_skills[:5]],
+                "description": "These skills are mentioned in the job description but not in your CV"
+            })
+        
+        # 2. Skills to highlight
+        if matched_skills:
+            suggestions.append({
+                "id": "skills_to_highlight",
+                "title": "Highlight These Skills",
+                "icon": "star",
+                "category": "skills",
+                "priority": "medium",
+                "items": [{"text": skill, "action": "highlight"} for skill in matched_skills[:5]],
+                "description": "These skills match the job requirements - make sure they're prominent"
+            })
+        
+        # 3. Missing soft skills
+        if missing_soft_skills:
+            suggestions.append({
+                "id": "missing_soft_skills",
+                "title": "Add Soft Skills",
+                "icon": "group",
+                "category": "soft_skills",
+                "priority": "medium",
+                "items": [{"text": skill, "action": "add"} for skill in missing_soft_skills[:5]],
+                "description": "These soft skills are important for this role"
+            })
+        
+        # 4. Formatting suggestions
+        suggestions.append({
+            "id": "formatting_tips",
+            "title": "Formatting Tips",
+            "icon": "format_align_left",
+            "category": "formatting",
+            "priority": "low",
+            "items": [
+                {"text": "Use bullet points for achievements", "action": "suggest"},
+                {"text": "Keep work experience concise", "action": "suggest"},
+                {"text": "Include metrics where possible", "action": "suggest"}
+            ],
+            "description": "Improve readability with these formatting tips"
+        })
+
         # Format response to match frontend expectations
         response = {
             "success": True,
             "match_percent": match_percent,
-            "matched_skills": list(matched_skills) if isinstance(matched_skills, set) else matched_skills,
-            "missing_skills": list(missing_skills) if isinstance(missing_skills, set) else missing_skills,
             "soft_skill_percent": soft_skill_percent if 'soft_skill_percent' in locals() else 0,
-            "matched_soft_skills": list(matched_soft_skills) if isinstance(matched_soft_skills, set) else matched_soft_skills,
-            "missing_soft_skills": list(missing_soft_skills) if isinstance(missing_soft_skills, set) else missing_soft_skills,
+            "suggestions": suggestions,
             "job_info": {
                 "skills": job_skills_list,
                 "technologies": job_technologies,
                 "soft_skills": list(job_soft_skills) if isinstance(job_soft_skills, set) else (job_soft_skills if job_soft_skills else [])
             },
+            # Keep legacy fields for backward compatibility
+            "matched_skills": list(matched_skills) if isinstance(matched_skills, set) else matched_skills,
+            "missing_skills": list(missing_skills) if isinstance(missing_skills, set) else missing_skills,
+            "matched_soft_skills": list(matched_soft_skills) if isinstance(matched_soft_skills, set) else matched_soft_skills,
+            "missing_soft_skills": list(missing_soft_skills) if isinstance(missing_soft_skills, set) else missing_soft_skills,
             # Include additional data for debugging
             "_debug": {
                 "cv_skills": list(cv_skills) if isinstance(cv_skills, set) else cv_skills,

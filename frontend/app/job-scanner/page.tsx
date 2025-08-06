@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { jobScannerAPI, cvAPI, APIError } from '@/lib/api';
-import { JobMatchRequest, JobMatchResponse, CVData } from '@/types';
+import { CVData } from '@/types';
 import { Search, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { SuggestionCard } from './components/SuggestionCard';
+import { JobMatchRequest, JobMatchResponse } from './types';
 
 export default function JobScannerPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -141,54 +143,95 @@ export default function JobScannerPage() {
 
         {/* Results */}
         {result && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Analysis Results</h2>
-            
-            <div className="space-y-6">
-              {/* Overall Match */}
-              <div className="border-b pb-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Overall Match</h3>
-                <div className="flex items-center">
-                  <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div 
-                      className="bg-green-500 h-4 rounded-full" 
-                      style={{ width: `${result.match_percent}%` }}
-                    ></div>
+          <div className="space-y-6">
+            {/* Overall Match Score */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Analysis Results</h2>
+              <div className="space-y-6">
+                <div className="border-b pb-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Overall Match</h3>
+                  <div className="flex items-center">
+                    <div className="w-full bg-gray-200 rounded-full h-6">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-green-500 h-6 rounded-full flex items-center justify-end pr-4 text-white font-medium text-sm"
+                        style={{ width: `${result.match_percent}%` }}
+                      >
+                        {result.match_percent}%
+                      </div>
+                    </div>
+                    <span className="ml-4 text-gray-700 font-medium">{result.match_percent}%</span>
                   </div>
-                  <span className="ml-4 text-gray-700 font-medium">{result.match_percent}%</span>
                 </div>
               </div>
-
-              {/* Missing Skills */}
-              {result.missing_skills && result.missing_skills.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Missing Skills</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {result.missing_skills.map((skill, index) => (
-                      <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                        <XCircle className="h-4 w-4 mr-1" />
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Matched Skills */}
-              {result.matched_skills && result.matched_skills.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Your Matching Skills</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {result.matched_skills.map((skill, index) => (
-                      <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* AI Suggestions */}
+            {result.suggestions && result.suggestions.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold text-gray-900">AI Suggestions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* High Priority Suggestions */}
+                  {result.suggestions
+                    .filter((s: { priority: string }) => s.priority === 'high')
+                    .map((suggestion, index) => (
+                      <SuggestionCard key={`high-${index}`} {...suggestion} />
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Medium Priority Suggestions */}
+                  {result.suggestions
+                    .filter((s: { priority: string }) => s.priority === 'medium')
+                    .map((suggestion, index) => (
+                      <SuggestionCard key={`medium-${index}`} {...suggestion} />
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Low Priority Suggestions */}
+                  {result.suggestions
+                    .filter((s: { priority: string }) => s.priority === 'low')
+                    .map((suggestion, index) => (
+                      <SuggestionCard key={`low-${index}`} {...suggestion} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Fallback to old format if no suggestions */}
+            {(!result.suggestions || result.suggestions.length === 0) && (
+              <div className="bg-white rounded-lg shadow p-6 space-y-6">
+                {/* Missing Skills */}
+                {result.missing_skills && result.missing_skills.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Missing Skills</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.missing_skills.map((skill, index) => (
+                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                          <XCircle className="h-4 w-4 mr-1" />
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Matched Skills */}
+                {result.matched_skills && result.matched_skills.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Your Matching Skills</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.matched_skills.map((skill, index) => (
+                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>
