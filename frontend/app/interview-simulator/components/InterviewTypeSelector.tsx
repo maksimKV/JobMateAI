@@ -1,6 +1,13 @@
 import React from 'react';
 import { InterviewType } from '@/types';
 
+interface InterviewLengths {
+  [key: string]: { 
+    label: string; 
+    questions: number | { [key: string]: number } 
+  };
+}
+
 interface InterviewTypeSelectorProps {
   interviewType: InterviewType;
   onInterviewTypeChange: (type: InterviewType) => void;
@@ -10,9 +17,7 @@ interface InterviewTypeSelectorProps {
   onJobDescriptionChange: (desc: string) => void;
   onStartInterview: () => void;
   isLoading: boolean;
-  interviewLengths: {
-    [key: string]: { questions: number | { [key: string]: number } };
-  };
+  interviewLengths: InterviewLengths;
 }
 
 const interviewTypes = [
@@ -20,12 +25,6 @@ const interviewTypes = [
   { value: 'technical' as const, label: 'Technical Interview', description: 'Coding and technical questions' },
   { value: 'mixed' as const, label: 'Mixed Interview', description: 'Combination of HR and technical' },
   { value: 'non_technical' as const, label: 'Non-Technical', description: 'For non-technical roles' },
-];
-
-const interviewLengths = [
-  { value: 'short', label: 'Short', questions: 4 },
-  { value: 'medium', label: 'Medium', questions: 8 },
-  { value: 'long', label: 'Long', questions: 12 },
 ];
 
 export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
@@ -37,6 +36,7 @@ export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
   onJobDescriptionChange,
   onStartInterview,
   isLoading,
+  interviewLengths,
 }) => {
   return (
     <div className="space-y-6">
@@ -81,22 +81,30 @@ export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
           Interview Length
         </label>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {interviewLengths.map((length) => (
-            <div 
-              key={length.value}
-              className={`p-4 border rounded-lg cursor-pointer text-center ${
-                interviewLength === length.value 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
-              }`}
-              onClick={() => onInterviewLengthChange(length.value)}
-            >
-              <div className="font-medium text-gray-900">{length.label}</div>
-              <div className="text-sm text-gray-600">
-                {length.questions} {length.questions === 1 ? 'question' : 'questions'}
-              </div>
-            </div>
-          ))}
+          {(Object.entries(interviewLengths) as [string, { label: string; questions: number | { [key: string]: number } }][])
+            .map(([key, value]) => {
+              const questions = value.questions;
+              const questionCount = typeof questions === 'number' 
+                ? questions 
+                : Object.values(questions).reduce((sum: number, count: number) => sum + count, 0);
+                
+              return (
+                <div 
+                  key={key}
+                  className={`p-4 border rounded-lg cursor-pointer text-center ${
+                    interviewLength === key 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                  onClick={() => onInterviewLengthChange(key)}
+                >
+                  <div className="font-medium text-gray-900">{value.label}</div>
+                  <div className="text-sm text-gray-600">
+                    {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                  </div>
+                </div>
+              );
+            })}
         </div>
       </div>
 

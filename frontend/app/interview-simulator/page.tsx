@@ -14,15 +14,15 @@ import { CompletionScreen } from './components/CompletionScreen';
 
 // Constants for interview configuration
 const INTERVIEW_LENGTHS = {
-  short: { questions: 4 },
-  medium: { questions: 8 },
-  long: { questions: 12 },
+  short: { label: 'Short', questions: 4 },
+  medium: { label: 'Medium', questions: 8 },
+  long: { label: 'Long', questions: 12 },
 };
 
 const MIXED_INTERVIEW_LENGTHS = {
-  short: { questions: { hr: 4, technical: 4 } },
-  medium: { questions: { hr: 8, technical: 8 } },
-  long: { questions: { hr: 12, technical: 12 } },
+  short: { label: 'Short', questions: { hr: 4, technical: 4 } },
+  medium: { label: 'Medium', questions: { hr: 8, technical: 8 } },
+  long: { label: 'Long', questions: { hr: 12, technical: 12 } },
 };
 
 const InterviewSimulatorPage = () => {
