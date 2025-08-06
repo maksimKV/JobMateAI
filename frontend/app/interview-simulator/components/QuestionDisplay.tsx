@@ -14,6 +14,7 @@ interface QuestionDisplayProps {
   recognitionError: string | null;
   onToggleRecording: () => void;
   transcript: string;
+  questionNumber: number;
 }
 
 export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
@@ -28,7 +29,8 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   listening,
   recognitionError,
   onToggleRecording,
-  transcript
+  transcript,
+  questionNumber
 }) => {
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,7 +40,7 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
-              Question {question ? question.text.match(/\d+/) || '1' : '1'}
+              Question {questionNumber}
             </h2>
             {detectedRole && (
               <p className="text-sm text-gray-500">

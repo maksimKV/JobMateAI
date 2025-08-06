@@ -211,6 +211,7 @@ const InterviewSimulatorPage = () => {
                 recognitionError={recognitionError}
                 onToggleRecording={toggleRecording}
                 transcript={transcript}
+                questionNumber={currentQuestionIndex + 1}
               />
             </div>
             
