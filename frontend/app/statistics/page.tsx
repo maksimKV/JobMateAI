@@ -189,9 +189,19 @@ export default function StatisticsPage() {
             const session = JSON.parse(savedSession);
             console.log('Parsed session data:', session);
             
-            // Set session data first
-            if (session && typeof session === 'object' && 'sessionId' in session && 'feedback' in session) {
-              setSessionData(session as SessionData);
+            // Set session data with all required fields
+            if (session && typeof session === 'object' && 'sessionId' in session) {
+              const sessionData: SessionData = {
+                sessionId: session.sessionId,
+                questions: Array.isArray(session.questions) ? session.questions : [],
+                feedback: Array.isArray(session.feedback) ? session.feedback : [],
+                company_name: session.company_name || 'Company',
+                position: session.position || 'Position',
+                timestamp: session.timestamp || new Date().toISOString(),
+                interviewType: session.interviewType || 'hr'  // Default to 'hr' if not specified
+              };
+              
+              setSessionData(sessionData);
               
               if (session.sessionId) {
                 console.log('Found session ID, fetching statistics...');

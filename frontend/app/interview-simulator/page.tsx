@@ -139,33 +139,8 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
       
       const res: InterviewQuestionResponse = await interviewAPI.generateQuestions(req);
       
-      // Update session with new question
+      // Update session with new question and job info from backend
       const questionType = res.question_type as 'hr' | 'technical' | 'non_technical';
-      // Extract company name and position from job description
-      const extractJobDetails = (desc: string): { company: string; position: string } => {
-        // Default values
-        let company = 'Company';
-        let position = 'Position';
-        
-        // Try to extract position (usually at the start of the description)
-        const positionMatch = desc.match(/^(.*?)(?=\s*at\s|\s*-|\s*\n|$)/i);
-        if (positionMatch) {
-          position = positionMatch[0].trim();
-          if (position.length > 30) position = position.substring(0, 30) + '...';
-        }
-        
-        // Try to extract company name (after 'at' or similar patterns)
-        const companyMatch = desc.match(/(?:at|@|for|from)\s+([A-Z][a-zA-Z0-9\s&,.\-']+?)(?=\s*[\n\(,\d]|$)/i);
-        if (companyMatch) {
-          company = companyMatch[1].trim();
-          // Clean up common patterns
-          company = company.replace(/^[\s\-\*•]+/, '').replace(/[\s\-\*•]+$/, '');
-        }
-        
-        return { company, position };
-      };
-      
-      const { company, position } = extractJobDetails(jobDescription);
       
       setSession({
         ...initialSessionState,
@@ -179,8 +154,8 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
         isComplete: false,
         detected_role: res.detected_role,
         detected_domain: res.detected_domain,
-        company_name: company,
-        position: position,
+        company_name: res.company_name,
+        position: res.position,
         job_description: jobDescription
       });
       
@@ -253,16 +228,17 @@ export default function InterviewSimulatorPage({}: InterviewSimulatorPageProps) 
           isComplete
         };
         
-        // Save session to localStorage when complete
+        // Save session data to localStorage when complete
         if (isComplete) {
           localStorage.setItem('interviewSession', JSON.stringify({
             sessionId: prev.sessionId,
+            company_name: prev.company_name,
+            position: prev.position,
+            timestamp: new Date().toISOString(),
+            // Include questions and feedback for statistics page
             questions: updatedQuestions,
             feedback: updatedFeedback,
-            interviewType: prev.interviewType,
-            company_name: prev.company_name, // Include company name
-            job_description: jobDescription, // Include job description
-            timestamp: new Date().toISOString()
+            interviewType: prev.interviewType
           }));
         }
         

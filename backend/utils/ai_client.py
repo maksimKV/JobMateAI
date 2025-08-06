@@ -143,6 +143,65 @@ class AIClient:
         # If no AI providers available, return a placeholder
         return "AI service temporarily unavailable. Please check your API keys."
     
+    async def extract_job_info(self, job_description: str) -> Dict[str, str]:
+        """
+        Extract company name and position from a job description.
+        
+        Args:
+            job_description: The job description text to extract information from.
+            
+        Returns:
+            A dictionary with 'company_name' and 'position' keys.
+        """
+        # Default values if extraction fails
+        result = {
+            "company_name": "Company",
+            "position": "Position"
+        }
+        
+        # Create a prompt to extract company name and position
+        prompt = f"""Extract the company name and job position from the following job description. 
+        Return the response in JSON format with 'company_name' and 'position' keys.
+        If the information is not available, use 'Company' and 'Position' as default values.
+        
+        Job Description:
+        {job_description}
+        
+        Response (JSON format only, no other text):
+        """
+        
+        try:
+            # Use the existing generate_text method to get the AI's response
+            response = await self.generate_text(
+                prompt=prompt,
+                max_tokens=200,
+                temperature=0.1  # Use low temperature for more deterministic output
+            )
+            
+            # Try to parse the JSON response
+            import json
+            try:
+                # Find JSON in the response (in case there's extra text)
+                start = response.find('{')
+                end = response.rfind('}') + 1
+                if start >= 0 and end > start:
+                    json_str = response[start:end]
+                    extracted = json.loads(json_str)
+                    
+                    # Validate and update the result
+                    if isinstance(extracted, dict):
+                        if "company_name" in extracted and isinstance(extracted["company_name"], str):
+                            result["company_name"] = extracted["company_name"].strip()
+                        if "position" in extracted and isinstance(extracted["position"], str):
+                            result["position"] = extracted["position"].strip()
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON from AI response: {e}")
+                
+        except Exception as e:
+            logger.error(f"Error extracting job info: {str(e)}")
+            
+        return result
+        
     async def analyze_text(self, text: str, analysis_type: str) -> Dict[str, Any]:
         """Analyze text for specific purposes like CV analysis, code review, etc."""
         
@@ -199,7 +258,15 @@ class AIClient:
         }
     
     async def extract_company_name(self, job_description: str) -> str:
-        """Extract the company name from a job description."""
+        """
+        Extract the company name from a job description using AI.
+        
+        Args:
+            job_description: The job description text to extract company name from.
+            
+        Returns:
+            Extracted company name or "Company" if extraction fails.
+        """
         prompt = f"""
         Extract just the company name from this job description. 
         Return ONLY the company name, nothing else.
@@ -210,10 +277,14 @@ class AIClient:
         Company Name:
         """
         
-        company_name = await self.generate_text(prompt, max_tokens=50, temperature=0.1)
-        # Clean up the response to ensure it's just the company name
-        company_name = company_name.strip().split('\n')[0].strip('"\'').strip()
-        return company_name if company_name else "Company"
+        try:
+            company_name = await self.generate_text(prompt, max_tokens=50, temperature=0.1)
+            # Clean up the response to ensure it's just the company name
+            company_name = company_name.strip().split('\n')[0].strip('"\'').strip()
+            return company_name if company_name else "Company"
+        except Exception as e:
+            logger.error(f"Error extracting company name: {str(e)}")
+            return "Company"
 
     async def generate_cover_letter(self, cv_content: str, job_description: str, language: str = "English") -> Dict[str, str]:
         """Generate a personalized cover letter based on CV and job description.
@@ -292,8 +363,11 @@ class AIClient:
                 "domain": "General Business"
             }
 
-    async def extract_company_name(self, job_description: str) -> str:
-        """Extract the company name from a job description using AI."""
+    async def extract_job_info(self, job_description: str) -> Dict[str, str]:
+        """
+        Extract company name and position from a job description using AI.
+        Returns a dictionary with 'company_name' and 'position' keys.
+        """
         try:
             # First try with OpenAI if available
             if hasattr(openai, 'ChatCompletion'):
@@ -301,29 +375,50 @@ class AIClient:
                     openai.ChatCompletion.create,
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "You are a helpful assistant that extracts company names from job descriptions. Only respond with the company name, nothing else."},
-                        {"role": "user", "content": f"Extract just the company name from this job description. Only respond with the company name, no other text or punctuation. If you can't determine the company, respond with 'Unknown Company'.\n\nJob Description: {job_description[:2000]}"}
+                        {"role": "system", "content": "You are a helpful assistant that extracts company names and job positions from job descriptions. Respond with a JSON object containing 'company_name' and 'position'."},
+                        {"role": "user", "content": f"Extract the company name and job position from this job description. Respond with a JSON object containing 'company_name' and 'position' fields. If you can't determine a field, use 'Company' or 'Position' as default.\n\nJob Description: {job_description[:2000]}"}
                     ],
-                    max_tokens=50,
-                    temperature=0.1
+                    temperature=0.1,
+                    response_format={"type": "json_object"}
                 )
-                company_name = response.choices[0].message.content.strip()
-                return company_name if company_name and company_name != "Unknown Company" else "Company"
+                try:
+                    result = eval(response.choices[0].message.content)
+                    return {
+                        "company_name": result.get("company_name", "Company").strip(),
+                        "position": result.get("position", "Position").strip()
+                    }
+                except (KeyError, SyntaxError, AttributeError) as e:
+                    logger.error(f"Error parsing OpenAI response: {str(e)}")
             
-            # Fallback to Cohere if OpenAI is not available
+            # Fall back to Cohere if OpenAI is not available or fails
             if self.cohere_client:
                 response = self.cohere_client.chat(
                     model="command",
-                    message=f"Extract just the company name from this job description. Only respond with the company name, no other text or punctuation. If you can't determine the company, respond with 'Unknown Company'.\n\nJob Description: {job_description[:2000]}",
+                    message=f"Extract the company name and job position from this job description. Respond with a JSON object containing 'company_name' and 'position' fields. If you can't determine a field, use 'Company' or 'Position' as default.\n\nJob Description: {job_description[:2000]}",
                     temperature=0.1
                 )
-                company_name = response.text.strip()
-                return company_name if company_name and company_name != "Unknown Company" else "Company"
-                
+                try:
+                    # Extract JSON from Cohere's response (might need adjustment based on actual response format)
+                    import json
+                    import re
+                    json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+                    if json_match:
+                        result = json.loads(json_match.group(0))
+                        return {
+                            "company_name": result.get("company_name", "Company").strip(),
+                            "position": result.get("position", "Position").strip()
+                        }
+                except (json.JSONDecodeError, KeyError, AttributeError) as e:
+                    logger.error(f"Error parsing Cohere response: {str(e)}")
+        
         except Exception as e:
-            logger.error(f"Error extracting company name: {str(e)}")
-            
-        return "Company"
+            logger.error(f"Error extracting job info: {str(e)}")
+        
+        # Default return if anything fails
+        return {
+            "company_name": "Company",
+            "position": "Position"
+        }
     
     async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8, extract_company: bool = False) -> Dict[str, Any]:
         """Generate interview questions based on job description and type."""

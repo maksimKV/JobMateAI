@@ -80,14 +80,14 @@ async def generate_questions(
                 detail="Failed to generate questions. Please try again."
             )
         
-        # Extract company name from job description
-        company_name = await ai_client.extract_company_name(job_description)
+        # Extract company name and position from job description
+        job_info = await ai_client.extract_job_info(job_description)
         
-        # Prepare session data with additional metadata
+        # Prepare session data with only necessary fields
         session_data = {
             "interview_type": interview_type,
-            "job_description": job_description,
-            "company_name": company_name,
+            "company_name": job_info.get("company_name", "Company"),
+            "position": job_info.get("position", "Position"),
             "questions": questions,
             "current_question_index": 0,
             "answers": [],
@@ -114,6 +114,12 @@ async def generate_questions(
             "question_type": questions[0]["type"] if questions else "",
             "question_number": 1
         }
+        
+        # Add company name and position to response
+        response.update({
+            "company_name": session_data["company_name"],
+            "position": session_data["position"]
+        })
         
         # Add detected role and domain to response for non_technical interviews
         if interview_type == "non_technical":
@@ -211,6 +217,8 @@ async def get_session(session_id: str) -> Dict[str, Any]:
     response = {
         "session_id": session_id,
         "interview_type": session["interview_type"],
+        "company_name": session.get("company_name", "Company"),
+        "position": session.get("position", "Position"),
         "total_questions": total_questions,
         "current_question_index": current_idx,
         "answers": session["answers"],

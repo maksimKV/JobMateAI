@@ -134,6 +134,8 @@ export interface InterviewQuestionResponse {
   question_number: number;
   detected_role?: string;
   detected_domain?: string;
+  company_name?: string;
+  position?: string;
 }
 
 export interface QuestionData {
@@ -164,6 +166,8 @@ export interface InterviewSessionState {
   isComplete: boolean;
   detected_role?: string;
   detected_domain?: string;
+  company_name?: string;
+  position?: string;
 }
 
 // Code Reviewer Types
