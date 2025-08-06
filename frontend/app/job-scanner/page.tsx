@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Navigation from '@/components/Navigation';
 import { jobScannerAPI, cvAPI, APIError } from '@/lib/api';
 import { CVData } from '@/types';
 import { Search, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { SuggestionCard } from './components/SuggestionCard';
-import { JobMatchRequest, JobMatchResponse } from './types';
+import { JobMatchRequest, JobMatchResponse, Suggestion } from './types';
 
 export default function JobScannerPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -167,32 +167,15 @@ export default function JobScannerPage() {
 
             {/* AI Suggestions */}
             {result.suggestions && result.suggestions.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-gray-900">AI Suggestions</h2>
+                
+                {/* Unified Grid Layout */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* High Priority Suggestions */}
-                  {result.suggestions
-                    .filter((s: { priority: string }) => s.priority === 'high')
-                    .map((suggestion, index) => (
-                      <SuggestionCard key={`high-${index}`} {...suggestion} />
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Medium Priority Suggestions */}
-                  {result.suggestions
-                    .filter((s: { priority: string }) => s.priority === 'medium')
-                    .map((suggestion, index) => (
-                      <SuggestionCard key={`medium-${index}`} {...suggestion} />
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Low Priority Suggestions */}
-                  {result.suggestions
-                    .filter((s: { priority: string }) => s.priority === 'low')
-                    .map((suggestion, index) => (
-                      <SuggestionCard key={`low-${index}`} {...suggestion} />
+                  {result.suggestions?.map((suggestion: Suggestion, index: number) => (
+                    <div key={`${suggestion.priority}-${index}`} className="h-full">
+                      <SuggestionCard {...suggestion} />
+                    </div>
                   ))}
                 </div>
               </div>
