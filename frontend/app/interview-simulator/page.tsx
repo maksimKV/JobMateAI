@@ -226,6 +226,8 @@ const InterviewSimulatorPage = () => {
         {showCompletion && (
           <CompletionScreen 
             onRestart={handleRestart}
+            lastFeedback={feedback[feedback.length - 1]}
+            sessionId={session.sessionId || undefined}
           />
         )}
         
