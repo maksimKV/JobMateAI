@@ -113,26 +113,32 @@ export const useSpeechToText = (): UseSpeechToTextReturn => {
   }, [resetWebSpeechTranscript]);
 
   const processResults = useCallback((event: SpeechRecognitionEvent) => {
-    let interim = '';
-    let final = '';
+    if (!isMounted.current) return;
+    
+    let currentTranscript = finalTranscriptRef.current;
+    let newInterim = '';
 
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       const text = result[0].transcript;
       
       if (result.isFinal) {
-        final += text + ' ';
+        // Append final results to the existing transcript
+        currentTranscript += (currentTranscript ? ' ' : '') + text.trim();
       } else {
-        interim += text;
+        // Keep track of interim results
+        newInterim = text;
       }
     }
 
-    if (final) {
-      finalTranscriptRef.current = final.trim();
+    // Update the final transcript reference
+    if (currentTranscript !== finalTranscriptRef.current) {
+      finalTranscriptRef.current = currentTranscript;
       resetWebSpeechTranscript();
     }
     
-    setInterimTranscript(interim);
+    // Update the interim transcript
+    setInterimTranscript(newInterim);
   }, [resetWebSpeechTranscript]);
 
   const startListening = useCallback(async () => {
@@ -207,8 +213,12 @@ export const useSpeechToText = (): UseSpeechToTextReturn => {
     isListening ? stopListening() : startListening();
   }, [isListening, startListening, stopListening]);
 
+  // Combine final and interim transcripts for the output
+  const combinedTranscript = (transcript || finalTranscriptRef.current) + 
+    (interimTranscript ? ' ' + interimTranscript : '');
+
   return {
-    transcript: transcript || finalTranscriptRef.current,
+    transcript: combinedTranscript.trim(),
     interimTranscript,
     listening: isListening,
     recognitionError,
