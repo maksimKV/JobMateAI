@@ -29,24 +29,41 @@ class AIClient:
             self._openai_initialized = self._initialize_openai()
         return self._openai_initialized
     
-    def _initialize_cohere(self):
+    def _initialize_cohere(self) -> bool:
+        """Initialize the Cohere client with the latest supported model.
+        
+        Returns:
+            bool: True if initialization was successful, False otherwise
+        """
         cohere_api_key = os.getenv("COHERE_API_KEY")
-        if cohere_api_key:
-            try:
-                self._cohere_client = cohere.Client(api_key=cohere_api_key)
-                logger.info("Cohere client initialized successfully")
-                # Test the Cohere connection
-                self._cohere_client.chat(
-                    model="command",
-                    message="Test connection"
-                )
-                logger.info("Cohere connection test successful")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to initialize Cohere client: {str(e)}")
-                self._cohere_client = None
-        else:
+        if not cohere_api_key:
             logger.warning("COHERE_API_KEY not found in environment variables")
+            return False
+            
+        try:
+            self._cohere_client = cohere.Client(api_key=cohere_api_key)
+            logger.info("Cohere client initialized successfully")
+            
+            # Test the connection with the latest model
+            self._cohere_client.generate(
+                model="command-r-plus",  # Using the latest model
+                prompt="Test",
+                max_tokens=1
+            )
+            logger.info("Cohere connection test successful")
+            return True
+            
+        except cohere.CohereAPIError as e:
+            logger.error(f"Cohere API error during initialization: {str(e)}")
+            if hasattr(e, 'status_code'):
+                logger.error(f"Status code: {e.status_code}")
+            if hasattr(e, 'body'):
+                logger.error(f"Response: {e.body}")
+                
+        except Exception as e:
+            logger.error(f"Unexpected error initializing Cohere client: {str(e)}", exc_info=True)
+            
+        self._cohere_client = None
         return False
     
     def _initialize_openai(self):
@@ -110,16 +127,17 @@ class AIClient:
         # Try Cohere first (free tier available)
         if self.cohere_client:
             try:
-                response = self.cohere_client.generate(
-                    model="command",
-                    prompt=prompt,
-                    max_tokens=max_tokens,
+                # Use prompt directly as the message string
+                response = self.cohere_client.chat(
+                    model="command-r-plus",
+                    message=prompt,
                     temperature=temperature,
+                    max_tokens=max_tokens,
+                    p=0.9,
                     k=0,
-                    stop_sequences=[],
-                    return_likelihoods='NONE'
+                    prompt_truncation="AUTO"
                 )
-                return response.generations[0].text.strip()
+                return response.text.strip()
             except Exception as e:
                 print(f"Cohere error: {e}")
         
@@ -145,62 +163,200 @@ class AIClient:
     
     async def extract_job_info(self, job_description: str) -> Dict[str, str]:
         """
-        Extract company name and position from a job description.
+        Extract company name and position from a job description with robust error handling.
         
         Args:
             job_description: The job description text to extract information from.
             
         Returns:
             A dictionary with 'company_name' and 'position' keys.
+            On error, returns default values ("Company" and "Position").
         """
         # Default values if extraction fails
         result = {
             "company_name": "Company",
-            "position": "Position"
+            "position": "Position",
+            "_extraction_success": False,
+            "_extraction_errors": []
         }
         
-        # Create a prompt to extract company name and position
-        prompt = f"""Extract the company name and job position from the following job description. 
-        Return the response in JSON format with 'company_name' and 'position' keys.
-        If the information is not available, use 'Company' and 'Position' as default values.
+        # Input validation
+        if not job_description or not isinstance(job_description, str):
+            error_msg = f"Empty or invalid job description provided: {type(job_description)}"
+            logger.warning(error_msg)
+            result["_extraction_errors"].append(error_msg)
+            return result
+            
+        # Clean and truncate job description to avoid token limits
+        job_description = job_description.strip()
+        if len(job_description) > 4000:
+            logger.warning(f"Job description too long ({len(job_description)} chars), truncating to 4000 chars")
+            job_description = job_description[:4000]
+        
+        # Create a structured prompt
+        prompt = f"""Extract the following information from the job description below:
+        1. Company name (field: company_name)
+        2. Job position/title (field: position)
+        
+        Return ONLY a valid JSON object with these fields. If information is not available, 
+        use 'Company' for company_name and 'Position' for position.
         
         Job Description:
         {job_description}
         
-        Response (JSON format only, no other text):
+        Response (JSON only, no other text):
         """
         
-        try:
-            # Use the existing generate_text method to get the AI's response
-            response = await self.generate_text(
-                prompt=prompt,
-                max_tokens=200,
-                temperature=0.1  # Use low temperature for more deterministic output
-            )
-            
-            # Try to parse the JSON response
-            import json
+        # Try with Cohere first (latest model)
+        if self.cohere_client:
             try:
-                # Find JSON in the response (in case there's extra text)
-                start = response.find('{')
-                end = response.rfind('}') + 1
-                if start >= 0 and end > start:
-                    json_str = response[start:end]
-                    extracted = json.loads(json_str)
-                    
-                    # Validate and update the result
-                    if isinstance(extracted, dict):
-                        if "company_name" in extracted and isinstance(extracted["company_name"], str):
-                            result["company_name"] = extracted["company_name"].strip()
-                        if "position" in extracted and isinstance(extracted["position"], str):
-                            result["position"] = extracted["position"].strip()
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse JSON from AI response: {e}")
+                logger.info("Attempting to extract job info using Cohere command-r-plus")
                 
-        except Exception as e:
-            logger.error(f"Error extracting job info: {str(e)}")
-            
+                # Set up system instructions in the preamble
+                preamble = "You are a helpful assistant that extracts structured information from job descriptions. " \
+                          "Extract the company name and job position from the provided job description."
+                
+                # Use the latest Cohere model with proper parameters
+                response = self.cohere_client.chat(
+                    model="command-r-plus",
+                    message=prompt,
+                    preamble=preamble,
+                    temperature=0.1,
+                    max_tokens=200,
+                    p=0.9,
+                    k=0,
+                    prompt_truncation="AUTO"
+                )
+                
+                response_text = response.text.strip()
+                logger.debug(f"Cohere response (truncated): {response_text[:200]}...")
+                
+                # Parse the response
+                extracted = self._parse_job_info_response(response_text)
+                if extracted:
+                    logger.info("Successfully extracted job info using Cohere")
+                    extracted["_extraction_success"] = True
+                    extracted["_extraction_source"] = "cohere"
+                    return extracted
+                    
+            except cohere.CohereAPIError as e:
+                error_msg = f"Cohere API error: {str(e)}"
+                if hasattr(e, 'status_code'):
+                    error_msg += f" (Status: {e.status_code})"
+                logger.error(error_msg)
+                result["_extraction_errors"].append(error_msg)
+                
+            except Exception as e:
+                error_msg = f"Unexpected error with Cohere: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                result["_extraction_errors"].append(error_msg)
+        else:
+            logger.warning("Cohere client not available for extraction")
+            result["_extraction_errors"].append("Cohere client not initialized")
+        
+        # Fallback to OpenAI if Cohere fails or is not available
+        if self.openai_client:
+            try:
+                logger.info("Falling back to OpenAI for job info extraction")
+                response = await self.generate_text(
+                    prompt=prompt,
+                    max_tokens=200,
+                    temperature=0.1
+                )
+                logger.debug(f"OpenAI response (truncated): {response[:200]}...")
+                
+                extracted = self._parse_job_info_response(response)
+                if extracted:
+                    logger.info("Successfully extracted job info using OpenAI")
+                    extracted["_extraction_success"] = True
+                    extracted["_extraction_source"] = "openai"
+                    return extracted
+                    
+            except Exception as e:
+                error_msg = f"OpenAI extraction failed: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                result["_extraction_errors"].append(error_msg)
+        else:
+            logger.warning("OpenAI client not available for extraction")
+            result["_extraction_errors"].append("OpenAI client not initialized")
+        
+        logger.warning("All extraction methods failed, returning default values")
+        logger.debug(f"Extraction errors: {result['_extraction_errors']}")
         return result
+        
+    def _parse_job_info_response(self, response_text: str) -> Optional[Dict[str, str]]:
+        """
+        Helper method to parse the AI response into a structured format.
+        
+        Args:
+            response_text: Raw text response from the AI model
+            
+        Returns:
+            Dict with 'company_name' and 'position' if successful, None on failure
+        """
+        if not response_text or not isinstance(response_text, str):
+            logger.warning("Empty or invalid response text provided")
+            return None
+            
+        try:
+            import json
+            import re
+            
+            # Clean up the response
+            cleaned_text = response_text.strip()
+            
+            # Try to find JSON in the response (allowing for some flexibility)
+            json_match = re.search(r'(\{.*\})', cleaned_text, re.DOTALL)
+            if not json_match:
+                logger.warning(f"No JSON found in AI response. First 100 chars: {cleaned_text[:100]}...")
+                return None
+                
+            json_str = json_match.group(1).strip()
+            
+            # Handle common JSON formatting issues
+            json_str = json_str.replace("\n", " ").replace("\r", "")
+            json_str = re.sub(r'(?<!\\)\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', json_str)
+            
+            # Parse the JSON
+            extracted = json.loads(json_str)
+            
+            if not isinstance(extracted, dict):
+                logger.warning(f"AI response is not a JSON object: {type(extracted).__name__}")
+                return None
+                
+            result = {
+                "company_name": "Company",
+                "position": "Position"
+            }
+            
+            # Safely extract and validate fields
+            if "company_name" in extracted and isinstance(extracted["company_name"], str):
+                company = extracted["company_name"].strip()
+                if company and company.lower() != "company":
+                    result["company_name"] = company
+                    
+            if "position" in extracted and isinstance(extracted["position"], str):
+                position = extracted["position"].strip()
+                if position and position.lower() != "position":
+                    result["position"] = position
+            
+            # Log if we got valid data
+            if result["company_name"] != "Company" or result["position"] != "Position":
+                logger.info(f"Extracted job info: {result}")
+            else:
+                logger.warning("No valid job info found in AI response")
+                return None
+                
+            return result
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON from AI response: {str(e)}")
+            logger.debug(f"Problematic JSON string: {json_str if 'json_str' in locals() else 'N/A'}")
+            
+        except Exception as e:
+            logger.error(f"Error parsing AI response: {str(e)}", exc_info=True)
+            
+        return None
         
     async def analyze_text(self, text: str, analysis_type: str) -> Dict[str, Any]:
         """Analyze text for specific purposes like CV analysis, code review, etc."""
@@ -392,24 +548,49 @@ class AIClient:
             
             # Fall back to Cohere if OpenAI is not available or fails
             if self.cohere_client:
-                response = self.cohere_client.chat(
-                    model="command",
-                    message=f"Extract the company name and job position from this job description. Respond with a JSON object containing 'company_name' and 'position' fields. If you can't determine a field, use 'Company' or 'Position' as default.\n\nJob Description: {job_description[:2000]}",
-                    temperature=0.1
-                )
                 try:
-                    # Extract JSON from Cohere's response (might need adjustment based on actual response format)
-                    import json
-                    import re
-                    json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
-                    if json_match:
-                        result = json.loads(json_match.group(0))
-                        return {
-                            "company_name": result.get("company_name", "Company").strip(),
-                            "position": result.get("position", "Position").strip()
-                        }
-                except (json.JSONDecodeError, KeyError, AttributeError) as e:
-                    logger.error(f"Error parsing Cohere response: {str(e)}")
+                    prompt = f"""Extract the following information from the job description below:
+                    1. Company name (field: company_name)
+                    2. Job position/title (field: position)
+                    
+                    Return ONLY a valid JSON object with these fields. If information is not available, 
+                    use 'Company' for company_name and 'Position' for position.
+                    
+                    Job Description:
+                    {job_description[:2000]}
+                    
+                    Response (JSON only, no other text):
+                    """
+                    
+                    # Set up system instructions in the preamble
+                    preamble = "You are a helpful assistant that extracts structured information from job descriptions. " \
+                              "Always respond with a valid JSON object containing 'company_name' and 'position' fields."
+                    
+                    response = self.cohere_client.chat(
+                        model="command-r-plus",
+                        message=prompt,
+                        preamble=preamble,
+                        temperature=0.1,
+                        max_tokens=200,
+                        p=0.9,
+                        k=0,
+                        response_format={"type": "json_object"},
+                        prompt_truncation="AUTO"
+                    )
+                    
+                    # Use the existing parser method for consistency
+                    extracted = self._parse_job_info_response(response.text)
+                    if extracted:
+                        return extracted
+                        
+                except cohere.CohereAPIError as e:
+                    error_msg = f"Cohere API error: {str(e)}"
+                    if hasattr(e, 'status_code'):
+                        error_msg += f" (Status: {e.status_code})"
+                    logger.error(error_msg)
+                    
+                except Exception as e:
+                    logger.error(f"Unexpected error with Cohere: {str(e)}", exc_info=True)
         
         except Exception as e:
             logger.error(f"Error extracting job info: {str(e)}")
