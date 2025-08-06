@@ -524,9 +524,9 @@ class AIClient:
         Extract company name and position from a job description using AI.
         Returns a dictionary with 'company_name' and 'position' keys.
         """
-        try:
-            # First try with OpenAI if available
-            if hasattr(openai, 'ChatCompletion'):
+        # First try with OpenAI if available
+        if hasattr(openai, 'ChatCompletion'):
+            try:
                 response = await asyncio.to_thread(
                     openai.ChatCompletion.create,
                     model="gpt-3.5-turbo",
@@ -538,61 +538,108 @@ class AIClient:
                     response_format={"type": "json_object"}
                 )
                 try:
-                    result = eval(response.choices[0].message.content)
+                    import json
+                    result = json.loads(response.choices[0].message.content)
                     return {
                         "company_name": result.get("company_name", "Company").strip(),
                         "position": result.get("position", "Position").strip()
                     }
-                except (KeyError, SyntaxError, AttributeError) as e:
+                except (KeyError, json.JSONDecodeError, SyntaxError, AttributeError) as e:
                     logger.error(f"Error parsing OpenAI response: {str(e)}")
-            
-            # Fall back to Cohere if OpenAI is not available or fails
-            if self.cohere_client:
-                try:
-                    prompt = f"""Extract the following information from the job description below:
-                    1. Company name (field: company_name)
-                    2. Job position/title (field: position)
+                    logger.debug(f"OpenAI response content: {response.choices[0].message.content if hasattr(response, 'choices') else 'No response content'}")
                     
-                    Return ONLY a valid JSON object with these fields. If information is not available, 
-                    use 'Company' for company_name and 'Position' for position.
-                    
-                    Job Description:
-                    {job_description[:2000]}
-                    
-                    Response (JSON only, no other text):
-                    """
-                    
-                    # Set up system instructions in the preamble
-                    preamble = "You are a helpful assistant that extracts structured information from job descriptions. " \
-                              "Always respond with a valid JSON object containing 'company_name' and 'position' fields."
-                    
-                    response = self.cohere_client.chat(
-                        model="command-r-plus",
-                        message=prompt,
-                        preamble=preamble,
-                        temperature=0.1,
-                        max_tokens=200,
-                        p=0.9,
-                        k=0,
-                        response_format={"type": "json_object"},
-                        prompt_truncation="AUTO"
-                    )
-                    
-                    # Use the existing parser method for consistency
-                    extracted = self._parse_job_info_response(response.text)
-                    if extracted:
-                        return extracted
-                        
-                except cohere.CohereAPIError as e:
-                    error_msg = f"Cohere API error: {str(e)}"
-                    if hasattr(e, 'status_code'):
-                        error_msg += f" (Status: {e.status_code})"
-                    logger.error(error_msg)
-                    
-                except Exception as e:
-                    logger.error(f"Unexpected error with Cohere: {str(e)}", exc_info=True)
+            except (openai.error.RateLimitError, openai.error.APIError) as e:
+                logger.warning(f"OpenAI API error, falling back to Cohere: {str(e)}")
+            except Exception as e:
+                logger.error(f"Unexpected error with OpenAI: {str(e)}", exc_info=True)
         
-        except Exception as e:
+        # Fall back to Cohere if OpenAI is not available or fails
+        if self.cohere_client:
+            try:
+                prompt = f"""Extract the following information from the job description below:
+                1. Company name (field: company_name)
+                2. Job position/title (field: position)
+                
+                Return ONLY a valid JSON object with these fields. If information is not available, 
+                use 'Company' for company_name and 'Position' for position.
+                
+                Job Description:
+                {job_description[:2000]}
+                
+                Response (JSON only, no other text):
+                """
+                
+                # Create a simple prompt with clear instructions
+                full_prompt = ("Extract the company name and job position from the following job description. "
+                             "Respond with a JSON object containing 'company_name' and 'position' fields.\n\n"
+                             f"Job Description: {job_description[:2000]}\n\n"
+                             "Response (JSON only):")
+                
+                # Log the request being made to Cohere
+                logger.info("Sending request to Cohere API with prompt length: %d", len(full_prompt))
+                
+                # Make the API call with minimal parameters
+                response = self.cohere_client.chat(
+                    message=full_prompt,
+                    model="command-r-plus"
+                )
+                
+                # Log the raw response
+                logger.info("Received response from Cohere API. Response type: %s", type(response))
+                logger.debug("Raw Cohere response: %s", response)
+                
+                if hasattr(response, 'text'):
+                    logger.info("Response text length: %d", len(response.text))
+                    logger.debug("Response text: %s", response.text[:500])  # Log first 500 chars to avoid huge logs
+                else:
+                    logger.warning("No 'text' attribute in Cohere response")
+                    raise ValueError("No text in Cohere response")
+                
+                # Parse the response text as JSON
+                try:
+                    import json
+                    # Clean the response text (remove markdown code blocks if present)
+                    response_text = response.text.strip()
+                    if response_text.startswith('```json'):
+                        response_text = response_text[7:]  # Remove ```json
+                    if response_text.endswith('```'):
+                        response_text = response_text[:-3]  # Remove trailing ```
+                    response_text = response_text.strip()
+                    
+                    logger.debug("Parsing response text: %s", response_text)
+                    
+                    # Parse the JSON response
+                    result = json.loads(response_text)
+                    
+                    # Validate the response structure
+                    if not isinstance(result, dict):
+                        raise ValueError("Response is not a JSON object")
+                        
+                    extracted = {
+                        "company_name": result.get("company_name", "Company").strip(),
+                        "position": result.get("position", "Position").strip()
+                    }
+                    
+                    logger.info("Successfully extracted job info: %s", extracted)
+                    return extracted
+                    
+                except json.JSONDecodeError as e:
+                    logger.error("Failed to parse JSON response from Cohere: %s", str(e))
+                    logger.error("Response text: %s", response_text if 'response_text' in locals() else "No response text available")
+                    raise
+                except Exception as e:
+                    logger.error("Error parsing Cohere response: %s", str(e), exc_info=True)
+                    raise
+                
+            except cohere.CohereAPIError as e:
+                error_msg = f"Cohere API error: {str(e)}"
+                if hasattr(e, 'status_code'):
+                    error_msg += f" (Status: {e.status_code})"
+                if hasattr(e, 'body'):
+                    error_msg += f"\nResponse body: {e.body}"
+                logger.error(error_msg, exc_info=True)
+            except Exception as e:
+                logger.error("Unexpected error with Cohere: %s", str(e), exc_info=True)
             logger.error(f"Error extracting job info: {str(e)}")
         
         # Default return if anything fails
