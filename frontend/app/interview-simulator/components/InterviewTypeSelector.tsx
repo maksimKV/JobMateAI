@@ -1,5 +1,6 @@
 import React from 'react';
 import { InterviewType } from '@/types';
+import { Users, Code, GitMerge, Briefcase, Clock, Clock3, Clock9 } from 'lucide-react';
 
 interface InterviewLengths {
   [key: string]: { 
@@ -21,11 +22,37 @@ interface InterviewTypeSelectorProps {
 }
 
 const interviewTypes = [
-  { value: 'hr' as const, label: 'HR Interview', description: 'Behavioral and situational questions' },
-  { value: 'technical' as const, label: 'Technical Interview', description: 'Coding and technical questions' },
-  { value: 'mixed' as const, label: 'Mixed Interview', description: 'Combination of HR and technical' },
-  { value: 'non_technical' as const, label: 'Non-Technical', description: 'For non-technical roles' },
+  { 
+    value: 'hr' as const, 
+    label: 'HR Interview', 
+    description: 'Behavioral and situational questions',
+    icon: <Users className="w-5 h-5 text-blue-600" />
+  },
+  { 
+    value: 'technical' as const, 
+    label: 'Technical Interview', 
+    description: 'Coding and technical questions',
+    icon: <Code className="w-5 h-5 text-blue-600" />
+  },
+  { 
+    value: 'mixed' as const, 
+    label: 'Mixed Interview', 
+    description: 'Combination of HR and technical',
+    icon: <GitMerge className="w-5 h-5 text-blue-600" />
+  },
+  { 
+    value: 'non_technical' as const, 
+    label: 'Non-Technical', 
+    description: 'For non-technical roles',
+    icon: <Briefcase className="w-5 h-5 text-blue-600" />
+  },
 ];
+
+const durationIcons = {
+  short: <Clock className="w-5 h-5 text-blue-600" />,
+  medium: <Clock3 className="w-5 h-5 text-blue-600" />,
+  long: <Clock9 className="w-5 h-5 text-blue-600" />,
+};
 
 export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
   interviewType,
@@ -69,8 +96,15 @@ export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
               }`}
               onClick={() => onInterviewTypeChange(type.value)}
             >
-              <h3 className="font-medium text-gray-900">{type.label}</h3>
-              <p className="text-sm text-gray-500">{type.description}</p>
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mr-3 mt-0.5">
+                  {type.icon}
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">{type.label}</h3>
+                  <p className="text-sm text-gray-500">{type.description}</p>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -91,16 +125,21 @@ export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
               return (
                 <div 
                   key={key}
-                  className={`p-4 border rounded-lg cursor-pointer text-center ${
+                  className={`p-4 border rounded-lg cursor-pointer ${
                     interviewLength === key 
                       ? 'border-blue-500 bg-blue-50' 
                       : 'border-gray-200 hover:bg-gray-50'
                   }`}
                   onClick={() => onInterviewLengthChange(key)}
                 >
-                  <div className="font-medium text-gray-900">{value.label}</div>
-                  <div className="text-sm text-gray-600">
-                    {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                  <div className="flex flex-col items-center">
+                    <div className="mb-2">
+                      {durationIcons[key as keyof typeof durationIcons]}
+                    </div>
+                    <div className="font-medium text-gray-900">{value.label}</div>
+                    <div className="text-sm text-gray-600">
+                      {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                    </div>
                   </div>
                 </div>
               );
