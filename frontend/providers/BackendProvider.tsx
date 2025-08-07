@@ -19,8 +19,11 @@ export function BackendProvider({ children }: { children: React.ReactNode }) {
 
   // Store the last known good state in localStorage
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     if (isReady) {
-      localStorage.setItem('backendReady', 'true');
+      window.localStorage.setItem('backendReady', 'true');
       const timer = setTimeout(() => {
         // Periodically check health when ready
         checkHealth().then(isHealthy => {
@@ -32,7 +35,7 @@ export function BackendProvider({ children }: { children: React.ReactNode }) {
       
       return () => clearTimeout(timer);
     } else {
-      localStorage.removeItem('backendReady');
+      window.localStorage.removeItem('backendReady');
     }
   }, [isReady, checkHealth, resetHealthCheck]);
 
