@@ -32,13 +32,32 @@ function drawDonutTooltip(
   
   // Calculate position along segment's angle but further out
   const tooltipDistance = outerRadius * 1.25;
+  
+  const angleDegrees = (segmentAngle * 180 / Math.PI + 360) % 360;
+  const normalizedAngle = angleDegrees > 180 ? angleDegrees - 360 : angleDegrees;
+
+  console.log('Tooltip debug:', {
+    segmentAngle,
+    degrees: normalizedAngle.toFixed(1) + '°',
+    cos: Math.cos(segmentAngle).toFixed(3),
+    sin: Math.sin(segmentAngle).toFixed(3),
+    label,
+    isLeft: normalizedAngle <= -140 || normalizedAngle >= 160,
+    isRight: normalizedAngle > -30 && normalizedAngle < 30
+  });
+
   let tooltipX = centerX + Math.cos(segmentAngle) * tooltipDistance;
   let tooltipY = centerY + Math.sin(segmentAngle) * tooltipDistance;
-  
-  // Adjust position for the left-side tooltip only
-  if (segmentAngle > Math.PI * 0.9 || segmentAngle < -Math.PI * 0.9) {
-    tooltipX = centerX + Math.cos(segmentAngle) * (tooltipDistance * 0.9);
-    tooltipY = centerY + Math.sin(segmentAngle) * (tooltipDistance * 0.9);
+
+  if (normalizedAngle <= -140 || normalizedAngle >= 160) {
+    const adjustFactor = 0.5;
+    tooltipX = centerX + Math.cos(segmentAngle) * (tooltipDistance * adjustFactor);
+    tooltipY = centerY + Math.sin(segmentAngle) * (tooltipDistance * adjustFactor);
+    console.log('Adjusted left tooltip:', { label, adjustFactor });
+  } else if (normalizedAngle > -30 && normalizedAngle < 30) {
+    tooltipX = centerX + Math.cos(segmentAngle) * tooltipDistance;
+    tooltipY = centerY + Math.sin(segmentAngle) * tooltipDistance;
+    console.log('Reset right tooltip:', { label });
   }
   
   // Draw tooltip background with shadow
