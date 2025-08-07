@@ -1,12 +1,10 @@
 import os
 import cohere
-import openai
+from openai import OpenAI, APIError, RateLimitError, AuthenticationError
 from typing import Optional, Dict, Any, List, Union
 import httpx
 import asyncio
 import logging
-
-# OpenAI v0.28.1 doesn't have OpenAI class, using direct module functions
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +22,9 @@ class AIClient:
     
     @property
     def openai_client(self):
-        # For OpenAI v0.28.1, we don't maintain a client instance
-        if not hasattr(self, '_openai_initialized'):
-            self._openai_initialized = self._initialize_openai()
-        return self._openai_initialized
+        if not hasattr(self, '_openai_client'):
+            self._openai_client = self._initialize_openai()
+        return self._openai_client if self._openai_client else None
     
     def _initialize_cohere(self) -> bool:
         """Initialize the Cohere client with the latest supported model.
@@ -67,38 +64,38 @@ class AIClient:
         return False
     
     def _initialize_openai(self):
-        # For OpenAI v0.28.1, we don't need to create a client instance
         openai_api_key = os.getenv("OPENAI_API_KEY")
         if not openai_api_key:
             logger.warning("OPENAI_API_KEY not found in environment variables")
-            return False
+            return None
             
         try:
-            openai.api_key = openai_api_key
-            # Test the connection with a simple completion using gpt-3.5-turbo-instruct
-            openai.Completion.create(
-                engine="gpt-3.5-turbo-instruct",
+            client = OpenAI(api_key=openai_api_key)
+            
+            # Test the connection with a simple completion
+            client.completions.create(
+                model="gpt-3.5-turbo-instruct",
                 prompt="Test",
                 max_tokens=1
             )
             logger.info("OpenAI client initialized successfully")
-            return True
+            return client
             
-        except openai.error.RateLimitError as e:
+        except RateLimitError as e:
             logger.warning(f"OpenAI rate limit exceeded: {str(e)}. Falling back to Cohere.")
-            return False
+            return None
             
-        except openai.error.AuthenticationError as e:
+        except AuthenticationError as e:
             logger.warning(f"OpenAI authentication failed: {str(e)}. Falling back to Cohere.")
-            return False
+            return None
             
-        except openai.error.APIError as e:
+        except APIError as e:
             logger.warning(f"OpenAI API error: {str(e)}. Falling back to Cohere.")
-            return False
+            return None
             
         except Exception as e:
-            logger.error(f"Unexpected error initializing OpenAI client: {str(e)}")
-            return False
+            logger.error(f"Unexpected error initializing OpenAI client: {str(e)}", exc_info=True)
+            return None
     
     def _initialize_clients(self):
         if not self._initialized:
