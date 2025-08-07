@@ -1,17 +1,20 @@
 {
   "title": "AI Code Reviewer",
   "description": "Paste your code and get AI-powered feedback, bug detection, and optimization tips.",
-  "pasteCode": "Paste Your Code",
-  "pastePlaceholder": "Paste your code here...",
-  "analyzing": "Analyzing your code...",
-  "buttons": {
-    "review": "Review Code",
-    "reviewing": "Reviewing..."
+  "form": {
+    "codeInput": {
+      "label": "Paste Your Code",
+      "placeholder": "Paste your code here..."
+    },
+    "buttons": {
+      "review": "Review Code",
+      "reviewing": "Reviewing..."
+    }
   },
-  "results": {
-    "title": "Code Review Results"
+  "result": {
+    "detectedLanguage": "Detected Language"
   },
   "errors": {
-    "unexpected": "An unexpected error occurred"
+    "unexpected": "An unexpected error occurred. Please try again."
   }
 }
