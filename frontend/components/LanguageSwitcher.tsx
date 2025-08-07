@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,12 +13,32 @@ import {
 
 export function LanguageSwitcher() {
   const t = useTranslations('common.language');
-  const locale = useLocale();
-  const router = useRouter();
+  const pathname = usePathname();
+  const currentLocale = useLocale();
 
-  const changeLanguage = (newLocale: string) => {
-    document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
-    router.refresh();
+  const changeLanguage = (newLocale: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      if (newLocale === currentLocale) return;
+      
+      // Get the current path without the locale
+      const pathWithoutLocale = pathname.replace(new RegExp(`^/${currentLocale}`), '');
+      
+      // Create the new path with the new locale
+      const newPath = `/${newLocale}${pathWithoutLocale || '/'}`;
+      
+      // Set a cookie for the new locale
+      document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
+      
+      // Force a hard navigation to the new URL
+      window.location.href = newPath;
+      
+    } catch (error) {
+      console.error('Error changing language:', error);
+      alert('Failed to change language. Please try again.');
+    }
   };
 
   return (
@@ -36,17 +56,17 @@ export function LanguageSwitcher() {
           sideOffset={8}
         >
           <DropdownMenuItem 
-            onClick={() => changeLanguage('en')} 
+            onClick={(e) => changeLanguage('en', e)}
             className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-              locale === 'en' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+              currentLocale === 'en' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
             }`}
           >
             {t('en')}
           </DropdownMenuItem>
           <DropdownMenuItem 
-            onClick={() => changeLanguage('bg')} 
+            onClick={(e) => changeLanguage('bg', e)}
             className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
-              locale === 'bg' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+              currentLocale === 'bg' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
             }`}
           >
             {t('bg')}
