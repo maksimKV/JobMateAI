@@ -24,34 +24,44 @@ export default function Navigation() {
   const pathname = usePathname();
   const t = useTranslations('navigation');
 
+  // Safe translation function to prevent missing key errors
+  const safeTranslate = (key: string, fallback: string = ''): string => {
+    try {
+      return t(key);
+    } catch (error) {
+      console.warn(`Translation key '${key}' not found in 'navigation' namespace`);
+      return fallback || key;
+    }
+  };
+
   const navigation: NavItem[] = [
     {
-      name: t('cvAnalyzer'),
+      name: safeTranslate('cvAnalyzer', 'CV Analyzer'),
       href: '/cv-analyzer',
       icon: FileText
     },
     {
-      name: t('coverLetter'),
+      name: safeTranslate('coverLetter', 'Cover Letter'),
       href: '/cover-letter',
       icon: Mail
     },
     {
-      name: t('jobScanner'),
+      name: safeTranslate('jobScanner', 'Job Scanner'),
       href: '/job-scanner',
       icon: Search
     },
     {
-      name: t('interviewSimulator'),
+      name: safeTranslate('interviewSimulator', 'Interview Simulator'),
       href: '/interview-simulator',
       icon: MessageSquare
     },
     {
-      name: t('statistics'),
+      name: safeTranslate('statistics', 'Statistics'),
       href: '/statistics',
       icon: BarChart3
     },
     {
-      name: t('codeReviewer'),
+      name: safeTranslate('codeReviewer', 'Code Reviewer'),
       href: '/code-reviewer',
       icon: Code
     }

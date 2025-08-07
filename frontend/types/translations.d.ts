@@ -155,17 +155,37 @@ type StatisticsTranslations = {
   // Add statistics specific fields as needed
 };
 
+// Home page translations type
+interface HomeTranslations {
+  title: string;
+  subtitle: string;
+  features: {
+    [key: string]: {
+      title: string;
+      description: string;
+      cta: string;
+    };
+  };
+  gettingStarted: {
+    title: string;
+    description: string;
+    uploadButton: string;
+    learnMoreButton: string;
+  };
+}
+
 // Main messages type
-export type Messages = {
+export interface Messages {
   common: CommonTranslations;
   navigation: NavigationTranslations;
+  home: HomeTranslations;
   cvAnalyzer: CVAnalyzerTranslations;
   codeReviewer: CodeReviewerTranslations;
   jobScanner: JobScannerTranslations;
   interviewSimulator: InterviewSimulatorTranslations;
   coverLetter: CoverLetterTranslations;
   statistics: StatisticsTranslations;
-};
+}
 
 declare module '*.json' {
   const value: Record<string, unknown>;

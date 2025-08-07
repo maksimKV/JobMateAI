@@ -38,6 +38,7 @@ export default async function RootLayout({ children, params: paramsPromise }: Ro
     const [
       commonMessages,
       navMessages,
+      homeMessages,
       cvAnalyzerMessages,
       codeReviewerMessages,
       jobScannerMessages,
@@ -47,6 +48,7 @@ export default async function RootLayout({ children, params: paramsPromise }: Ro
     ] = await Promise.all([
       import(`./common/${locale}.json`).then(m => m.default),
       import(`./navigation/${locale}.json`).then(m => m.default),
+      import(`./home/${locale}.json`).then(m => m.default),
       import(`./cv-analyzer/${locale}.json`).then(m => m.default),
       import(`./code-reviewer/${locale}.json`).then(m => m.default),
       import(`./job-scanner/${locale}.json`).then(m => m.default),
@@ -59,6 +61,7 @@ export default async function RootLayout({ children, params: paramsPromise }: Ro
     messages = {
       common: commonMessages,
       navigation: navMessages,
+      home: homeMessages,
       cvAnalyzer: cvAnalyzerMessages,
       codeReviewer: codeReviewerMessages,
       jobScanner: jobScannerMessages,

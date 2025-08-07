@@ -19,14 +19,20 @@ export default function JobScannerPage() {
   const t = useTranslations('jobScanner');
 
   useEffect(() => {
-    cvAPI.list().then((data) => {
-      const { cvs } = data as { cvs: CVData[]; total_cvs?: number };
-      setCvList(cvs || []);
-      if (cvs && cvs.length > 0) {
-        setSelectedCv(cvs[0].id);
-      }
-    });
-  }, []);
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      cvAPI.list().then((data) => {
+        const { cvs } = data as { cvs: CVData[]; total_cvs?: number };
+        setCvList(cvs || []);
+        if (cvs && cvs.length > 0) {
+          setSelectedCv(cvs[0].id);
+        }
+      }).catch((err) => {
+        console.error('Error fetching CV list:', err);
+        setError(t('errors.unexpected'));
+      });
+    }
+  }, [t]);
 
   const handleMatch = async () => {
     setIsLoading(true);
