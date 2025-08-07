@@ -1,0 +1,42 @@
+{
+  "title": "Welcome to JobMate AI",
+  "subtitle": "Your AI-powered career mentor for job applications, interview preparation, and professional development.",
+  "features": {
+    "cvAnalyzer": {
+      "title": "CV Analyzer",
+      "description": "Upload your resume and get AI-powered analysis of structure, clarity, and missing sections.",
+      "cta": "Upload PDF or DOCX"
+    },
+    "coverLetter": {
+      "title": "Cover Letter Generator",
+      "description": "Generate personalized cover letters in English or Bulgarian based on your CV and job description.",
+      "cta": "AI-powered personalization"
+    },
+    "jobScanner": {
+      "title": "Job Scanner",
+      "description": "Match your skills against job requirements with detailed analysis and match percentages.",
+      "cta": "Skill matching analysis"
+    },
+    "interviewSimulator": {
+      "title": "Interview Simulator",
+      "description": "Practice HR and technical interviews with AI-generated questions and real-time feedback.",
+      "cta": "AI-generated questions"
+    },
+    "statistics": {
+      "title": "Statistics Dashboard",
+      "description": "Track your interview performance with interactive charts and detailed analytics.",
+      "cta": "Performance tracking"
+    },
+    "codeReviewer": {
+      "title": "Code Reviewer",
+      "description": "Get AI feedback on your code with optimization tips, bug detection, and readability improvements.",
+      "cta": "AI code analysis"
+    }
+  },
+  "gettingStarted": {
+    "title": "Getting Started",
+    "description": "Start by uploading your CV to unlock all features. Your CV will be securely stored and used across all modules.",
+    "uploadButton": "Upload Your CV",
+    "learnMoreButton": "Learn More"
+  }
+}
