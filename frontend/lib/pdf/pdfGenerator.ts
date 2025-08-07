@@ -80,10 +80,10 @@ export async function generatePdf(
           // Add space before the section
           yPosition += 20;
           
-          // Calculate dimensions for the chart
-          const maxChartHeight = 150; // Smaller height for donut chart
+          // Calculate dimensions for the chart to match web version
+          const maxChartHeight = 120;
           const chartAspectRatio = chartElement.width / chartElement.height;
-          let chartWidth = pageWidth * 0.4; // Take 40% of the width for the chart
+          let chartWidth = pageWidth * 0.35;
           let chartHeight = chartWidth / chartAspectRatio;
           
           if (chartHeight > maxChartHeight) {
@@ -92,11 +92,11 @@ export async function generatePdf(
           }
           
           try {
-            // Add section title
+            // Add section title with web-like styling
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(14);
+            pdf.setFontSize(16);
             pdf.text(title, margin, yPosition);
-            yPosition += 10;
+            yPosition += 12;
             
             // Convert canvas to data URL with overlays
             const dataUrl = await enhanceChartImage(chartElement);
@@ -107,18 +107,18 @@ export async function generatePdf(
             // Add the legend and stats from the right side
             const statsContainer = mainContainer.querySelector('.space-y-4');
             if (statsContainer) {
-              // Position the stats to the right of the chart with precise spacing
-              const statsX = margin + chartWidth + 15;
-              const progressBarWidth = 60;
-              const lineHeight = 3.5;
-              const itemSpacing = 10;
-              const progressBarHeight = 1.5;
-              const dotSize = 2;
+              // Position the stats to the right of the chart with web-like spacing
+              const statsX = margin + chartWidth + 20;
+              const progressBarWidth = 70;
+              const lineHeight = 4;
+              const itemSpacing = 12;
+              const progressBarHeight = 2;
+              const dotSize = 3;
               let currentY = yPosition + 5;
               
-              // Set default font to standard jsPDF font
+              // Set default font to match web styling
               pdf.setFont('helvetica');
-              pdf.setFontSize(8);
+              pdf.setFontSize(9);
               
               // Add each stat item
               const statItems = statsContainer.querySelectorAll('.space-y-1');
@@ -133,19 +133,19 @@ export async function generatePdf(
                   // Draw rounded dot
                   if (colorElement) {
                     const color = rgbaToRgb(window.getComputedStyle(colorElement).backgroundColor);
-                    // Draw smaller, precisely positioned dot
+                    // Draw dot with web-like styling
                     pdf.setFillColor(color);
-                    pdf.circle(statsX + 4, currentY + 6, dotSize, 'F');
+                    pdf.circle(statsX + 5, currentY + 6.5, dotSize, 'F');
                   }
                   
                   // Draw category name (bold)
-                  // Draw label with adjusted position
+                  // Draw label with web-like styling and spacing
                   pdf.setFont('helvetica', 'bold');
-                  pdf.text(label, statsX + 12, currentY + 6.5);
+                  pdf.text(label, statsX + 14, currentY + 6.5);
                   
-                  // Draw score value with adjusted position
-                  pdf.setFont('helvetica', 'normal');
-                  pdf.text(value, statsX + progressBarWidth + 10, currentY + 6.5, { align: 'right' });
+                  // Draw score value with web-like alignment
+                  pdf.setFont('helvetica', 'semibold');
+                  pdf.text(value, statsX + progressBarWidth + 14, currentY + 6.5, { align: 'right' });
                   
                   // Draw the progress bar
                   const progressBar = item.querySelector('.bg-gray-200');
@@ -161,10 +161,11 @@ export async function generatePdf(
                       const radius = 1;
                       const bgX = statsX + 12;
                       
-                      // Background with subtle rounded corners
+                      // Background with web-like styling
                       pdf.setFillColor(229, 231, 235);
                       pdf.setDrawColor(229, 231, 235);
                       pdf.roundedRect(bgX, bgY, progressBarWidth, progressBarHeight, radius, radius, 'F');
+                      pdf.setDrawColor(209, 213, 219);
                       
                       // Draw the progress with rounded corners
                       const progressWidth = progressBarWidth * (width / 100);
