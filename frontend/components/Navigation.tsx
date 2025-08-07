@@ -30,6 +30,7 @@ export default function Navigation() {
       return t(key);
     } catch (error) {
       console.warn(`Translation key '${key}' not found in 'navigation' namespace`);
+      console.error('Error:', error);
       return fallback || key;
     }
   };

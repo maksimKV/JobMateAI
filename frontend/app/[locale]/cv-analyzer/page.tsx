@@ -20,6 +20,9 @@ export default function CVAnalyzer() {
 
   // Load CV list on component mount
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     const loadCvList = async () => {
       try {
         setIsLoading(true);
