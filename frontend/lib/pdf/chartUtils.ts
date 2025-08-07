@@ -55,9 +55,10 @@ function drawDonutTooltip(
     tooltipY = centerY + Math.sin(segmentAngle) * (tooltipDistance * adjustFactor);
     console.log('Adjusted left tooltip:', { label, adjustFactor });
   } else if (normalizedAngle > -30 && normalizedAngle < 30) {
+    const verticalOffset = outerRadius * 0.8;
     tooltipX = centerX + Math.cos(segmentAngle) * tooltipDistance;
-    tooltipY = centerY + Math.sin(segmentAngle) * tooltipDistance;
-    console.log('Reset right tooltip:', { label });
+    tooltipY = centerY + Math.sin(segmentAngle) * tooltipDistance + verticalOffset;
+    console.log('Reset right tooltip:', { label, verticalOffset });
   }
   
   // Draw tooltip background with shadow
