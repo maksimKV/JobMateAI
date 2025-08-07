@@ -5,48 +5,60 @@ import { Chart, ChartDataset } from 'chart.js';
  */
 function drawDonutTooltip(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
+  segmentX: number,
+  segmentY: number,
   label: string,
   value: string,
-  color: string
+  color: string,
+  centerX: number,
+  centerY: number,
+  outerRadius: number
 ) {
-  const cornerRadius = 4;
-  const textPadding = 6;
-  const lineHeight = 16;
+  const scale = 1.5;
+  const cornerRadius = 8 * scale;
+  const textPadding = 8 * scale;
+  const lineHeight = 24 * scale;
+  const segmentAngle = Math.atan2(segmentY - centerY, segmentX - centerX);
   
   // Set font for measurements
-  ctx.font = '12px Arial';
+  ctx.font = `bold ${18 * scale}px Arial`;
   
-  // Calculate text dimensions
+  // Calculate text dimensions with new font
   const labelMetrics = ctx.measureText(label);
   const valueMetrics = ctx.measureText(value);
-  const textWidth = Math.max(labelMetrics.width, valueMetrics.width);
+  const textWidth = Math.max(labelMetrics.width, valueMetrics.width) + (8 * scale);
   const boxWidth = textWidth + textPadding * 2;
-  const boxHeight = lineHeight * 2 + textPadding * 2;
+  const boxHeight = lineHeight * 2 + textPadding * 1.2;
   
-  // Position the tooltip (adjust to avoid going off-screen)
-  const tooltipX = x - boxWidth / 2;
-  const tooltipY = y - boxHeight - 10; // Position above the point
+  // Calculate position along segment's angle but further out
+  const tooltipDistance = outerRadius * 1.25;
+  let tooltipX = centerX + Math.cos(segmentAngle) * tooltipDistance;
+  let tooltipY = centerY + Math.sin(segmentAngle) * tooltipDistance;
+  
+  // Adjust position for the left-side tooltip only
+  if (segmentAngle > Math.PI * 0.9 || segmentAngle < -Math.PI * 0.9) {
+    tooltipX = centerX + Math.cos(segmentAngle) * (tooltipDistance * 0.9);
+    tooltipY = centerY + Math.sin(segmentAngle) * (tooltipDistance * 0.9);
+  }
   
   // Draw tooltip background with shadow
   ctx.save();
   
   // Shadow
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-  ctx.shadowBlur = 5;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+  ctx.shadowBlur = 12 * scale;
   ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 2;
+  ctx.shadowOffsetY = 4 * scale;
   
   // Background
   ctx.fillStyle = 'white';
   ctx.beginPath();
-  roundRect(ctx, tooltipX, tooltipY, boxWidth, boxHeight, cornerRadius);
+  roundRect(ctx, tooltipX - boxWidth / 2, tooltipY - boxHeight / 2, boxWidth, boxHeight, cornerRadius);
   ctx.fill();
   
   // Border
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.lineWidth = 1.5 * scale;
   ctx.stroke();
   
   // Reset shadow
@@ -54,30 +66,19 @@ function drawDonutTooltip(
   
   // Draw text
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
   
   // Label
-  ctx.fillStyle = '#4B5563'; // gray-600
-  ctx.fillText(label, tooltipX + boxWidth / 2, tooltipY + lineHeight);
+  ctx.fillStyle = '#1F2937'; // darker gray for better contrast
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, tooltipX, tooltipY - lineHeight * 0.3);
   
   // Value
-  ctx.font = 'bold 12px Arial';
+  ctx.font = `bold ${18 * scale}px Arial`;
   ctx.fillStyle = color;
-  ctx.fillText(value, tooltipX + boxWidth / 2, tooltipY + lineHeight * 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(value, tooltipX, tooltipY + lineHeight * 0.9);
   
-  // Draw pointer
-  ctx.fillStyle = 'white';
-  ctx.beginPath();
-  ctx.moveTo(x - 5, tooltipY + boxHeight);
-  ctx.lineTo(x, tooltipY + boxHeight + 5);
-  ctx.lineTo(x + 5, tooltipY + boxHeight);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Border for pointer
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+
   
   ctx.restore();
 }
@@ -170,7 +171,6 @@ export async function enhanceChartImage(chartElement: HTMLCanvasElement): Promis
     const centerX = chart.width / 2;
     const centerY = chart.height / 2;
     const outerRadius = Math.min(centerX, centerY) * 0.8;
-    const innerRadius = outerRadius * 0.6;
     
     // Process each dataset
     datasets.forEach((dataset: ChartDataset, datasetIndex: number) => {
@@ -200,12 +200,11 @@ export async function enhanceChartImage(chartElement: HTMLCanvasElement): Promis
         
         // Calculate position on the arc
         const angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-        const distanceFromCenter = (innerRadius + outerRadius) / 2;
-        const x = centerX + Math.cos(angle) * distanceFromCenter;
-        const y = centerY + Math.sin(angle) * distanceFromCenter;
+        const x = centerX + Math.cos(angle) * outerRadius * 0.8;
+        const y = centerY + Math.sin(angle) * outerRadius * 0.8;
         
         // Get label and color
-        const label = labels[index] || `Segment ${index + 1}`;
+        const label = String(labels[index] || `Segment ${index + 1}`);
         const color = Array.isArray(dataset.backgroundColor) 
           ? dataset.backgroundColor[index % dataset.backgroundColor.length]
           : dataset.backgroundColor || '#000000';
@@ -216,7 +215,7 @@ export async function enhanceChartImage(chartElement: HTMLCanvasElement): Promis
         
         // Draw tooltip for segments that are large enough
         if (percentage >= 5) {
-          drawDonutTooltip(tempCtx, x, y, String(label), valueText, color);
+          drawDonutTooltip(tempCtx, x, y, label, valueText, color, centerX, centerY, outerRadius);
         }
       });
     });
