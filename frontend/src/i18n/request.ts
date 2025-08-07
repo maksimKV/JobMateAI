@@ -30,9 +30,15 @@ function flattenMessages(nestedMessages: MessageObject, prefix = ''): Record<str
 
 // Function to load all JSON files from a directory
 async function loadMessages(locale: string): Promise<Record<string, string>> {
+  console.log(`[i18n] Loading messages for locale: ${locale}`);
   try {
     // Path is relative to the frontend directory
-    const appDir = path.join(process.cwd(), 'app');
+    const cwd = process.cwd();
+    console.log(`[i18n] Current working directory: ${cwd}`);
+    
+    const appDir = path.join(cwd, 'app');
+    console.log(`[i18n] App directory: ${appDir}`);
+    
     const messages: MessageObject = {};
 
     // Function to process a directory and its subdirectories
@@ -85,7 +91,56 @@ async function loadMessages(locale: string): Promise<Record<string, string>> {
 
     // Process the locale directory in the app directory
     const localePath = path.join(appDir, '[locale]');
-    processDirectory(localePath);
+    console.log(`[i18n] Looking for locale directory at: ${localePath}`);
+    console.log(`[i18n] Directory exists: ${fs.existsSync(localePath)}`);
+    
+    // Process each page directory directly since dynamic [locale] path might not be resolved correctly
+    const pageDirs = ['code-reviewer', 'cover-letter', 'cv-analyzer', 'home', 'interview-simulator', 'job-scanner', 'statistics', 'common', 'navigation'];
+    
+    console.log(`[i18n] Processing page directories...`);
+    let foundFiles = 0;
+    
+    for (const pageDir of pageDirs) {
+      const pagePath = path.join(localePath, pageDir);
+      console.log(`[i18n] Checking page directory: ${pagePath}`);
+      
+      if (fs.existsSync(pagePath)) {
+        console.log(`[i18n] Directory exists: ${pagePath}`);
+        try {
+          const files = fs.readdirSync(pagePath);
+          console.log(`[i18n] Found ${files.length} files in ${pagePath}`);
+          
+          for (const file of files) {
+            console.log(`[i18n] Checking file: ${file}`);
+            if (file.endsWith('.json') && file.startsWith(locale)) {
+              const filePath = path.join(pagePath, file);
+              console.log(`[i18n] Processing translation file: ${filePath}`);
+              
+              try {
+                const fileContent = fs.readFileSync(filePath, 'utf-8');
+                const jsonContent = JSON.parse(fileContent);
+                const namespace = path.basename(pagePath);
+                console.log(`[i18n] Loaded ${Object.keys(jsonContent).length} keys for namespace: ${namespace}`);
+                
+                messages[namespace] = { 
+                  ...(messages[namespace] as MessageObject || {}), 
+                  ...jsonContent 
+                };
+                foundFiles++;
+              } catch (error) {
+                console.error(`[i18n] Error loading file ${filePath}:`, error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`[i18n] Error reading directory ${pagePath}:`, error);
+        }
+      } else {
+        console.warn(`[i18n] Directory does not exist: ${pagePath}`);
+      }
+    }
+    
+    console.log(`[i18n] Total translation files loaded: ${foundFiles}`);
     
     // Flatten the messages object
     return flattenMessages(messages);
@@ -96,13 +151,17 @@ async function loadMessages(locale: string): Promise<Record<string, string>> {
 }
 
 export default getRequestConfig(async ({ locale = 'en' }) => {
+  console.log(`[i18n] Configuring messages for locale: ${locale}`);
   if (!locale) throw new Error('Locale is required');
   
   try {
     const messages = await loadMessages(locale);
+    console.log(`[i18n] Loaded messages for ${Object.keys(messages).length} namespaces`);
     
     if (Object.keys(messages).length === 0) {
-      console.warn(`No messages found for locale: ${locale}`);
+      console.warn(`[i18n] WARNING: No messages found for locale: ${locale}`);
+    } else {
+      console.log(`[i18n] Namespaces loaded:`, Object.keys(messages));
     }
     
     return {

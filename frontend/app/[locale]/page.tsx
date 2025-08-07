@@ -86,7 +86,7 @@ export default function Home() {
 
           <div 
             className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
-            onClick={() => navigateTo('/cover-letter-generator')}
+            onClick={() => navigateTo('/cover-letter')}
           >
             <div className="flex items-center mb-4">
               <Mail className="h-8 w-8 text-green-600 mr-3" />
