@@ -7,30 +7,10 @@ import path from 'path';
 type MessageValue = string | Record<string, unknown>;
 type MessageObject = Record<string, MessageValue>;
 
-// Helper function to flatten nested objects with dot notation
-function flattenMessages(nestedMessages: MessageObject, prefix = ''): Record<string, string> {
-  return Object.keys(nestedMessages).reduce<Record<string, string>>((messages, key) => {
-    const value = nestedMessages[key];
-    const prefixedKey = prefix ? `${prefix}.${key}` : key;
-
-    if (typeof value === 'string') {
-      return { ...messages, [prefixedKey]: value };
-    }
-
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      return {
-        ...messages,
-        ...flattenMessages(value as MessageObject, prefixedKey)
-      };
-    }
-
-    return messages;
-  }, {} as Record<string, string>);
-}
 
 // Function to load all JSON files from a directory
 async function loadMessages(locale: string): Promise<Record<string, MessageObject>> {
-  console.log(`[i18n] Loading messages for locale: ${locale}`);
+
   try {
     const cwd = process.cwd();
     const appDir = path.join(cwd, 'app');
@@ -65,7 +45,7 @@ async function loadMessages(locale: string): Promise<Record<string, MessageObjec
           // Use the mapped namespace
           messages[namespace] = jsonContent;
           
-          console.log(`[i18n] Loaded ${Object.keys(jsonContent).length} keys for namespace '${namespace}' from ${pageDir}/${locale}.json`);
+
         } catch (error) {
           console.error(`[i18n] Error loading file ${localeFile}:`, error);
         }
@@ -74,7 +54,7 @@ async function loadMessages(locale: string): Promise<Record<string, MessageObjec
       }
     }
     
-    console.log(`[i18n] Loaded translations for ${Object.keys(messages).length} namespaces`);
+
     return messages;
   } catch (error) {
     console.error(`Failed to load messages for locale: ${locale}`, error);
@@ -89,7 +69,7 @@ export default getRequestConfig(async ({ locale = 'en' }) => {
     const messages = await loadMessages(locale);
     
     // Log available namespaces for debugging
-    console.log('[i18n] Available namespaces:', Object.keys(messages));
+
     
     return {
       locale,
