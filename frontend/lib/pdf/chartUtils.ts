@@ -1,6 +1,112 @@
 import { Chart, ChartDataset } from 'chart.js';
 
 /**
+ * Draws a tooltip for donut chart segments
+ */
+function drawDonutTooltip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  label: string,
+  value: string,
+  color: string
+) {
+  const cornerRadius = 4;
+  const textPadding = 6;
+  const lineHeight = 16;
+  
+  // Set font for measurements
+  ctx.font = '12px Arial';
+  
+  // Calculate text dimensions
+  const labelMetrics = ctx.measureText(label);
+  const valueMetrics = ctx.measureText(value);
+  const textWidth = Math.max(labelMetrics.width, valueMetrics.width);
+  const boxWidth = textWidth + textPadding * 2;
+  const boxHeight = lineHeight * 2 + textPadding * 2;
+  
+  // Position the tooltip (adjust to avoid going off-screen)
+  const tooltipX = x - boxWidth / 2;
+  const tooltipY = y - boxHeight - 10; // Position above the point
+  
+  // Draw tooltip background with shadow
+  ctx.save();
+  
+  // Shadow
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
+  
+  // Background
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  roundRect(ctx, tooltipX, tooltipY, boxWidth, boxHeight, cornerRadius);
+  ctx.fill();
+  
+  // Border
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  // Reset shadow
+  ctx.shadowColor = 'transparent';
+  
+  // Draw text
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  // Label
+  ctx.fillStyle = '#4B5563'; // gray-600
+  ctx.fillText(label, tooltipX + boxWidth / 2, tooltipY + lineHeight);
+  
+  // Value
+  ctx.font = 'bold 12px Arial';
+  ctx.fillStyle = color;
+  ctx.fillText(value, tooltipX + boxWidth / 2, tooltipY + lineHeight * 2);
+  
+  // Draw pointer
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.moveTo(x - 5, tooltipY + boxHeight);
+  ctx.lineTo(x, tooltipY + boxHeight + 5);
+  ctx.lineTo(x + 5, tooltipY + boxHeight);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Border for pointer
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  ctx.restore();
+}
+
+/**
+ * Utility to draw a rounded rectangle
+ */
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+/**
  * Enhances chart image with data point overlays for better PDF export
  */
 export async function enhanceChartImage(chartElement: HTMLCanvasElement): Promise<string> {
@@ -39,8 +145,84 @@ export async function enhanceChartImage(chartElement: HTMLCanvasElement): Promis
   const chart = Chart.getChart(chartElement);
   if (!chart) return tempCanvas.toDataURL('image/png', 1.0);
 
-  const { data } = chart.config;
-  const datasets = 'datasets' in data ? data.datasets : [];
+  interface ChartConfig {
+    type?: string;
+    data: {
+      datasets?: Array<{
+        data: Array<number | null>;
+        backgroundColor?: string | string[];
+        borderColor?: string | string[];
+        [key: string]: unknown;
+      }>;
+      labels?: string[];
+      [key: string]: unknown;
+    };
+  }
+
+  const config = chart.config as ChartConfig;
+  const { data } = config;
+  const datasets = data.datasets || [];
+  const labels = 'labels' in data ? data.labels || [] : [];
+  
+  // Handle donut charts - safely access chart type
+  const chartType = config.type;
+  if (chartType === 'doughnut' || chartType === 'pie') {
+    const centerX = chart.width / 2;
+    const centerY = chart.height / 2;
+    const outerRadius = Math.min(centerX, centerY) * 0.8;
+    const innerRadius = outerRadius * 0.6;
+    
+    // Process each dataset
+    datasets.forEach((dataset: ChartDataset, datasetIndex: number) => {
+      if (!dataset.data || !Array.isArray(dataset.data)) return;
+      
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta.data || !meta.data.length) return;
+      
+      // Calculate total for percentages
+      const total = dataset.data.reduce((sum: number, val) => {
+        return typeof val === 'number' ? sum + val : sum;
+      }, 0);
+      
+      // Draw tooltips for each segment
+      // Use Chart.js Element type for arc elements
+      interface ChartArc {
+        startAngle: number;
+        endAngle: number;
+        [key: string]: unknown;
+      }
+
+      // Type assertion for the arc elements
+      const arcElements = meta.data as unknown as ChartArc[];
+      arcElements.forEach((arc, index) => {
+        const value = dataset.data?.[index];
+        if (typeof value !== 'number') return;
+        
+        // Calculate position on the arc
+        const angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+        const distanceFromCenter = (innerRadius + outerRadius) / 2;
+        const x = centerX + Math.cos(angle) * distanceFromCenter;
+        const y = centerY + Math.sin(angle) * distanceFromCenter;
+        
+        // Get label and color
+        const label = labels[index] || `Segment ${index + 1}`;
+        const color = Array.isArray(dataset.backgroundColor) 
+          ? dataset.backgroundColor[index % dataset.backgroundColor.length]
+          : dataset.backgroundColor || '#000000';
+        
+        // Calculate percentage
+        const percentage = Math.round((value / total) * 100);
+        const valueText = `${value.toFixed(1)}/10 (${percentage}%)`;
+        
+        // Draw tooltip for segments that are large enough
+        if (percentage >= 5) {
+          drawDonutTooltip(tempCtx, x, y, String(label), valueText, color);
+        }
+      });
+    });
+    
+    return tempCanvas.toDataURL('image/png', 1.0);
+  }
 
   // Configure text styles
   const fontSize = 20;
