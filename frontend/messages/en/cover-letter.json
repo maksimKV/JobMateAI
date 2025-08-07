@@ -1,0 +1,33 @@
+{
+  "title": "Cover Letter Generator",
+  "description": "Generate a personalized cover letter based on your CV and a job description.",
+  "defaultCompanyName": "Company",
+  "form": {
+    "selectCV": "Select your CV",
+    "noCVs": "No CVs uploaded",
+    "jobDescription": "Job Description",
+    "jobDescriptionPlaceholder": "Paste the job description here...",
+    "clear": "Clear",
+    "clearButton": "Clear job description",
+    "language": "Language",
+    "languages": {
+      "english": "English",
+      "bulgarian": "Bulgarian"
+    },
+    "buttons": {
+      "generate": "Generate Cover Letter",
+      "generating": "Generating..."
+    }
+  },
+  "result": {
+    "title": "Generated Cover Letter",
+    "copyButton": "Copy to Clipboard",
+    "copyTooltip": "Copy to clipboard",
+    "downloadPdf": "Download as PDF",
+    "generatingPdf": "Generating PDF..."
+  },
+  "errors": {
+    "generationFailed": "Failed to generate cover letter. Please try again.",
+    "pdfGenerationFailed": "Failed to generate PDF. Please try again or copy the text manually."
+  }
+}
