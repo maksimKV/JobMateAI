@@ -9,6 +9,7 @@ import { Mail, Loader2, AlertCircle, Download } from 'lucide-react';
 import { generateCoverLetterPdf } from '@/lib/pdf/coverLetterPdf';
 
 export default function CoverLetterPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const t = useTranslations('coverLetter');
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [selectedCv, setSelectedCv] = useState<string>('');
@@ -21,16 +22,28 @@ export default function CoverLetterPage() {
   const [error, setError] = useState<string | null>(null);
   const coverLetterRef = useRef<HTMLDivElement>(null);
 
+  // Set isMounted to true when component mounts on client side
   useEffect(() => {
-    // Fetch available CVs
-    cvAPI.list().then((data) => {
-      const { cvs } = data as { cvs: CVData[]; total_cvs: number };
-      setCvList(cvs || []);
-      if (cvs && cvs.length > 0) {
-        setSelectedCv(cvs[0].id);
-      }
-    });
+    setIsMounted(true);
   }, []);
+
+  // Fetch available CVs (client-side only)
+  useEffect(() => {
+    if (isMounted) {
+      cvAPI.list()
+        .then((data) => {
+          const { cvs } = data as { cvs: CVData[]; total_cvs: number };
+          setCvList(cvs || []);
+          if (cvs && cvs.length > 0) {
+            setSelectedCv(cvs[0].id);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching CV list:', err);
+          setError(t('errors.loadCVList'));
+        });
+    }
+  }, [isMounted, t]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -53,6 +66,27 @@ export default function CoverLetterPage() {
       setIsLoading(false);
     }
   };
+
+  // Show loading state during SSR or initial client-side render
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="text-center p-8">
+            <div className="animate-pulse space-y-4">
+              <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto"></div>
+              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
+              <div className="h-64 bg-gray-100 rounded-lg mt-8"></div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="animate-pulse h-96 bg-gray-100 rounded-lg"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

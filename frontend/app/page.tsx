@@ -1,3 +1,7 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import { 
   FileText, 
@@ -7,10 +11,42 @@ import {
   BarChart3, 
   Code,
   Upload,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 
 export default function Home() {
+  const [isMounted, setIsMounted] = useState(false);
+  const router = useRouter();
+
+  // Set isMounted to true when component mounts on client side
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Handle navigation to ensure it's client-side
+  const navigateTo = (path: string) => {
+    if (isMounted) {
+      router.push(path);
+    }
+  };
+  // Show loading state during SSR or initial client-side render
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <Navigation />
+          <div className="text-center p-12">
+            <div className="flex justify-center mb-4">
+              <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+            </div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -45,7 +81,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div 
+            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => navigateTo('/cover-letter-generator')}
+          >
             <div className="flex items-center mb-4">
               <Mail className="h-8 w-8 text-green-600 mr-3" />
               <h3 className="text-xl font-semibold">Cover Letter Generator</h3>
@@ -59,7 +98,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div 
+            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => navigateTo('/job-scanner')}
+          >
             <div className="flex items-center mb-4">
               <Search className="h-8 w-8 text-purple-600 mr-3" />
               <h3 className="text-xl font-semibold">Job Scanner</h3>
@@ -73,7 +115,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div 
+            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => navigateTo('/interview-simulator')}
+          >
             <div className="flex items-center mb-4">
               <MessageSquare className="h-8 w-8 text-orange-600 mr-3" />
               <h3 className="text-xl font-semibold">Interview Simulator</h3>
@@ -87,7 +132,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div 
+            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => navigateTo('/statistics-dashboard')}
+          >
             <div className="flex items-center mb-4">
               <BarChart3 className="h-8 w-8 text-indigo-600 mr-3" />
               <h3 className="text-xl font-semibold">Statistics Dashboard</h3>
@@ -101,7 +149,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div 
+            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => navigateTo('/code-reviewer')}
+          >
             <div className="flex items-center mb-4">
               <Code className="h-8 w-8 text-red-600 mr-3" />
               <h3 className="text-xl font-semibold">Code Reviewer</h3>

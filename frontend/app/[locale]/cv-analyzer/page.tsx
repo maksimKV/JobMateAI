@@ -8,6 +8,7 @@ import { cvAPI, APIError } from '@/lib/api';
 import { CVUploadResponse, CVData } from '@/types';
 
 export default function CVAnalyzer() {
+  const [isMounted, setIsMounted] = useState(false);
   const t = useTranslations('cvAnalyzer');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -17,6 +18,11 @@ export default function CVAnalyzer() {
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [showList, setShowList] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Set isMounted to true when component mounts on client side
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Load CV list function wrapped in useCallback to prevent unnecessary re-renders
   const loadCvList = useCallback(async () => {
@@ -34,10 +40,12 @@ export default function CVAnalyzer() {
     }
   }, [t]);
 
-  // Load CV list on component mount
+  // Load CV list on component mount (client-side only)
   useEffect(() => {
-    loadCvList();
-  }, [loadCvList]);
+    if (isMounted) {
+      loadCvList();
+    }
+  }, [isMounted, loadCvList]);
 
   const handleCvSelect = async (cvId: string) => {
     try {
@@ -140,6 +148,27 @@ export default function CVAnalyzer() {
       <XCircle className="h-5 w-5 text-red-500" />
     );
   };
+
+  // Show loading state during SSR or initial client-side render
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="text-center p-8">
+            <div className="animate-pulse space-y-4">
+              <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto"></div>
+              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
+              <div className="h-64 bg-gray-100 rounded-lg mt-8"></div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="animate-pulse h-96 bg-gray-100 rounded-lg"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
