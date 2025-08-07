@@ -207,10 +207,9 @@ export async function generatePdf(
                   pdf.setFontSize(9);
                   pdf.text(overallLabel, statsX, currentY + 2);
                   
-                  // Draw overall value with web-matching blue
                   pdf.setFont('helvetica', 'bold');
                   pdf.setTextColor(37, 99, 235);
-                  pdf.text(overallValue, statsX + progressBarWidth + 10, currentY + 4, {
+                  pdf.text(overallValue, statsX + progressBarWidth + 10, currentY + 2, {
                     align: 'right'
                   });
                   
