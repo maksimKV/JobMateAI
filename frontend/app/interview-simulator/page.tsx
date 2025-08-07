@@ -36,6 +36,7 @@ const InterviewSimulatorPage = () => {
   const [answer, setAnswer] = useState('');
   const [showCompletion, setShowCompletion] = useState(false);
   const [uiError, setUiError] = useState<string | null>(null);
+  const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   
   // Speech recognition hook
   const {
@@ -138,29 +139,33 @@ const InterviewSimulatorPage = () => {
   
   // Handle submitting an answer
   const handleSubmitAnswer = useCallback(async () => {
-    if (!currentQuestion || !answer.trim() || !sessionId) return;
+    if (!currentQuestion || !answer.trim() || !sessionId || isSubmittingAnswer) return;
     
     // Stop speech recognition if it's active
     if (listening) {
       stopListening();
     }
     
-    // Clear the current answer and transcript
     const currentAnswer = answer;
-    setAnswer('');
-    clearTranscript();
+    setIsSubmittingAnswer(true);
     
     try {
       const isComplete = await submitAnswerToSession(currentAnswer, currentQuestion);
       
       if (isComplete) {
         setShowCompletion(true);
+      } else {
+        // Only clear the answer if we're not showing completion
+        setAnswer('');
       }
+      clearTranscript();
     } catch (err) {
       console.error('Failed to submit answer:', err);
       setUiError(err instanceof Error ? err.message : 'Failed to submit answer');
+    } finally {
+      setIsSubmittingAnswer(false);
     }
-  }, [answer, currentQuestion, sessionId, submitAnswerToSession, listening, stopListening, clearTranscript]);
+  }, [answer, currentQuestion, sessionId, submitAnswerToSession, listening, stopListening, clearTranscript, isSubmittingAnswer]);
   
   // Handle restarting the interview
   const handleRestart = useCallback(() => {
@@ -217,6 +222,7 @@ const InterviewSimulatorPage = () => {
                 onAnswerChange={setAnswer}
                 onSubmit={handleSubmitAnswer}
                 isLoading={isLoading}
+                isSubmittingAnswer={isSubmittingAnswer}
                 isLastQuestion={currentQuestionIndex >= questions.length - 1}
                 detectedRole={session.detected_role}
                 isBrowserSupported={isBrowserSupported}

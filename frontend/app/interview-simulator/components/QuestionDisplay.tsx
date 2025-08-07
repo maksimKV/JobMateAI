@@ -7,6 +7,7 @@ interface QuestionDisplayProps {
   onAnswerChange: (answer: string) => void;
   onSubmit: () => void;
   isLoading: boolean;
+  isSubmittingAnswer: boolean;
   isLastQuestion: boolean;
   detectedRole?: string;
   isBrowserSupported: boolean;
@@ -23,6 +24,7 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   onAnswerChange,
   onSubmit,
   isLoading,
+  isSubmittingAnswer,
   isLastQuestion,
   detectedRole,
   isBrowserSupported,
@@ -119,10 +121,11 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
                 id="answer"
                 ref={answerTextareaRef}
                 value={answer}
-                onChange={(e) => onAnswerChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10"
+                onChange={(e) => !isSubmittingAnswer && onAnswerChange(e.target.value)}
+                className={`w-full px-3 py-2 border ${isSubmittingAnswer ? 'bg-gray-100' : 'bg-white'} rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10`}
                 rows={4}
-                placeholder={isBrowserSupported ? 'Type or speak your answer...' : 'Type your answer...'}
+                disabled={isSubmittingAnswer}
+                placeholder={isSubmittingAnswer ? 'Processing your answer...' : (isBrowserSupported ? 'Type or speak your answer...' : 'Type your answer...')}
               />
               {listening && (
                 <div className="absolute right-3 bottom-3 flex items-center">
