@@ -184,16 +184,16 @@ export async function generatePdf(
                   }
                   
                   // Add space after each item
-                  currentY += itemSpacing + lineHeight * 2.5;
+                  currentY += itemSpacing + lineHeight * 1.8;
                 }
               });
               
               // Add a subtle divider before the overall average
-              currentY += 6;
-              pdf.setDrawColor(226, 232, 240);
-              pdf.setLineWidth(0.3);
+              currentY += 2;
+              pdf.setDrawColor(220, 225, 230);
+              pdf.setLineWidth(0.25);
               pdf.line(statsX, currentY, statsX + progressBarWidth + 10, currentY);
-              currentY += 8;
+              currentY += 6;
               
               // Add the overall average at the bottom with more emphasis
               const overallContainer = mainContainer.querySelector('.pt-4');
@@ -204,20 +204,20 @@ export async function generatePdf(
                 if (overallLabel && overallValue) {
                   // Draw overall label with consistent styling
                   pdf.setFont('helvetica', 'bold');
-                  pdf.setFontSize(8.5);
-                  pdf.text(overallLabel, statsX, currentY + 3);
+                  pdf.setFontSize(9);
+                  pdf.text(overallLabel, statsX, currentY + 2);
                   
                   // Draw overall value with web-matching blue
                   pdf.setFont('helvetica', 'bold');
                   pdf.setTextColor(37, 99, 235);
-                  pdf.text(overallValue, statsX + progressBarWidth + 10, currentY + 5, { 
+                  pdf.text(overallValue, statsX + progressBarWidth + 10, currentY + 4, {
                     align: 'right'
                   });
                   
                   // Reset text color for other elements
                   pdf.setTextColor(0, 0, 0);
                   
-                  currentY += 15;
+                  currentY += 12;
                 }
               }
               
@@ -280,7 +280,7 @@ export async function generatePdf(
       
       // Ensure we have enough space for the section title
       const titleLines = ['Interview Questions and Answers'];
-      const titleHeight = (fontSize * lineHeight * 1.2) / 2.8; // Slightly larger for section title
+      const titleHeight = (fontSize * lineHeight * 1.2) / 2.8;
       
       // Add new page if needed for the section title
       if (yPosition + titleHeight > pdf.internal.pageSize.getHeight() - margin) {
