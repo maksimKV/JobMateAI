@@ -17,6 +17,7 @@ export default function CVAnalyzer() {
   const [showList, setShowList] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useTranslations('cv-analyzer');
+  const tNav = useTranslations('navigation');
 
   // Load CV list on component mount
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function CVAnalyzer() {
         setCvList(response.cvs || []);
       } catch (error) {
         console.error('Error loading CV list:', error);
-        setError('Failed to load CV list');
+        setError(t('errors.loadList'));
       } finally {
         setIsLoading(false);
       }
