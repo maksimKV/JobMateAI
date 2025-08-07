@@ -247,12 +247,6 @@ export default function StatisticsPage() {
     
     setIsGeneratingPdf(true);
     try {
-      // Get the current date in the format: DD Month YYYY (e.g., 05 August 2025)
-      const formatDate = (date: Date) => {
-        const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
-        return date.toLocaleDateString('en-US', options);
-      };
-      
       // Get company name and position from session data or use defaults
       console.log('Session data when generating PDF:', sessionData);
       const companyName = sessionData?.company_name || t('page.defaults.company');
