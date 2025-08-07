@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Navigation from '@/components/Navigation';
 import { codeReviewAPI, APIError } from '@/lib/api';
@@ -12,6 +12,12 @@ export default function CodeReviewerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ review: string; detected_language: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // This effect runs only on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleReview = async () => {
     setIsLoading(true);
@@ -27,6 +33,28 @@ export default function CodeReviewerPage() {
       setIsLoading(false);
     }
   };
+
+  // Only render the interactive parts on the client side
+  if (!isClient) {
+    // Don't use translations here to avoid SSR issues
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-2">
+              <Code className="h-8 w-8 text-blue-600 mr-3" />
+              <h1 className="text-3xl font-bold text-gray-900">Code Reviewer</h1>
+            </div>
+            <p className="text-gray-600">Paste your code and get AI-powered feedback, bug detection, and optimization tips.</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="animate-pulse h-96 bg-gray-100 rounded-lg"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

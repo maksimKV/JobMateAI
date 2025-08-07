@@ -2,15 +2,12 @@ import { ReactNode } from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { BackendProvider } from '@/providers/BackendProvider';
 
-// Define a recursive type for nested translation objects
-type NestedMessages = {
-  [key: string]: string | NestedMessages;
-};
+import type { Messages } from '@/types/translations';
 
 interface LocaleLayoutProps {
   children: ReactNode;
   locale: string;
-  messages: NestedMessages;
+  messages: Messages;
 }
 
 export default function LocaleLayout({ children, locale, messages }: LocaleLayoutProps) {

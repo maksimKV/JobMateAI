@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { InterviewFeedback } from '../../types';
+import { InterviewFeedback } from '../types';
 
 interface FeedbackDisplayProps {
   feedback: InterviewFeedback[];

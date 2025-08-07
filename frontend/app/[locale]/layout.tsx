@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import LocaleLayout from './LocaleLayout';
 import '../../app/globals.css';
 import { Metadata } from 'next';
+// Import the Messages type from our translations definition
+import type { Messages } from '@/types/translations';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,9 +32,45 @@ export default async function RootLayout({ children, params: paramsPromise }: Ro
   const { locale } = await paramsPromise;
   
   // Load messages for the current locale
-  let messages;
+  let messages: Messages;
   try {
-    messages = (await import(`@/messages/${locale}.json`)).default;
+    // Import all translation files
+    const [
+      commonMessages,
+      navMessages,
+      cvAnalyzerMessages,
+      codeReviewerMessages,
+      jobScannerMessages,
+      interviewSimulatorMessages,
+      coverLetterMessages,
+      statisticsMessages
+    ] = await Promise.all([
+      import(`./common/${locale}.json`).then(m => m.default),
+      import(`./navigation/${locale}.json`).then(m => m.default),
+      import(`./cv-analyzer/${locale}.json`).then(m => m.default),
+      import(`./code-reviewer/${locale}.json`).then(m => m.default),
+      import(`./job-scanner/${locale}.json`).then(m => m.default),
+      import(`./interview-simulator/${locale}.json`).then(m => m.default),
+      import(`./cover-letter/${locale}.json`).then(m => m.default),
+      import(`./statistics/${locale}.json`).then(m => m.default)
+    ]);
+    
+    // Create messages object with proper typing
+    messages = {
+      common: commonMessages,
+      navigation: navMessages,
+      cvAnalyzer: cvAnalyzerMessages,
+      codeReviewer: codeReviewerMessages,
+      jobScanner: jobScannerMessages,
+      interviewSimulator: interviewSimulatorMessages,
+      coverLetter: coverLetterMessages,
+      statistics: statisticsMessages
+    };
+    
+    if (!messages || Object.keys(messages).length === 0) {
+      console.error(`No messages found for locale: ${locale}`);
+      notFound();
+    }
   } catch (error) {
     console.error(`Failed to load messages for locale: ${locale}`, error);
     notFound();

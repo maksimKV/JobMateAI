@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
 import { 
@@ -22,7 +22,7 @@ type QuestionType = 'all' | 'hr' | 'technical' | 'non_technical';
 
 export default function StatisticsPage() {
   const t = useTranslations('statistics.page');
-  const router = useRouter();
+  // Removed unused router
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<StatisticsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -188,13 +188,13 @@ export default function StatisticsPage() {
             } else {
               setError(t('errors.invalidSessionData'));
             }
-          } catch (parseError) {
+          } catch {
             setError(t('errors.parseError'));
           }
         } else {
           setError(t('errors.noSessionFound'));
         }
-      } catch (err) {
+      } catch {
         setError(t('errors.loadError'));
       } finally {
         setIsLoading(false);
@@ -255,9 +255,9 @@ export default function StatisticsPage() {
         includeQuestions: true,
         allQuestions,
         sessionData: pdfSessionData,
-        t: (key: string) => t(`pdf.${key}`)
+        getTranslation: (key: string) => t(`pdf.${key}`)
       });
-    } catch (error) {
+    } catch {
       setError(t('errors.pdfGenerationFailed'));
     } finally {
       setIsGeneratingPdf(false);
@@ -350,12 +350,12 @@ export default function StatisticsPage() {
                 {t('noData.description')}
               </p>
               <div className="mt-6">
-                <a
+                <Link
                   href="/dashboard"
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   {t('noData.cta')}
-                </a>
+                </Link>
               </div>
             </div>
           ) : (

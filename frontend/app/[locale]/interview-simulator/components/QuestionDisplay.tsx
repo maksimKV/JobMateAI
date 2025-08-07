@@ -2,7 +2,7 @@
 
 import React, { useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { InterviewQuestion } from '../../types';
+import { InterviewQuestion } from '../types';
 
 interface QuestionDisplayProps {
   question: InterviewQuestion;

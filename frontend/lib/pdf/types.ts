@@ -1,5 +1,10 @@
 import { FeedbackItem } from '@/types';
 
+export type TranslationFunction = (
+  key: string,
+  values?: Record<string, string | number | boolean | null | undefined>
+) => string;
+
 export interface PDFOptions {
   title?: string;
   margin?: number;
@@ -8,6 +13,7 @@ export interface PDFOptions {
   includeCharts?: boolean;
   includeQuestions?: boolean;
   allQuestions?: FeedbackItem[];
+  getTranslation?: TranslationFunction;
   sessionData?: {
     scores?: {
       byCategory: {

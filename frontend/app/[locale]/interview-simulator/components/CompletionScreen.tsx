@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { InterviewFeedback } from '../../types';
+import Link from 'next/link';
+import { InterviewFeedback } from '../types';
 import { FeedbackDisplay } from './FeedbackDisplay';
 
 interface CompletionScreenProps {
@@ -34,22 +35,18 @@ export const CompletionScreen: React.FC<CompletionScreenProps> = ({
         
         {/* Action Buttons */}
         <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-          <a
+          <Link
             href={`/statistics?session=${sessionId}`}
             className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             {t('viewStatistics')}
-          </a>
-          <a
-            href="/interview-simulator"
-            onClick={(e) => {
-              e.preventDefault();
-              onRestart();
-            }}
+          </Link>
+          <button
+            onClick={onRestart}
             className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             {t('newInterview')}
-          </a>
+          </button>
         </div>
       </div>
       

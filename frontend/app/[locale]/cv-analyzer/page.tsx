@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import Navigation from '@/components/Navigation';
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, List, Loader2 } from 'lucide-react';
@@ -18,12 +18,8 @@ export default function CVAnalyzer() {
   const [showList, setShowList] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load CV list on component mount
-  useEffect(() => {
-    loadCvList();
-  }, []);
-
-  const loadCvList = async () => {
+  // Load CV list function wrapped in useCallback to prevent unnecessary re-renders
+  const loadCvList = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await cvAPI.list();
@@ -36,7 +32,12 @@ export default function CVAnalyzer() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t]);
+
+  // Load CV list on component mount
+  useEffect(() => {
+    loadCvList();
+  }, [loadCvList]);
 
   const handleCvSelect = async (cvId: string) => {
     try {
