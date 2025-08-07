@@ -13,6 +13,7 @@ import {
   LucideIcon
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface NavItem {
   name: string;
@@ -75,6 +76,9 @@ export default function Navigation() {
           <div className="flex items-center space-x-4">
             <Brain className="h-8 w-8 text-blue-600" />
             <h1 className="text-2xl font-bold text-gray-900">JobMate AI</h1>
+          </div>
+          <div className="flex items-center">
+            <LanguageSwitcher />
           </div>
         </div>
         

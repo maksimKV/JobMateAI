@@ -22,27 +22,37 @@ export function LanguageSwitcher() {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Globe className="h-5 w-5" />
-          <span className="sr-only">{t('select')}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem 
-          onClick={() => changeLanguage('en')} 
-          className={locale === 'en' ? 'bg-accent' : ''}
+    <div className="relative">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="hover:bg-gray-100 rounded-full">
+            <Globe className="h-5 w-5" />
+            <span className="sr-only">{t('select')}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent 
+          align="end" 
+          className="min-w-[100px] bg-white border border-gray-200 rounded-md shadow-lg z-[100]"
+          sideOffset={8}
         >
-          {t('en')}
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => changeLanguage('bg')} 
-          className={locale === 'bg' ? 'bg-accent' : ''}
-        >
-          {t('bg')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem 
+            onClick={() => changeLanguage('en')} 
+            className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+              locale === 'en' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+            }`}
+          >
+            {t('en')}
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => changeLanguage('bg')} 
+            className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+              locale === 'bg' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+            }`}
+          >
+            {t('bg')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
