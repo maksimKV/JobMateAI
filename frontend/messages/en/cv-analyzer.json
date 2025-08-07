@@ -1,0 +1,52 @@
+{
+  "title": "CV Analyzer",
+  "description": "Upload your CV to get detailed analysis and feedback",
+  "myCVs": "My CVs",
+  "uploadedCVs": "Your Uploaded CVs",
+  "noCVs": "No CVs found. Upload a CV to get started.",
+  "defaults": {
+    "untitled": "Untitled CV"
+  },
+  "buttons": {
+    "showList": "Show My CVs",
+    "hideList": "Hide List",
+    "delete": "Delete CV"
+  },
+  "upload": {
+    "title": "Upload New CV",
+    "dragActive": "Drop your CV here",
+    "dragInactive": "Drag and drop your CV here, or",
+    "selectFile": "Select File",
+    "uploading": "Uploading...",
+    "uploadButton": "Upload & Analyze",
+    "supportedFormats": "Supported formats: PDF, DOCX (Max 10MB)"
+  },
+  "analysis": {
+    "title": "Analysis Results",
+    "fileInfo": "File Information",
+    "filename": "Filename",
+    "wordCount": "Word Count",
+    "skillsFound": "Skills Found",
+    "skillsDetected": "skills detected",
+    "structure": {
+      "title": "Structure Analysis",
+      "contactInfo": "Contact Information",
+      "education": "Education",
+      "experience": "Work Experience",
+      "skills": "Skills Section",
+      "projects": "Projects",
+      "certifications": "Certifications"
+    },
+    "missingSections": "Missing Sections",
+    "detectedSkills": "Detected Skills",
+    "aiFeedback": "AI Feedback"
+  },
+  "confirmDelete": "Are you sure you want to delete this CV?",
+  "errors": {
+    "loadList": "Failed to load CV list",
+    "loadDetails": "Failed to load CV details",
+    "invalidFile": "Please upload a valid PDF or DOCX file",
+    "unexpected": "An unexpected error occurred. Please try again.",
+    "deleteFailed": "Failed to delete CV"
+  }
+}

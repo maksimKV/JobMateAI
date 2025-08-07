@@ -1,0 +1,52 @@
+{
+  "title": "Анализатор на CV",
+  "description": "Качете вашето CV, за да получите подробен анализ и обратна връзка",
+  "myCVs": "Моите CV-та",
+  "uploadedCVs": "Вашите качени CV-та",
+  "noCVs": "Не са намерени CV-та. Качете CV, за да започнете.",
+  "defaults": {
+    "untitled": "Без заглавие"
+  },
+  "buttons": {
+    "showList": "Покажи моите CV-та",
+    "hideList": "Скрий списъка",
+    "delete": "Изтрий CV"
+  },
+  "upload": {
+    "title": "Качи ново CV",
+    "dragActive": "Пуснете вашето CV тук",
+    "dragInactive": "Провлачете и пуснете вашето CV тук, или",
+    "selectFile": "Изберете файл",
+    "uploading": "Качване...",
+    "uploadButton": "Качи и анализирай",
+    "supportedFormats": "Поддържани формати: PDF, DOCX (Макс. 10MB)"
+  },
+  "analysis": {
+    "title": "Резултати от анализа",
+    "fileInfo": "Информация за файла",
+    "filename": "Име на файл",
+    "wordCount": "Брой думи",
+    "skillsFound": "Намерени умения",
+    "skillsDetected": "умения са открити",
+    "structure": {
+      "title": "Анализ на структурата",
+      "contactInfo": "Контактна информация",
+      "education": "Образование",
+      "experience": "Трудов стаж",
+      "skills": "Умения",
+      "projects": "Проекти",
+      "certifications": "Сертификати"
+    },
+    "missingSections": "Липсващи раздели",
+    "detectedSkills": "Открити умения",
+    "aiFeedback": "Обратна връзка от AI"
+  },
+  "confirmDelete": "Сигурни ли сте, че искате да изтриете това CV?",
+  "errors": {
+    "loadList": "Неуспешно зареждане на списъка с CV-та",
+    "loadDetails": "Неуспешно зареждане на детайлите на CV-то",
+    "invalidFile": "Моля, качете валиден PDF или DOCX файл",
+    "unexpected": "Възникна неочаквана грешка. Моля, опитайте отново.",
+    "deleteFailed": "Неуспешно изтриване на CV"
+  }
+}
