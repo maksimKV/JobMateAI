@@ -144,7 +144,7 @@ export async function generatePdf(
                   pdf.text(label, statsX + 14, currentY + 6.5);
                   
                   // Draw score value with web-like alignment
-                  pdf.setFont('helvetica', 'semibold');
+                  pdf.setFont('helvetica', 'bold');
                   pdf.text(value, statsX + progressBarWidth + 14, currentY + 6.5, { align: 'right' });
                   
                   // Draw the progress bar
