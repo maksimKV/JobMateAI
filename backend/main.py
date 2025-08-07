@@ -1,7 +1,10 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import logging
+import time
+from datetime import datetime, timezone
+from typing import Dict, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,11 +44,25 @@ logger.info(f"OpenAI client: {'Available' if ai_client.openai_client else 'Not a
 if not ai_client.cohere_client and not ai_client.openai_client:
     logger.error("Warning: No AI clients were successfully initialized. Check your API keys and network connection.")
 
+# Track application startup time and status
+app_start_time = time.time()
+app_ready = False
+
 app = FastAPI(
     title="JobMate AI API",
     description="AI-powered career development and interview preparation platform",
-    version="1.0.0"
+    version="1.0.0",
+    on_startup=[],
+    on_shutdown=[]
 )
+
+# Mark app as ready after initialization
+@app.on_event("startup")
+async def startup_event():
+    global app_ready
+    # Perform any additional initialization here if needed
+    app_ready = True
+    logger.info("Application startup complete")
 
 # Configure CORS with allowed origins for both development and production
 origins = [
@@ -100,8 +117,36 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """
+    Health check endpoint that reports the current status of the application.
+    Returns 200 when ready, 503 during startup.
+    """
+    current_time = time.time()
+    uptime = current_time - app_start_time
+    
+    status = {
+        "status": "ready" if app_ready else "starting",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "uptime_seconds": round(uptime, 2),
+        "services": {
+            "cohere": bool(ai_client.cohere_client),
+            "openai": bool(ai_client.openai_client)
+        }
+    }
+    
+    if not app_ready:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "starting",
+                "message": "Application is starting up, please wait",
+                "retry_after": 5  # Suggested retry after 5 seconds
+            },
+            headers={"Retry-After": "5"}
+        )
+    
+    return status
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
