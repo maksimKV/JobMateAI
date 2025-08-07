@@ -36,14 +36,24 @@ async function loadMessages(locale: string): Promise<Record<string, MessageObjec
     const appDir = path.join(cwd, 'app');
     const messages: Record<string, MessageObject> = {};
     
+    // Map of directory names to their corresponding namespaces
+    const namespaceMap: Record<string, string> = {
+      'code-reviewer': 'codeReviewer',
+      'cover-letter': 'coverLetter',
+      'cv-analyzer': 'cvAnalyzer',
+      'job-scanner': 'jobScanner',
+      'interview-simulator': 'interviewSimulator',
+      'home': 'home',
+      'statistics': 'statistics',
+      'common': 'common',
+      'navigation': 'navigation'
+    };
+    
     // Process each page directory directly
-    const pageDirs = [
-      'code-reviewer', 'cover-letter', 'cv-analyzer', 
-      'home', 'interview-simulator', 'job-scanner', 
-      'statistics', 'common', 'navigation'
-    ];
+    const pageDirs = Object.keys(namespaceMap);
     
     for (const pageDir of pageDirs) {
+      const namespace = namespaceMap[pageDir];
       const pagePath = path.join(appDir, '[locale]', pageDir);
       const localeFile = path.join(pagePath, `${locale}.json`);
       
@@ -52,10 +62,10 @@ async function loadMessages(locale: string): Promise<Record<string, MessageObjec
           const fileContent = fs.readFileSync(localeFile, 'utf-8');
           const jsonContent = JSON.parse(fileContent);
           
-          // Use the directory name as the namespace
-          messages[pageDir] = jsonContent;
+          // Use the mapped namespace
+          messages[namespace] = jsonContent;
           
-          console.log(`[i18n] Loaded ${Object.keys(jsonContent).length} keys for namespace '${pageDir}'`);
+          console.log(`[i18n] Loaded ${Object.keys(jsonContent).length} keys for namespace '${namespace}' from ${pageDir}/${locale}.json`);
         } catch (error) {
           console.error(`[i18n] Error loading file ${localeFile}:`, error);
         }

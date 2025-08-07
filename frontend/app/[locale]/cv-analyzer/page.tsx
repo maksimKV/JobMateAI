@@ -16,8 +16,7 @@ export default function CVAnalyzer() {
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [showList, setShowList] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const t = useTranslations('cv-analyzer');
-  const tNav = useTranslations('navigation');
+  const t = useTranslations('cvAnalyzer');
 
   // Load CV list on component mount
   useEffect(() => {
@@ -35,7 +34,7 @@ export default function CVAnalyzer() {
     };
     
     loadCvList();
-  }, []);
+  }, [t]); // Add t to dependency array
 
   const loadCvList = async () => {
     try {

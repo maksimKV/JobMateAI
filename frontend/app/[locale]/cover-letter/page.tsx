@@ -19,7 +19,7 @@ export default function CoverLetterPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const coverLetterRef = useRef<HTMLDivElement>(null);
-  const t = useTranslations('cover-letter');
+  const t = useTranslations('coverLetter');
 
   useEffect(() => {
     // Fetch available CVs

@@ -11,7 +11,7 @@ export default function CodeReviewerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ review: string; detected_language: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const t = useTranslations('code-reviewer');
+  const t = useTranslations('codeReviewer');
 
   const handleReview = async () => {
     setIsLoading(true);

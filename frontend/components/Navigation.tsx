@@ -18,7 +18,6 @@ interface NavItem {
   name: string;
   href: string;
   icon: LucideIcon;
-  descriptionKey: string;
 }
 
 export default function Navigation() {
@@ -29,38 +28,32 @@ export default function Navigation() {
     {
       name: t('cvAnalyzer'),
       href: '/cv-analyzer',
-      icon: FileText,
-      descriptionKey: 'cvAnalyzerDesc'
+      icon: FileText
     },
     {
       name: t('coverLetter'),
       href: '/cover-letter',
-      icon: Mail,
-      descriptionKey: 'coverLetterDesc'
+      icon: Mail
     },
     {
       name: t('jobScanner'),
       href: '/job-scanner',
-      icon: Search,
-      descriptionKey: 'jobScannerDesc'
+      icon: Search
     },
     {
       name: t('interviewSimulator'),
       href: '/interview-simulator',
-      icon: MessageSquare,
-      descriptionKey: 'interviewSimulatorDesc'
+      icon: MessageSquare
     },
     {
       name: t('statistics'),
       href: '/statistics',
-      icon: BarChart3,
-      descriptionKey: 'statisticsDesc'
+      icon: BarChart3
     },
     {
       name: t('codeReviewer'),
       href: '/code-reviewer',
-      icon: Code,
-      descriptionKey: 'codeReviewerDesc'
+      icon: Code
     }
   ];
 
@@ -98,9 +91,6 @@ export default function Navigation() {
                   }`}>
                     {item.name}
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1 hidden md:block">
-                    {t(item.descriptionKey as string)}
-                  </p>
                 </div>
               </Link>
             );
