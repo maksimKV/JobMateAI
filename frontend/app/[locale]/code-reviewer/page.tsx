@@ -1,23 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Navigation from '@/components/Navigation';
 import { codeReviewAPI, APIError } from '@/lib/api';
 import { Code, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 
 export default function CodeReviewerPage() {
-  const [isMounted, setIsMounted] = useState(false);
-  
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
-  const t = useTranslations('codeReviewer');
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ review: string; detected_language: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useTranslations('code-reviewer');
 
   const handleReview = async () => {
     setIsLoading(true);
@@ -28,32 +22,11 @@ export default function CodeReviewerPage() {
       setResult({ review: res.review, detected_language: res.detected_language });
     } catch (err) {
       if (err instanceof APIError) setError(err.message);
-      else setError(t('errors.unexpected'));
+      else setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Only render the interactive parts on the client side
-  if (!isMounted) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="text-center p-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
-              <div className="h-64 bg-gray-100 rounded-lg mt-8"></div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <div className="animate-pulse h-96 bg-gray-100 rounded-lg"></div>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -107,7 +80,9 @@ export default function CodeReviewerPage() {
                   <AlertCircle className="h-5 w-5 text-red-500" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="text-sm text-red-700">
+                  {error === 'An unexpected error occurred' ? t('errors.unexpected') : error}
+                </p>
                 </div>
               </div>
             </div>

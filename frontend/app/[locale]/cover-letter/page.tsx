@@ -9,8 +9,6 @@ import { Mail, Loader2, AlertCircle, Download } from 'lucide-react';
 import { generateCoverLetterPdf } from '@/lib/pdf/coverLetterPdf';
 
 export default function CoverLetterPage() {
-  const [isMounted, setIsMounted] = useState(false);
-  const t = useTranslations('coverLetter');
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [selectedCv, setSelectedCv] = useState<string>('');
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
@@ -21,29 +19,19 @@ export default function CoverLetterPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const coverLetterRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations('cover-letter');
+  const commonT = useTranslations('common');
 
-  // Set isMounted to true when component mounts on client side
   useEffect(() => {
-    setIsMounted(true);
+    // Fetch available CVs
+    cvAPI.list().then((data) => {
+      const { cvs } = data as { cvs: CVData[]; total_cvs: number };
+      setCvList(cvs || []);
+      if (cvs && cvs.length > 0) {
+        setSelectedCv(cvs[0].id);
+      }
+    });
   }, []);
-
-  // Fetch available CVs (client-side only)
-  useEffect(() => {
-    if (isMounted) {
-      cvAPI.list()
-        .then((data) => {
-          const { cvs } = data as { cvs: CVData[]; total_cvs: number };
-          setCvList(cvs || []);
-          if (cvs && cvs.length > 0) {
-            setSelectedCv(cvs[0].id);
-          }
-        })
-        .catch(err => {
-          console.error('Error fetching CV list:', err);
-          setError(t('errors.loadCVList'));
-        });
-    }
-  }, [isMounted, t]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -67,27 +55,6 @@ export default function CoverLetterPage() {
     }
   };
 
-  // Show loading state during SSR or initial client-side render
-  if (!isMounted) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="text-center p-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
-              <div className="h-64 bg-gray-100 rounded-lg mt-8"></div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <div className="animate-pulse h-96 bg-gray-100 rounded-lg"></div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
@@ -104,18 +71,14 @@ export default function CoverLetterPage() {
           <div className="space-y-6">
             {/* Select CV */}
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">
-                {t('form.selectCV')}
-              </label>
+              <label className="block text-gray-700 font-semibold mb-2">{t('form.selectCV')}</label>
               <select
                 className="w-full border rounded-lg px-3 py-2"
                 value={selectedCv}
                 onChange={(e) => setSelectedCv(e.target.value)}
                 disabled={isLoading}
               >
-                {cvList.length === 0 && (
-                  <option value="">{t('form.noCVs')}</option>
-                )}
+                {cvList.length === 0 && <option value="">{t('form.noCVs')}</option>}
                 {cvList.map((cv) => (
                   <option key={cv.id} value={cv.id}>
                     {cv.filename}
@@ -157,9 +120,7 @@ export default function CoverLetterPage() {
 
             {/* Language Selection */}
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">
-                {t('form.language')}
-              </label>
+              <label className="block text-gray-700 font-semibold mb-2">{t('form.language')}</label>
               <select
                 className="w-full border rounded-lg px-3 py-2"
                 value={language}
@@ -205,9 +166,7 @@ export default function CoverLetterPage() {
         {coverLetter && (
           <div className="mt-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {t('result.title')}
-              </h2>
+              <h2 className="text-xl font-semibold text-gray-900">{t('result.title')}</h2>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(coverLetter);
@@ -250,7 +209,9 @@ export default function CoverLetterPage() {
                         console.error('Error generating PDF:', error);
                         setError(t('errors.pdfGenerationFailed'));
                       },
-                      onSuccess: () => {},
+                      onSuccess: () => {
+                        // Optional: Add any success handling here
+                      },
                     });
                   } catch (error) {
                     console.error('Error generating PDF:', error);
