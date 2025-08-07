@@ -49,7 +49,7 @@
     "title": "Преглед на представянето",
     "performanceOverTime": "Представяне във времето",
     "categories": {
-      "hr": "ЧХР въпроси",
+      "hr": "ЧР въпроси",
       "technical": "Технически въпроси",
       "nonTechnical": "Нетехнически въпроси",
       "other": "Други"
@@ -72,14 +72,14 @@
     "pageInfo": "Страница {current} от {total}",
     "tabs": {
       "all": "Всички въпроси",
-      "hr": "ЧХР",
+      "hr": "ЧР",
       "technical": "Технически",
       "nonTechnical": "Нетехнически",
       "non_technical": "Нетехнически",
       "noNonTechnicalQuestions": "Няма нетехнически въпроси в това интервю"
     },
     "types": {
-      "hr": "ЧХР",
+      "hr": "ЧР",
       "techTheory": "Техническа теория",
       "techPractical": "Практически технически",
       "nonTechnical": "Нетехнически"
