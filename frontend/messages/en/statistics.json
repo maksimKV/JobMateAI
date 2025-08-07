@@ -1,0 +1,96 @@
+{
+  "page": {
+    "title": "Interview Statistics",
+    "subtitle": "View detailed statistics and feedback from your interview sessions",
+    "loading": {
+      "title": "Loading...",
+      "subtitle": "Please wait while we load your interview statistics...",
+      "loadingStats": "Loading your interview statistics..."
+    },
+    "errors": {
+      "fetchFailed": "Failed to load statistics. Please try again.",
+      "timeout": "Request timed out. Please check your connection and try again.",
+      "generic": "An error occurred: {message}",
+      "unexpected": "An unexpected error occurred. Please try again later.",
+      "noSessionId": "No valid session ID found. Please complete an interview first.",
+      "invalidSessionData": "Invalid session data format. Please complete a new interview.",
+      "parseError": "Error parsing session data. Please complete a new interview.",
+      "noSessionFound": "No interview session found. Please complete an interview first.",
+      "loadError": "Failed to load interview session data. Please try refreshing the page.",
+      "pdfGenerationFailed": "Failed to generate PDF. Please try again.",
+      "completeInterviewFirst": "Please complete an interview first.",
+      "tryAgainLater": "Please try again later."
+    },
+    "noData": {
+      "title": "No Interview Data Found",
+      "description": "Complete an interview to view statistics.",
+      "cta": "Go to Dashboard"
+    },
+    "whatsNext": {
+      "title": "What to do next?",
+      "startNewInterview": "Start a new interview session from the dashboard",
+      "completeQuestions": "Complete all interview questions to generate statistics",
+      "viewHistory": "Return to the dashboard to view your interview history"
+    },
+    "downloadPdf": "Download PDF",
+    "generating": "Generating...",
+    "defaults": {
+      "company": "Company",
+      "position": "Position"
+    },
+    "pdf": {
+      "title": "Interview Statistics Report",
+      "generatedOn": "Generated on {date} at {time}",
+      "filename": "Test interview for {company} statistics{position}",
+      "for": "for"
+    }
+  },
+  "chartsSection": {
+    "title": "Performance Overview",
+    "categories": {
+      "hr": "HR Questions",
+      "technical": "Technical Questions",
+      "nonTechnical": "Non-Technical Questions",
+      "other": "Other"
+    },
+    "chartLabels": {
+      "averageScore": "{category} (Avg: {score})",
+      "scoreOverTime": "Score Over Time",
+      "scoreDistribution": "Score Distribution",
+      "questionTypeDistribution": "Question Type Distribution"
+    },
+    "noData": "No chart data available"
+  },
+  "questionsList": {
+    "title": "Interview Questions & Feedback",
+    "noFeedback": "No feedback available for the selected question type.",
+    "pageInfo": "Page {current} of {total}",
+    "tabs": {
+      "all": "All Questions",
+      "hr": "HR",
+      "technical": "Technical",
+      "non_technical": "Non-Technical"
+    },
+    "types": {
+      "hr": "HR",
+      "techTheory": "Technical Theory",
+      "techPractical": "Technical Practical",
+      "nonTechnical": "Non-Technical"
+    },
+    "navigation": {
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "question": "Question",
+    "yourAnswer": "Your Answer",
+    "feedback": "Feedback",
+    "score": "Score: {score}/10"
+  },
+  "sessionInfo": {
+    "title": "Session Information",
+    "noSessionInfo": "No session information available.",
+    "sessionId": "Session ID",
+    "date": "Date",
+    "notAvailable": "N/A"
+  }
+}
