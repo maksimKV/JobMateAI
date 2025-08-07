@@ -30,6 +30,7 @@ function flattenMessages(nestedMessages: MessageObject, prefix = ''): Record<str
 // Function to load all JSON files from a directory
 async function loadMessages(locale: string): Promise<Record<string, string>> {
   try {
+    // Path is relative to the frontend directory
     const localePath = path.join(process.cwd(), 'messages', locale);
     const files = fs.readdirSync(localePath);
     
@@ -37,9 +38,16 @@ async function loadMessages(locale: string): Promise<Record<string, string>> {
     
     for (const file of files) {
       if (file.endsWith('.json')) {
-        const fileModule = await import(`../../messages/${locale}/${file}`);
-        const namespace = file.replace(/\.json$/, '');
-        messages[namespace] = fileModule.default;
+        try {
+          const filePath = path.join(localePath, file);
+          const fileContent = fs.readFileSync(filePath, 'utf-8');
+          const jsonContent = JSON.parse(fileContent);
+          const namespace = file.replace(/\.json$/, '');
+          messages[namespace] = jsonContent;
+        } catch (fileError) {
+          console.error(`Error loading file ${file}:`, fileError);
+          continue;
+        }
       }
     }
     
