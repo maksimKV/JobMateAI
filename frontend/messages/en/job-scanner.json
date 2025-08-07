@@ -1,0 +1,30 @@
+{
+  "title": "Job Match Analyzer",
+  "description": "Upload your CV and job description to get a detailed match analysis and improvement suggestions.",
+  "selectCv": "Select CV",
+  "noCVs": "No CVs uploaded",
+  "jobDescription": "Job Description",
+  "jobDescriptionPlaceholder": "Paste the job description here...",
+  "clear": "Clear",
+  "clearButton": "Clear job description",
+  "analyzing": "Analyzing job match...",
+  "buttons": {
+    "analyze": "Analyze Match",
+    "analyzing": "Analyzing..."
+  },
+  "results": {
+    "title": "Analysis Results",
+    "overallMatch": "Overall Match",
+    "missingSkills": "Missing Skills",
+    "matchedSkills": "Your Matching Skills"
+  },
+  "suggestions": {
+    "title": "AI Suggestions",
+    "moreSuggestions": "more suggestions"
+  },
+  "errors": {
+    "unexpected": "An unexpected error occurred. Please try again.",
+    "noCvSelected": "Please select a CV",
+    "noJobDescription": "Please enter a job description"
+  }
+}
