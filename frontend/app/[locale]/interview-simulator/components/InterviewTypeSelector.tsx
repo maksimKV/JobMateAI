@@ -1,0 +1,180 @@
+'use client';
+
+import React from 'react';
+import { useTranslations } from 'next-intl';
+import { InterviewType } from '@/types';
+import { Users, Code, GitMerge, Briefcase, Clock, Clock3, Clock9 } from 'lucide-react';
+
+interface InterviewLengths {
+  [key: string]: { 
+    label: string; 
+    questions: number | { [key: string]: number } 
+  };
+}
+
+interface InterviewTypeSelectorProps {
+  interviewType: InterviewType;
+  onInterviewTypeChange: (type: InterviewType) => void;
+  interviewLength: string;
+  onInterviewLengthChange: (length: string) => void;
+  jobDescription: string;
+  onJobDescriptionChange: (desc: string) => void;
+  onStartInterview: () => void;
+  isLoading: boolean;
+  interviewLengths: InterviewLengths;
+}
+
+export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
+  interviewType,
+  onInterviewTypeChange,
+  interviewLength,
+  onInterviewLengthChange,
+  jobDescription,
+  onJobDescriptionChange,
+  onStartInterview,
+  isLoading,
+  interviewLengths,
+}) => {
+  const t = useTranslations('interviewSimulator.interviewTypeSelector');
+  
+  const interviewTypes = [
+    { 
+      value: 'hr' as const, 
+      label: t('types.hr.label'), 
+      description: t('types.hr.description'),
+      icon: <Users className="w-5 h-5 text-blue-600" />
+    },
+    { 
+      value: 'technical' as const, 
+      label: t('types.technical.label'), 
+      description: t('types.technical.description'),
+      icon: <Code className="w-5 h-5 text-blue-600" />
+    },
+    { 
+      value: 'mixed' as const, 
+      label: t('types.mixed.label'), 
+      description: t('types.mixed.description'),
+      icon: <GitMerge className="w-5 h-5 text-blue-600" />
+    },
+    { 
+      value: 'non_technical' as const, 
+      label: t('types.nonTechnical.label'), 
+      description: t('types.nonTechnical.description'),
+      icon: <Briefcase className="w-5 h-5 text-blue-600" />
+    },
+  ];
+
+  const durationIcons = {
+    short: <Clock className="w-5 h-5 text-blue-600" />,
+    medium: <Clock3 className="w-5 h-5 text-blue-600" />,
+    long: <Clock9 className="w-5 h-5 text-blue-600" />,
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <label htmlFor="jobDescription" className="block text-gray-700 font-semibold mb-2">
+          {t('jobDescription.label')}
+        </label>
+        <textarea
+          id="jobDescription"
+          value={jobDescription}
+          onChange={(e) => onJobDescriptionChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+          rows={4}
+          placeholder={t('jobDescription.placeholder')}
+        />
+      </div>
+
+      <div>
+        <label className="block text-gray-700 font-semibold mb-2">
+          {t('interviewTypeLabel')}
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {interviewTypes.map((type) => (
+            <div 
+              key={type.value}
+              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                interviewType === type.value 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}
+              onClick={() => onInterviewTypeChange(type.value)}
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mr-3 mt-0.5">
+                  {type.icon}
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">{type.label}</h3>
+                  <p className="text-sm text-gray-500">{type.description}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-gray-700 font-semibold mb-2">
+          {t('interviewLength')}
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Object.entries(interviewLengths).map(([length, details]) => {
+            const questionCount = typeof details.questions === 'number' 
+              ? details.questions 
+              : details.questions[interviewType] || 0;
+              
+            return (
+              <div 
+                key={length}
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  interviewLength === length 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+                onClick={() => onInterviewLengthChange(length)}
+              >
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 mr-3 mt-0.5">
+                    {durationIcons[length as keyof typeof durationIcons]}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">{details.label}</h3>
+                    <p className="text-sm text-gray-500">
+                      {t('questionsCount', { count: questionCount })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="pt-4">
+        <button
+          onClick={onStartInterview}
+          disabled={isLoading || !jobDescription.trim()}
+          className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+            isLoading || !jobDescription.trim()
+              ? 'bg-blue-300 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+          }`}
+        >
+          {isLoading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {t('loading')}
+            </>
+          ) : (
+            t('startInterview')
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};

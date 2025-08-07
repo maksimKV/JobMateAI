@@ -1,0 +1,81 @@
+{
+  "page": {
+    "title": "Симулатор на интервюта",
+    "subtitle": "Упражнявайте вашите умения за интервюта с изкуствен интелект",
+    "errors": {
+      "toggleRecording": "Неуспешно превключване на записа",
+      "jobDescriptionRequired": "Моля, въведете описание на работата",
+      "startInterview": "Неуспешно стартиране на интервюто",
+      "submitAnswer": "Неуспешно изпращане на отговор"
+    }
+  },
+  "session": {
+    "evaluatingAnswer": "Оценяване на вашия отговор...",
+    "errors": {
+      "jobDescriptionRequired": "Моля, въведете описание на работата",
+      "unexpected": "Възникна неочаквана грешка"
+    }
+  },
+  "completionScreen": {
+    "title": "Интервюто приключи!",
+    "description": "Успешно завършихте интервюто. Разгледайте вашия подробен анализ на представянето.",
+    "viewStatistics": "Вижте детайлна статистика",
+    "newInterview": "Започнете ново интервю"
+  },
+  "feedbackDisplay": {
+    "fullContext": {
+      "title": "Въпрос и обратна връзка",
+      "question": "Въпрос",
+      "yourAnswer": "Вашият отговор",
+      "feedback": "Обратна връзка"
+    },
+    "compact": {
+      "title": "Обратна връзка за вашия отговор"
+    }
+  },
+  "interviewTypeSelector": {
+    "jobDescription": {
+      "label": "Описание на работата",
+      "placeholder": "Поставете описанието на работата тук..."
+    },
+    "interviewTypeLabel": "Тип интервю",
+    "interviewLength": "Продължителност",
+    "questionsCount": "{count} въпроса",
+    "loading": "Зареждане...",
+    "startInterview": "Започнете интервюто",
+    "types": {
+      "hr": {
+        "label": "ЧР интервю",
+        "description": "Поведенчески и ситуационни въпроси"
+      },
+      "technical": {
+        "label": "Техническо интервю",
+        "description": "Програмиране и технически въпроси"
+      },
+      "mixed": {
+        "label": "Смесено интервю",
+        "description": "Комбинация от ЧР и технически въпроси"
+      },
+      "nonTechnical": {
+        "label": "Нетехническо",
+        "description": "За нетехнически позиции"
+      }
+    }
+  },
+  "questionDisplay": {
+    "questionNumber": "Въпрос {number}",
+    "detectedRole": "Открита роля",
+    "yourAnswer": "Вашият отговор",
+    "browserNotSupported": "Разпознаването на реч не се поддържа от браузъра ви",
+    "processing": "Обработка...",
+    "stopRecording": "Спри записа",
+    "startRecording": "Започни запис",
+    "stop": "Спри",
+    "processingPlaceholder": "Обработка на вашия отговор...",
+    "speakOrTypePlaceholder": "Напишете или говорете вашия отговор...",
+    "typePlaceholder": "Напишете вашия отговор...",
+    "speakNow": "Говорете сега...",
+    "submit": "Изпрати",
+    "nextQuestion": "Следващ въпрос"
+  }
+}

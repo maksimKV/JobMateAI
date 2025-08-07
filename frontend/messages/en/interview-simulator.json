@@ -1,0 +1,81 @@
+{
+  "page": {
+    "title": "Interview Simulator",
+    "subtitle": "Practice your interview skills with AI-powered simulations",
+    "errors": {
+      "toggleRecording": "Failed to toggle recording",
+      "jobDescriptionRequired": "Please enter a job description",
+      "startInterview": "Failed to start interview",
+      "submitAnswer": "Failed to submit answer"
+    }
+  },
+  "session": {
+    "evaluatingAnswer": "Evaluating your answer...",
+    "errors": {
+      "jobDescriptionRequired": "Please enter a job description",
+      "unexpected": "An unexpected error occurred"
+    }
+  },
+  "completionScreen": {
+    "title": "Interview Complete!",
+    "description": "You've successfully completed the interview. Check out your detailed performance analysis.",
+    "viewStatistics": "View Detailed Statistics",
+    "newInterview": "Start New Interview"
+  },
+  "feedbackDisplay": {
+    "fullContext": {
+      "title": "Question & Feedback",
+      "question": "Question",
+      "yourAnswer": "Your Answer",
+      "feedback": "Feedback"
+    },
+    "compact": {
+      "title": "Your Answer Feedback"
+    }
+  },
+  "interviewTypeSelector": {
+    "jobDescription": {
+      "label": "Job Description",
+      "placeholder": "Paste the job description here..."
+    },
+    "interviewTypeLabel": "Interview Type",
+    "interviewLength": "Interview Length",
+    "questionsCount": "{count} questions",
+    "loading": "Loading...",
+    "startInterview": "Start Interview",
+    "types": {
+      "hr": {
+        "label": "HR Interview",
+        "description": "Behavioral and situational questions"
+      },
+      "technical": {
+        "label": "Technical Interview",
+        "description": "Coding and technical questions"
+      },
+      "mixed": {
+        "label": "Mixed Interview",
+        "description": "Combination of HR and technical"
+      },
+      "nonTechnical": {
+        "label": "Non-Technical",
+        "description": "For non-technical roles"
+      }
+    }
+  },
+  "questionDisplay": {
+    "questionNumber": "Question {number}",
+    "detectedRole": "Detected Role",
+    "yourAnswer": "Your Answer",
+    "browserNotSupported": "Speech recognition not supported in your browser",
+    "processing": "Processing...",
+    "stopRecording": "Stop recording",
+    "startRecording": "Start recording",
+    "stop": "Stop",
+    "processingPlaceholder": "Processing your answer...",
+    "speakOrTypePlaceholder": "Type or speak your answer...",
+    "typePlaceholder": "Type your answer...",
+    "speakNow": "Speak now...",
+    "submit": "Submit",
+    "nextQuestion": "Next Question"
+  }
+}
