@@ -26,6 +26,7 @@ const MIXED_INTERVIEW_LENGTHS = {
 } as const;
 
 const InterviewSimulatorPage = () => {
+  const [isClient, setIsClient] = useState(false);
   const t = useTranslations('interviewSimulator.page');
   
   // Refs
@@ -40,26 +41,36 @@ const InterviewSimulatorPage = () => {
   const [uiError, setUiError] = useState<string | null>(null);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   
-  // Speech recognition hook
-  const {
-    transcript,
-    listening,
-    recognitionError,
-    startListening,
-    stopListening,
-    isBrowserSupported,
-    clearTranscript
-  } = useSpeechToText();
+  // Initialize hooks at the top level with safe defaults
+  const speechToText = useSpeechToText();
+  const interviewSession = useInterviewSession();
   
-  // Interview session hook
+  // Destructure with safe defaults
   const {
-    session,
-    isLoading,
-    error: sessionError,
-    startInterview: startInterviewSession,
-    submitAnswer: submitAnswerToSession,
-    restartInterview,
-  } = useInterviewSession();
+    transcript = '',
+    listening = false,
+    recognitionError = null,
+    startListening = () => {},
+    stopListening = () => {},
+    isBrowserSupported = false,
+    clearTranscript = () => {}
+  } = speechToText || {};
+  
+  const {
+    session = {
+      questions: [],
+      currentQuestionIndex: 0,
+      isComplete: false,
+      sessionId: null,
+      feedback: [],
+      detected_role: null
+    },
+    isLoading = false,
+    error: sessionError = null,
+    startInterview: startInterviewSession = async () => {},
+    submitAnswer: submitAnswerToSession = async () => false,
+    restartInterview = () => {}
+  } = interviewSession || {};
   
   // Destructure session for easier access
   const { 
@@ -180,6 +191,32 @@ const InterviewSimulatorPage = () => {
   // Combine session error and UI error
   const error = sessionError || uiError;
   
+  // Only render the interactive parts on the client side
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-blue-600 mr-3">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <h1 className="text-3xl font-bold text-gray-900">Interview Simulator</h1>
+            </div>
+            <p className="text-gray-600">Loading interview simulator...</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="animate-pulse h-96 bg-gray-100 rounded-lg"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
@@ -225,7 +262,7 @@ const InterviewSimulatorPage = () => {
                 isLoading={isLoading}
                 isSubmittingAnswer={isSubmittingAnswer}
                 isLastQuestion={currentQuestionIndex >= questions.length - 1}
-                detectedRole={session.detected_role}
+                detectedRole={session.detected_role || undefined}
                 isBrowserSupported={isBrowserSupported}
                 listening={listening}
                 recognitionError={recognitionError}

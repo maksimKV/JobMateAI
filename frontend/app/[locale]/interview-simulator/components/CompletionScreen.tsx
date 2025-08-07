@@ -9,7 +9,7 @@ import { FeedbackDisplay } from './FeedbackDisplay';
 interface CompletionScreenProps {
   onRestart: () => void;
   lastFeedback?: InterviewFeedback;
-  sessionId?: string;
+  sessionId?: string | null;
 }
 
 export const CompletionScreen: React.FC<CompletionScreenProps> = ({ 
