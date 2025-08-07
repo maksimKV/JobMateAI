@@ -1,0 +1,8 @@
+{
+  "welcome": "Welcome to JobMate AI",
+  "language": {
+    "en": "English",
+    "bg": "Български",
+    "select": "Select Language"
+  }
+}

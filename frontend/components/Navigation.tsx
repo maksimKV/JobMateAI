@@ -9,51 +9,60 @@ import {
   MessageSquare, 
   BarChart3, 
   Code,
-  Brain
+  Brain,
+  LucideIcon
 } from 'lucide-react';
-import { NavItem } from '@/types';
+import { useTranslations } from 'next-intl';
 
-const navigation: NavItem[] = [
-  {
-    name: 'CV Analyzer',
-    href: '/cv-analyzer',
-    icon: FileText,
-    description: 'Upload and analyze your resume'
-  },
-  {
-    name: 'Cover Letter',
-    href: '/cover-letter',
-    icon: Mail,
-    description: 'Generate personalized cover letters'
-  },
-  {
-    name: 'Job Scanner',
-    href: '/job-scanner',
-    icon: Search,
-    description: 'Match your skills to job requirements'
-  },
-  {
-    name: 'Interview Simulator',
-    href: '/interview-simulator',
-    icon: MessageSquare,
-    description: 'Practice HR and technical interviews'
-  },
-  {
-    name: 'Statistics',
-    href: '/statistics',
-    icon: BarChart3,
-    description: 'Track your interview performance'
-  },
-  {
-    name: 'Code Reviewer',
-    href: '/code-reviewer',
-    icon: Code,
-    description: 'Get AI feedback on your code'
-  }
-];
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  descriptionKey: string;
+}
 
 export default function Navigation() {
   const pathname = usePathname();
+  const t = useTranslations('navigation');
+
+  const navigation: NavItem[] = [
+    {
+      name: t('cvAnalyzer'),
+      href: '/cv-analyzer',
+      icon: FileText,
+      descriptionKey: 'cvAnalyzerDesc'
+    },
+    {
+      name: t('coverLetter'),
+      href: '/cover-letter',
+      icon: Mail,
+      descriptionKey: 'coverLetterDesc'
+    },
+    {
+      name: t('jobScanner'),
+      href: '/job-scanner',
+      icon: Search,
+      descriptionKey: 'jobScannerDesc'
+    },
+    {
+      name: t('interviewSimulator'),
+      href: '/interview-simulator',
+      icon: MessageSquare,
+      descriptionKey: 'interviewSimulatorDesc'
+    },
+    {
+      name: t('statistics'),
+      href: '/statistics',
+      icon: BarChart3,
+      descriptionKey: 'statisticsDesc'
+    },
+    {
+      name: t('codeReviewer'),
+      href: '/code-reviewer',
+      icon: Code,
+      descriptionKey: 'codeReviewerDesc'
+    }
+  ];
 
   return (
     <nav className="bg-white shadow-lg rounded-lg p-4 mb-8">
@@ -67,10 +76,10 @@ export default function Navigation() {
         
         <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {navigation.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname?.includes(item.href);
             return (
               <Link
-                key={item.name}
+                key={item.href}
                 href={item.href}
                 className={`group relative rounded-lg p-4 transition-all duration-200 ${
                   isActive
@@ -90,7 +99,7 @@ export default function Navigation() {
                     {item.name}
                   </h3>
                   <p className="text-xs text-gray-500 mt-1 hidden md:block">
-                    {item.description}
+                    {t(item.descriptionKey as string)}
                   </p>
                 </div>
               </Link>

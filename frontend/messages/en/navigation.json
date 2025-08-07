@@ -1,0 +1,15 @@
+{
+  "home": "Home",
+  "cvAnalyzer": "CV Analyzer",
+  "cvAnalyzerDesc": "Upload and analyze your resume",
+  "coverLetter": "Cover Letter",
+  "coverLetterDesc": "Generate personalized cover letters",
+  "jobScanner": "Job Scanner",
+  "jobScannerDesc": "Match your skills to job requirements",
+  "interviewSimulator": "Interview Simulator",
+  "interviewSimulatorDesc": "Practice HR and technical interviews",
+  "codeReviewer": "Code Reviewer",
+  "codeReviewerDesc": "Get AI feedback on your code",
+  "statistics": "Statistics",
+  "statisticsDesc": "Track your interview performance"
+}
