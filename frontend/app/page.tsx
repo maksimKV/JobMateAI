@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Navigation from '@/components/Navigation';
 import { 
   FileText, 
@@ -18,6 +19,7 @@ import {
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const t = useTranslations('home');
 
   // Set isMounted to true when component mounts on client side
   useEffect(() => {
@@ -57,11 +59,11 @@ export default function Home() {
           <div className="flex items-center justify-center mb-4">
             <Sparkles className="h-12 w-12 text-blue-600 mr-3" />
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900">
-              Welcome to JobMate AI
+              {t('title')}
             </h1>
           </div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Your AI-powered career mentor for job applications, interview preparation, and professional development.
+            {t('subtitle')}
           </p>
         </div>
 
@@ -70,14 +72,14 @@ export default function Home() {
           <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-center mb-4">
               <FileText className="h-8 w-8 text-blue-600 mr-3" />
-              <h3 className="text-xl font-semibold">CV Analyzer</h3>
+              <h3 className="text-xl font-semibold">{t('features.cvAnalyzer.title')}</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Upload your resume and get AI-powered analysis of structure, clarity, and missing sections.
+              {t('features.cvAnalyzer.description')}
             </p>
             <div className="flex items-center text-sm text-blue-600">
               <Upload className="h-4 w-4 mr-1" />
-              Upload PDF or DOCX
+              {t('features.cvAnalyzer.cta')}
             </div>
           </div>
 
@@ -87,14 +89,14 @@ export default function Home() {
           >
             <div className="flex items-center mb-4">
               <Mail className="h-8 w-8 text-green-600 mr-3" />
-              <h3 className="text-xl font-semibold">Cover Letter Generator</h3>
+              <h3 className="text-xl font-semibold">{t('features.coverLetter.title')}</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Generate personalized cover letters in English or Bulgarian based on your CV and job description.
+              {t('features.coverLetter.description')}
             </p>
             <div className="flex items-center text-sm text-green-600">
               <Sparkles className="h-4 w-4 mr-1" />
-              AI-powered personalization
+              {t('features.coverLetter.cta')}
             </div>
           </div>
 
@@ -104,14 +106,14 @@ export default function Home() {
           >
             <div className="flex items-center mb-4">
               <Search className="h-8 w-8 text-purple-600 mr-3" />
-              <h3 className="text-xl font-semibold">Job Scanner</h3>
+              <h3 className="text-xl font-semibold">{t('features.jobScanner.title')}</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Match your skills against job requirements with detailed analysis and match percentages.
+              {t('features.jobScanner.description')}
             </p>
             <div className="flex items-center text-sm text-purple-600">
               <BarChart3 className="h-4 w-4 mr-1" />
-              Skill matching analysis
+              {t('features.jobScanner.cta')}
             </div>
           </div>
 
@@ -121,14 +123,14 @@ export default function Home() {
           >
             <div className="flex items-center mb-4">
               <MessageSquare className="h-8 w-8 text-orange-600 mr-3" />
-              <h3 className="text-xl font-semibold">Interview Simulator</h3>
+              <h3 className="text-xl font-semibold">{t('features.interviewSimulator.title')}</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Practice HR and technical interviews with AI-generated questions and real-time feedback.
+              {t('features.interviewSimulator.description')}
             </p>
             <div className="flex items-center text-sm text-orange-600">
               <Sparkles className="h-4 w-4 mr-1" />
-              AI-generated questions
+              {t('features.interviewSimulator.cta')}
             </div>
           </div>
 
@@ -138,14 +140,14 @@ export default function Home() {
           >
             <div className="flex items-center mb-4">
               <BarChart3 className="h-8 w-8 text-indigo-600 mr-3" />
-              <h3 className="text-xl font-semibold">Statistics Dashboard</h3>
+              <h3 className="text-xl font-semibold">{t('features.statistics.title')}</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Track your interview performance with interactive charts and detailed analytics.
+              {t('features.statistics.description')}
             </p>
             <div className="flex items-center text-sm text-indigo-600">
               <BarChart3 className="h-4 w-4 mr-1" />
-              Performance tracking
+              {t('features.statistics.cta')}
             </div>
           </div>
 
@@ -155,30 +157,30 @@ export default function Home() {
           >
             <div className="flex items-center mb-4">
               <Code className="h-8 w-8 text-red-600 mr-3" />
-              <h3 className="text-xl font-semibold">Code Reviewer</h3>
+              <h3 className="text-xl font-semibold">{t('features.codeReviewer.title')}</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              Get AI feedback on your code with optimization tips, bug detection, and readability improvements.
+              {t('features.codeReviewer.description')}
             </p>
             <div className="flex items-center text-sm text-red-600">
               <Sparkles className="h-4 w-4 mr-1" />
-              AI code analysis
+              {t('features.codeReviewer.cta')}
             </div>
           </div>
         </div>
 
         {/* Getting Started */}
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Getting Started</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('gettingStarted.title')}</h2>
           <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-            Start by uploading your CV to unlock all features. Your CV will be securely stored and used across all modules.
+            {t('gettingStarted.description')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-              Upload Your CV
+              {t('gettingStarted.uploadButton')}
             </button>
             <button className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
-              Learn More
+              {t('gettingStarted.learnMoreButton')}
             </button>
           </div>
         </div>
