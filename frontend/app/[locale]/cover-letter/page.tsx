@@ -20,7 +20,6 @@ export default function CoverLetterPage() {
   const [error, setError] = useState<string | null>(null);
   const coverLetterRef = useRef<HTMLDivElement>(null);
   const t = useTranslations('cover-letter');
-  const commonT = useTranslations('common');
 
   useEffect(() => {
     // Fetch available CVs

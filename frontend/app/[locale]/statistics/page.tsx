@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
 import { 
@@ -260,8 +261,6 @@ export default function StatisticsPage() {
       
       console.log('Using company name:', companyName, 'Position:', sessionData?.position);
       
-      const formattedDate = formatDate(new Date());
-      const formattedTime = new Date().toLocaleTimeString();
       const filename = t('page.pdf.filename', { 
         company: companyName,
         position: position
@@ -393,12 +392,12 @@ export default function StatisticsPage() {
                 {t('page.noData.description')}
               </p>
               <div className="mt-6">
-                <a
+                <Link
                   href="/dashboard"
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   {t('page.noData.cta')}
-                </a>
+                </Link>
               </div>
             </div>
           ) : (

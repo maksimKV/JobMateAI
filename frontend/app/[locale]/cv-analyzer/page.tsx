@@ -17,10 +17,22 @@ export default function CVAnalyzer() {
   const [showList, setShowList] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useTranslations('cv-analyzer');
-  const commonT = useTranslations('common');
 
   // Load CV list on component mount
   useEffect(() => {
+    const loadCvList = async () => {
+      try {
+        setIsLoading(true);
+        const response = await cvAPI.list() as { cvs: CVData[]; total_cvs: number };
+        setCvList(response.cvs || []);
+      } catch (error) {
+        console.error('Error loading CV list:', error);
+        setError('Failed to load CV list');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
     loadCvList();
   }, []);
 
