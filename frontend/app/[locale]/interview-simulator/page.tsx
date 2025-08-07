@@ -26,7 +26,6 @@ const MIXED_INTERVIEW_LENGTHS = {
 } as const;
 
 const InterviewSimulatorPage = () => {
-  const [isClient, setIsClient] = useState(false);
   const t = useTranslations('interviewSimulator.page');
   
   // Refs
@@ -191,8 +190,15 @@ const InterviewSimulatorPage = () => {
   // Combine session error and UI error
   const error = sessionError || uiError;
   
+  // Track if component is mounted (client-side)
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
   // Only render the interactive parts on the client side
-  if (!isClient) {
+  if (typeof window === 'undefined' || !isMounted) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />

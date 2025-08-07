@@ -10,6 +10,12 @@ import { SuggestionCard } from './components/SuggestionCard';
 import { JobMatchRequest, JobMatchResponse } from './types';
 
 export default function JobScannerPage() {
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
   const t = useTranslations('jobScanner');
   const [cvList, setCvList] = useState<CVData[]>([]);
   const [selectedCv, setSelectedCv] = useState<string>('');
@@ -46,6 +52,23 @@ export default function JobScannerPage() {
       setIsLoading(false);
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="text-center p-8">
+            <div className="animate-pulse space-y-4">
+              <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto"></div>
+              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
+              <div className="h-64 bg-gray-100 rounded-lg mt-8"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
