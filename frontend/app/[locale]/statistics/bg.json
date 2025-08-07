@@ -47,6 +47,7 @@
   },
   "chartsSection": {
     "title": "Преглед на представянето",
+    "performanceOverTime": "Представяне във времето",
     "categories": {
       "hr": "ЧХР въпроси",
       "technical": "Технически въпроси",
@@ -59,6 +60,10 @@
       "scoreDistribution": "Разпределение на оценките",
       "questionTypeDistribution": "Разпределение по тип въпроси"
     },
+    "chartAxes": {
+      "xAxis": "Въпроси",
+      "yAxis": "Оценка"
+    },
     "noData": "Няма налични данни за графиката"
   },
   "questionsList": {
@@ -69,7 +74,9 @@
       "all": "Всички въпроси",
       "hr": "ЧХР",
       "technical": "Технически",
-      "non_technical": "Нетехнически"
+      "nonTechnical": "Нетехнически",
+      "non_technical": "Нетехнически",
+      "noNonTechnicalQuestions": "Няма нетехнически въпроси в това интервю"
     },
     "types": {
       "hr": "ЧХР",
@@ -82,8 +89,13 @@
       "next": "Следваща"
     },
     "question": "Въпрос",
+    "questionLabel": "Въпрос {number}",
     "yourAnswer": "Вашият отговор",
     "feedback": "Обратна връзка",
+    "pagination": {
+      "next": "Следваща",
+      "previous": "Предишна"
+    },
     "score": "Оценка: {score}/10"
   },
   "sessionInfo": {

@@ -47,6 +47,7 @@
   },
   "chartsSection": {
     "title": "Performance Overview",
+    "performanceOverTime": "Performance Over Time",
     "categories": {
       "hr": "HR Questions",
       "technical": "Technical Questions",
@@ -59,6 +60,10 @@
       "scoreDistribution": "Score Distribution",
       "questionTypeDistribution": "Question Type Distribution"
     },
+    "chartAxes": {
+      "xAxis": "Questions",
+      "yAxis": "Score"
+    },
     "noData": "No chart data available"
   },
   "questionsList": {
@@ -69,7 +74,9 @@
       "all": "All Questions",
       "hr": "HR",
       "technical": "Technical",
-      "non_technical": "Non-Technical"
+      "nonTechnical": "Non-Technical",
+      "non_technical": "Non-Technical",
+      "noNonTechnicalQuestions": "No non-technical questions in this interview"
     },
     "types": {
       "hr": "HR",
@@ -82,8 +89,13 @@
       "next": "Next"
     },
     "question": "Question",
+    "questionLabel": "Question {number}",
     "yourAnswer": "Your Answer",
     "feedback": "Feedback",
+    "pagination": {
+      "next": "Next",
+      "previous": "Previous"
+    },
     "score": "Score: {score}/10"
   },
   "sessionInfo": {
