@@ -213,16 +213,13 @@ export default function JobScannerPage() {
               <div className="space-y-6">
                 <div className="border-b pb-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">{t('results.overallMatch')}</h3>
-                  <div className="flex items-center">
-                    <div className="w-full bg-gray-200 rounded-full h-6">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-green-500 h-6 rounded-full flex items-center justify-end pr-4 text-white font-medium text-sm"
-                        style={{ width: `${result.match_score}%` }}
-                      >
-                        {result.match_score}%
-                      </div>
+                  <div className="w-full bg-gray-200 rounded-full h-6">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-green-500 h-6 rounded-full flex items-center justify-end pr-4 text-white font-medium text-sm"
+                      style={{ width: `${result.match_score}%` }}
+                    >
+                      {result.match_score}%
                     </div>
-                    <span className="ml-4 text-gray-700 font-medium">{result.match_score}%</span>
                   </div>
                 </div>
               </div>
