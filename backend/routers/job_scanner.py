@@ -23,18 +23,17 @@ file_parser = FileParser()
 SKILL_DATABASE = load_skills_database()
 SPECIAL_CASES = load_special_cases()
 
-def extract_skills_from_text(job_info: Union[Dict[str, Any], str]) -> Dict[str, List[str]]:
+async def extract_skills_from_text(job_info: Union[Dict[str, Any], str], use_ai: bool = True) -> Dict[str, List[str]]:
     """
-    Extract skills from the job info using FileParser's skill extraction.
+    Extract skills from the job info using AI with fallback to FileParser's skill extraction.
     
     Args:
         job_info: Dictionary containing job information with 'raw_text' key or raw text string
+        use_ai: Whether to use AI for skill extraction (falls back to FileParser if False or on failure)
         
     Returns:
         Dictionary with categorized skills (skills, technologies, soft_skills)
     """
-    logger.info("Extracting skills using FileParser")
-    
     # Extract text from job_info
     text = ""
     if isinstance(job_info, dict):
@@ -50,8 +49,20 @@ def extract_skills_from_text(job_info: Union[Dict[str, Any], str]) -> Dict[str, 
         logger.warning("No text provided for skill extraction")
         return {"skills": [], "technologies": [], "soft_skills": []}
     
+    # Try AI extraction first if enabled
+    if use_ai:
+        try:
+            logger.info("Attempting AI skill extraction")
+            ai_skills = await ai_client.extract_skills(text)
+            if any(ai_skills.values()):  # If we got any skills from AI
+                logger.info(f"AI extracted skills: {ai_skills}")
+                return ai_skills
+        except Exception as e:
+            logger.warning(f"AI skill extraction failed, falling back to FileParser: {str(e)}")
+    
+    # Fall back to FileParser if AI extraction fails or is disabled
     try:
-        # Use FileParser to extract all skills
+        logger.info("Falling back to FileParser skill extraction")
         all_skills = file_parser.extract_skills_from_text(text)
         
         if not all_skills:
@@ -65,17 +76,17 @@ def extract_skills_from_text(job_info: Union[Dict[str, Any], str]) -> Dict[str, 
             if skill and isinstance(skill, str) and skill.strip()
         })
         
-        logger.info(f"Extracted {len(normalized_skills)} unique skills: {normalized_skills}")
+        logger.info(f"Extracted {len(normalized_skills)} skills using FileParser")
         
-        # Return skills in a single category to avoid duplicates
+        # Return skills in appropriate categories (FileParser doesn't categorize)
         return {
             "skills": normalized_skills,
-            "technologies": [],  # Will be populated based on skills if needed
+            "technologies": [],
             "soft_skills": []
         }
         
     except Exception as e:
-        logger.error(f"Error extracting skills: {str(e)}", exc_info=True)
+        logger.error(f"Error in FileParser skill extraction: {str(e)}", exc_info=True)
         return {"skills": [], "technologies": [], "soft_skills": []}
 
 def normalize_skills(skills: List[str]) -> Set[str]:
@@ -150,7 +161,12 @@ def calculate_match_score(job_skills: Dict[str, List[str]], cv_skills: Dict[str,
     
     return round(match_percentage, 2)
 
-def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills: Dict[str, List[str]], language: str) -> List[Dict[str, Any]]:
+async def generate_improvement_suggestions(
+    job_skills: Dict[str, List[str]], 
+    cv_skills: Dict[str, List[str]], 
+    language: str,
+    use_ai: bool = True
+) -> List[Dict[str, Any]]:
     """
     Generate improvement suggestions based on job requirements and CV skills.
     
@@ -158,10 +174,28 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
         job_skills: Dictionary of skills from job description
         cv_skills: Dictionary of skills from CV
         language: Language code for the response
+        use_ai: Whether to use AI for generating suggestions (falls back to basic if False or on failure)
         
     Returns:
         List of suggestion cards with priority and category information
     """
+    # Try AI-powered suggestions first if enabled
+    if use_ai:
+        try:
+            logger.info("Generating AI-powered suggestions")
+            ai_suggestions = await ai_client.generate_suggestions(
+                job_skills=job_skills,
+                cv_skills=cv_skills,
+                language=language
+            )
+            if ai_suggestions:
+                logger.info(f"Generated {len(ai_suggestions)} AI suggestions")
+                return ai_suggestions
+        except Exception as e:
+            logger.warning(f"AI suggestion generation failed, falling back to basic suggestions: {str(e)}")
+    
+    # Fall back to basic suggestions if AI is disabled or fails
+    logger.info("Using basic suggestion generation")
     suggestions = []
     
     # Normalize all skills to lowercase and remove duplicates
@@ -312,8 +346,9 @@ async def job_match(
     request: Request,
     cv_id: str = Body(..., embed=True, description="ID of the uploaded CV"),
     job_description: Any = Body(..., embed=True, description="Job description text or structured data to analyze"),
-    language: Optional[str] = Body(None, embed=True, description="Language code for the response (e.g., 'en', 'bg')")
-) -> Dict[str, Any]:
+    language: Optional[str] = Body(None, embed=True, description="Language code for the response (e.g., 'en', 'bg')"),
+    use_ai: bool = Body(True, embed=True, description="Whether to use AI for skill extraction and suggestions")
+):
     """
     Extract keywords from job description, compare to CV, and return match analysis.
     
@@ -322,77 +357,79 @@ async def job_match(
         cv_id: ID of the uploaded CV to compare against
         job_description: Job description text or structured data to analyze
         language: Language code for the response (e.g., 'en', 'bg')
+        use_ai: Whether to use AI for skill extraction and suggestions
         
     Returns:
         Dictionary containing job match analysis
     """
+    language = language or 'en'  # Default to English if not specified
+    logger.info(f"Starting job match for CV ID: {cv_id} (AI: {use_ai})")
+    
     try:
-        # Set default language if not provided
-        if not language:
-            language = 'en'
-            
-        logger.info(f"Starting job match analysis for CV ID: {cv_id}")
-        
         # Get CV data from storage
-        cv_data = cv_storage.get(cv_id)
-        if not cv_data:
-            error_msg = f"CV with ID {cv_id} not found"
-            logger.error(error_msg)
-            raise HTTPException(status_code=404, detail=error_msg)
-            
-        logger.debug(f"Retrieved CV data: {cv_data.keys()}")
-        
-        # Parse CV text if needed
-        cv_text = ""
-        if 'raw_text' in cv_data:
-            cv_text = cv_data['raw_text']
-        elif 'text' in cv_data:
-            cv_text = cv_data['text']
-        
-        # Extract skills from job description
-        job_skills = extract_skills_from_text(job_description)
-        logger.info(f"Extracted {sum(len(v) for v in job_skills.values())} skills from job description")
-        
-        # Initialize CV skills with sets to automatically handle deduplication
-        cv_skills = {
-            'skills': set(),
-            'technologies': set(),
-            'soft_skills': set()
-        }
-        
-        # Extract skills from CV text if available
-        if cv_text:
-            cv_skills_extracted = extract_skills_from_text(cv_text)
-            for category in cv_skills:
-                cv_skills[category].update(
-                    skill.lower().strip() 
-                    for skill in cv_skills_extracted.get(category, []) 
-                    if skill and isinstance(skill, str)
-                )
-        
-        # Add skills from CV data
-        for category in ['skills', 'technologies', 'soft_skills']:
-            cv_skills[category].update(
-                str(skill).lower().strip() 
-                for skill in cv_data.get(category, []) 
-                if skill and str(skill).strip()
+        if cv_id not in cv_storage:
+            logger.error(f"CV not found for ID: {cv_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=translator.translate("cv_not_found", language)
             )
+            
+        cv_data = cv_storage[cv_id]
+        
+        # Get raw text from CV data
+        cv_raw_text = ""
+        if 'parsed_data' in cv_data and 'raw_text' in cv_data['parsed_data']:
+            cv_raw_text = cv_data['parsed_data']['raw_text']
+        elif 'raw_text' in cv_data:
+            cv_raw_text = cv_data['raw_text']
+            
+        if not cv_raw_text:
+            logger.error(f"No text content found in CV {cv_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=translator.translate("cv_no_text_content", language)
+            )
+            
+        # Extract skills from CV using AI with fallback to FileParser
+        cv_skills = await extract_skills_from_text(cv_raw_text, use_ai=use_ai)
+        logger.info(f"Extracted {sum(len(v) for v in cv_skills.values())} skills from CV")
+        
+        # Get job description text
+        job_text = job_description
+        if isinstance(job_description, dict) and 'raw_text' in job_description:
+            job_text = job_description['raw_text']
+            
+        # Extract skills from job description using AI with fallback to FileParser
+        job_skills = await extract_skills_from_text(job_text, use_ai=use_ai)
+        logger.info(f"Extracted {sum(len(v) for v in job_skills.values())} skills from job description")
         
         # Calculate match score
         match_score = calculate_match_score(job_skills, cv_skills)
         
-        # Process extracted_skills from CV data if available
-        if "extracted_skills" in cv_data and isinstance(cv_data["extracted_skills"], list):
-            cv_skills["skills"].update(
-                str(skill).lower().strip() 
-                for skill in cv_data["extracted_skills"] 
-                if skill and str(skill).strip()
-            )
-            logger.info(f"Added {len(cv_data['extracted_skills'])} skills from extracted_skills")
+        # Generate improvement suggestions (AI-powered with fallback to basic)
+        suggestions = await generate_improvement_suggestions(
+            job_skills=job_skills,
+            cv_skills=cv_skills,
+            language=language,
+            use_ai=use_ai
+        )
+        
+        # Get extracted skills from CV data if available
+        extracted_skills = []
+        if 'extracted_skills' in cv_data:
+            extracted_skills = cv_data['extracted_skills']
+        elif 'parsed_data' in cv_data and 'extracted_skills' in cv_data['parsed_data']:
+            extracted_skills = cv_data['parsed_data']['extracted_skills']
+            
+        logger.info(f"Found {len(extracted_skills)} extracted skills in CV data")
         
         # Process skills from parsed_data if available
         if "parsed_data" in cv_data and isinstance(cv_data["parsed_data"], dict):
             parsed_data = cv_data["parsed_data"]
+            
+            # Ensure cv_skills["skills"] is a set for aggregation
+            if not isinstance(cv_skills.get("skills"), set):
+                cv_skills["skills"] = set(cv_skills.get("skills", []))
             
             # Add skills from skills section
             if "skills" in parsed_data and isinstance(parsed_data["skills"], list):
@@ -413,8 +450,8 @@ async def job_match(
             
             logger.info(f"Processed skills from parsed_data")
         
-        # Convert sets to lists for the response
-        cv_skills = {k: list(v) for k, v in cv_skills.items()}
+        # Convert all sets to lists for the response
+        cv_skills = {k: list(v) if isinstance(v, (set, list)) else v for k, v in cv_skills.items()}
         logger.info(f"Final skill counts - Skills: {len(cv_skills['skills'])}, "
                   f"Technologies: {len(cv_skills['technologies'])}, "
                   f"Soft Skills: {len(cv_skills['soft_skills'])}")
@@ -435,15 +472,42 @@ async def job_match(
             match_score = 0.0
         
         # Generate improvement suggestions
-        suggestions = generate_improvement_suggestions(job_skills, cv_skills, language)
+        suggestions = await generate_improvement_suggestions(job_skills, cv_skills, language, use_ai)
         
         # Log the match results for debugging
         logger.info(f"Match score: {match_score}")
-        logger.info(f"Generated suggestions: {json.dumps(suggestions, indent=2) if suggestions else 'No suggestions'}")
+        logger.info(f"Generated suggestions: {suggestions[:2]}..." if suggestions else 'No suggestions')
         
         # Get all translated strings first
         translated_message = translator.get("success.job_match_completed", language)
         score_interpretation = get_score_interpretation(match_score, language)
+        
+        # Calculate missing and matched skills
+        missing_skills = {}
+        matched_skills = {}
+        
+        # Process each skill category
+        for category in ['skills', 'technologies', 'soft_skills']:
+            job_skills_list = job_skills.get(category, [])
+            cv_skills_list = cv_skills.get(category, [])
+            
+            # Convert to sets for easier comparison
+            job_skills_set = {skill.lower() for skill in job_skills_list}
+            cv_skills_set = {skill.lower() for skill in cv_skills_list}
+            
+            # Find matched and missing skills
+            matched = job_skills_set.intersection(cv_skills_set)
+            missing = job_skills_set - cv_skills_set
+            
+            # Store with original casing
+            matched_skills[category] = [
+                skill for skill in job_skills_list 
+                if skill.lower() in matched
+            ]
+            missing_skills[category] = [
+                skill for skill in job_skills_list 
+                if skill.lower() in missing
+            ]
         
         # Prepare response with all the data needed by the frontend
         response = {
@@ -456,8 +520,11 @@ async def job_match(
             "cv_skills": cv_skills,
             "suggestions": suggestions,  # This is now a list of suggestion cards
             # For backward compatibility
-            "missing_skills": [],
-            "matched_skills": []
+            "missing_skills": missing_skills.get('skills', []),
+            "matched_skills": matched_skills.get('skills', []),
+            # New structured response
+            "missing_skills_by_category": missing_skills,
+            "matched_skills_by_category": matched_skills
         }
         
         # Extract missing and matched skills from suggestions

@@ -1,4 +1,5 @@
 import os
+import re
 import cohere
 from openai import OpenAI, APIError, RateLimitError, AuthenticationError
 from typing import Optional, Dict, Any, List, Union, Callable
@@ -38,6 +39,41 @@ class AIClient:
             else:
                 # Use default prompts from translations
                 logger.info("No custom prompts found, using default prompts from translations")
+                self._prompt_templates = {
+                    'en': {
+                        'skill_extraction': """Analyze the following job description and extract all mentioned skills, technologies, and soft skills. 
+                        Categorize them into:
+                        - technical_skills: Programming languages, frameworks, tools, etc.
+                        - technologies: Specific technologies, platforms, or systems
+                        - soft_skills: Interpersonal skills, communication, teamwork, etc.
+                        
+                        Format the response as a JSON object with these three arrays. Only include the JSON object in your response.
+                        
+                        Job description: {text}""",
+                        'suggestion_generation': """Compare the following job requirements with the candidate's CV skills and provide improvement suggestions.
+                        
+                        Job Requirements:
+                        {job_skills}
+                        
+                        Candidate's CV Skills:
+                        {cv_skills}
+                        
+                        Generate suggestions in this JSON format:
+                        [
+                            {
+                                "id": "unique_id",
+                                "title": "Suggestion Title",
+                                "icon": "code|star|group|format_align_left",
+                                "category": "Skill Enhancement|Experience|Education",
+                                "priority": "high|medium|low",
+                                "description": "Detailed suggestion",
+                                "items": [
+                                    {"text": "Specific action item", "action": "add|highlight|suggest"}
+                                ]
+                            }
+                        ]"""
+                    }
+                }
         except Exception as e:
             logger.error(f"Error loading prompt templates: {e}")
     
@@ -65,6 +101,156 @@ class AIClient:
             return template.format(**kwargs)
         except KeyError as e:
             logger.warning(f"Missing template variable {e} in prompt '{prompt_key}'")
+            return template
+            
+    async def generate_structured_output(
+        self,
+        prompt: str,
+        output_type: type,
+        model: str = "command-r-plus",
+        temperature: float = 0.3,
+        **kwargs
+    ) -> Any:
+        """
+        Generate structured output using the specified model.
+        
+        Args:
+            prompt: The prompt to generate text from
+            output_type: The expected output type (e.g., dict, list)
+            model: The model to use for generation
+            temperature: Controls randomness (0.0 to 1.0)
+            **kwargs: Additional model parameters
+            
+        Returns:
+            Structured output of the specified type
+        """
+        try:
+            # Add JSON response format instruction
+            if output_type in (dict, list):
+                prompt += "\n\nRespond with a valid JSON object only, no other text or formatting."
+            
+            # Try Cohere first
+            if self.cohere_client and model.startswith("command"):
+                response = self.cohere_client.generate(
+                    model=model,
+                    prompt=prompt,
+                    max_tokens=4000,
+                    temperature=temperature,
+                    **kwargs
+                )
+                result = response.generations[0].text.strip()
+            
+            # Fall back to OpenAI if available
+            elif self.openai_client:
+                response = await self.openai_client.chat.completions.create(
+                    model=model if model != "command-r-plus" else "gpt-4-turbo-preview",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=4000,
+                    temperature=temperature,
+                    response_format={"type": "json_object"} if output_type == dict else None,
+                    **kwargs
+                )
+                result = response.choices[0].message.content.strip()
+            else:
+                raise RuntimeError("No available AI client")
+            
+            # Parse JSON response
+            try:
+                # Extract JSON from markdown code blocks if present
+                json_match = re.search(r'```(?:json)?\n(.*?)\n```', result, re.DOTALL)
+                if json_match:
+                    result = json_match.group(1)
+                
+                parsed = json.loads(result)
+                if not isinstance(parsed, output_type):
+                    if output_type == dict and isinstance(parsed, list):
+                        parsed = {"items": parsed}
+                    elif output_type == list and isinstance(parsed, dict) and "items" in parsed:
+                        parsed = parsed["items"]
+                    else:
+                        raise ValueError(f"Unexpected output format, expected {output_type}")
+                return parsed
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {result}")
+                raise ValueError(f"Failed to parse AI response: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error in generate_structured_output: {str(e)}")
+            raise
+
+    async def extract_skills(self, text: str, language: str = 'en') -> Dict[str, List[str]]:
+        """
+        Extract skills from text using AI.
+        
+        Args:
+            text: The text to extract skills from
+            language: Language code for the response
+            
+        Returns:
+            Dictionary with 'skills', 'technologies', and 'soft_skills' lists
+        """
+        try:
+            prompt = self.get_prompt('skill_extraction', language, text=text)
+            result = await self.generate_structured_output(
+                prompt=prompt,
+                output_type=dict,
+                temperature=0.2  # Use lower temperature for more consistent results
+            )
+            
+            # Ensure all required keys exist
+            return {
+                'skills': result.get('technical_skills', []) + result.get('skills', []),
+                'technologies': result.get('technologies', []),
+                'soft_skills': result.get('soft_skills', [])
+            }
+            
+        except Exception as e:
+            logger.warning(f"AI skill extraction failed: {str(e)}")
+            raise
+
+    async def generate_suggestions(
+        self,
+        job_skills: Dict[str, List[str]],
+        cv_skills: Dict[str, List[str]],
+        language: str = 'en'
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate improvement suggestions based on job requirements and CV skills.
+        
+        Args:
+            job_skills: Dictionary of skills from job description
+            cv_skills: Dictionary of skills from CV
+            language: Language code for the response
+            
+        Returns:
+            List of suggestion dictionaries
+        """
+        try:
+            prompt = self.get_prompt(
+                'suggestion_generation',
+                language,
+                job_skills=json.dumps(job_skills, indent=2),
+                cv_skills=json.dumps(cv_skills, indent=2)
+            )
+            
+            suggestions = await self.generate_structured_output(
+                prompt=prompt,
+                output_type=list,
+                temperature=0.4
+            )
+            
+            # Ensure all suggestions have required fields
+            for suggestion in suggestions:
+                suggestion.setdefault('id', str(uuid.uuid4()))
+                suggestion.setdefault('priority', 'medium')
+                suggestion.setdefault('items', [])
+                
+            return suggestions
+            
+        except Exception as e:
+            logger.warning(f"AI suggestion generation failed: {str(e)}")
+            return []
             return template
     
     @property
