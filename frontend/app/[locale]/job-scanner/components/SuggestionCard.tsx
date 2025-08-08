@@ -9,12 +9,14 @@ type SuggestionItem = {
   action: 'add' | 'highlight' | 'suggest';
 };
 
+type PriorityLevel = 'high' | 'medium' | 'low' | number;
+
 type SuggestionCardProps = {
   id: string;
   title: string;
   icon: string;
   category: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: PriorityLevel;
   items: SuggestionItem[];
   description: string;
 };
@@ -49,12 +51,22 @@ export function SuggestionCard({
 }: SuggestionCardProps) {
   const t = useTranslations('jobScanner.suggestions');
   
+  // Convert numeric priority to string if needed
+  const getPriorityString = (priority: PriorityLevel): PriorityLevel => {
+    if (typeof priority === 'number') {
+      return priority === 1 ? 'high' : priority === 2 ? 'medium' : 'low';
+    }
+    return priority;
+  };
+  
+  const priorityString = getPriorityString(priority);
+  
   return (
     <div 
       className={cn(
         'h-full flex flex-col border rounded-xl p-5 transition-all hover:shadow-md',
         'bg-white',
-        priorityColors[priority],
+        priorityColors[priorityString as 'high' | 'medium' | 'low'],
         `category-${category.toLowerCase().replace(/\s+/g, '-')}`
       )}
       data-category={category}
@@ -63,8 +75,8 @@ export function SuggestionCard({
         <div className="flex items-center space-x-3">
           <div className={cn(
             'p-2 rounded-lg',
-            priority === 'high' ? 'bg-red-100' :
-            priority === 'medium' ? 'bg-yellow-100' :
+            priorityString === 'high' ? 'bg-red-100' :
+            priorityString === 'medium' ? 'bg-yellow-100' :
             'bg-blue-100'
           )}>
             {iconMap[icon] || <Code className="h-5 w-5" />}
@@ -73,12 +85,14 @@ export function SuggestionCard({
         </div>
         <span className={cn(
           'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-          priority === 'high' ? 'bg-red-100 text-red-800' :
-          priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+          priorityString === 'high' ? 'bg-red-100 text-red-800' :
+          priorityString === 'medium' ? 'bg-yellow-100 text-yellow-800' :
           'bg-blue-100 text-blue-800',
           'shrink-0 ml-2'
         )}>
-          {priority.charAt(0).toUpperCase() + priority.slice(1)}
+          {typeof priorityString === 'string' 
+            ? priorityString.charAt(0).toUpperCase() + priorityString.slice(1)
+            : priorityString === 1 ? 'High' : priorityString === 2 ? 'Medium' : 'Low'} 
         </span>
       </div>
       

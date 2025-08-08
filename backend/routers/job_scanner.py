@@ -261,20 +261,61 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
         language: Language code for the response
         
     Returns:
-        Dictionary containing improvement suggestions
+        List of suggestion cards with priority and category information
     """
-    suggestions = {}
-
-    # 1. Skills to add
-    missing_skills = list(set(skill.lower() for skill in job_skills.get("skills", [])) - set(skill.lower() for skill in cv_skills.get("skills", [])))
+    suggestions = []
+    
+    # Get all skills in lowercase for case-insensitive comparison
+    job_skills_lower = {k: [s.lower() for s in v] for k, v in job_skills.items()}
+    cv_skills_lower = {k: [s.lower() for s in v] for k, v in cv_skills.items()}
+    
+    # 1. Missing skills (high priority)
+    missing_skills = []
+    for category in ["skills", "technologies", "soft_skills"]:
+        missing = list(set(job_skills_lower.get(category, [])) - set(cv_skills_lower.get(category, [])))
+        missing_skills.extend(missing)
+    
     if missing_skills:
-        suggestions["missing_skills"] = [{"text": skill, "action": "add"} for skill in missing_skills[:5]]
-
-    # 2. Skills to highlight
-    matched_skills = list(set(skill.lower() for skill in job_skills.get("skills", [])) & set(skill.lower() for skill in cv_skills.get("skills", [])))
+        suggestions.append({
+            "title": "Missing Key Skills",
+            "description": "These skills are required for the job but not found in your CV",
+            "priority": 1,
+            "category": "skills",
+            "items": [{"text": skill, "action": "add"} for skill in missing_skills[:5]]
+        })
+    
+    # 2. Matched skills (medium priority)
+    matched_skills = []
+    for category in ["skills", "technologies", "soft_skills"]:
+        matched = list(set(job_skills_lower.get(category, [])) & set(cv_skills_lower.get(category, [])))
+        matched_skills.extend(matched)
+    
     if matched_skills:
-        suggestions["matched_skills"] = [{"text": skill, "action": "highlight"} for skill in matched_skills[:5]]
-
+        suggestions.append({
+            "title": "Matching Skills",
+            "description": "These skills from the job description match your CV",
+            "priority": 2,
+            "category": "skills",
+            "items": [{"text": skill, "action": "highlight"} for skill in matched_skills[:5]]
+        })
+    
+    # 3. Additional suggestions (low priority)
+    if len(suggestions) < 2:  # If we don't have many suggestions yet
+        suggestions.append({
+            "title": "Enhance Your Profile",
+            "description": "Consider adding more details about your experience with these technologies",
+            "priority": 3,
+            "category": "suggestion",
+            "items": [
+                {"text": "Add project examples", "action": "suggest"},
+                {"text": "Include specific achievements", "action": "suggest"},
+                {"text": "Highlight relevant experience", "action": "suggest"}
+            ]
+        })
+    
+    # Sort suggestions by priority (ascending - lower numbers are higher priority)
+    suggestions.sort(key=lambda x: x["priority"])
+    
     return suggestions
 
 def get_score_interpretation(match_score: float, language: str) -> str:
@@ -288,12 +329,23 @@ def get_score_interpretation(match_score: float, language: str) -> str:
     Returns:
         Score interpretation as a string
     """
+    # Default interpretations in case translations are missing
+    default_interpretations = {
+        "low": "There is significant room for improvement in matching the job requirements.",
+        "medium": "You have some matching skills, but could improve your match.",
+        "high": "Great match! Your skills align well with the job requirements."
+    }
+    
+    # Get the appropriate translation or fall back to default
     if match_score < 50:
-        return translator.get("score_interpretation.low", language)
+        trans = translator.get("score_interpretation.low", language)
+        return trans if trans != "score_interpretation.low" else default_interpretations["low"]
     elif match_score < 80:
-        return translator.get("score_interpretation.medium", language)
+        trans = translator.get("score_interpretation.medium", language)
+        return trans if trans != "score_interpretation.medium" else default_interpretations["medium"]
     else:
-        return translator.get("score_interpretation.high", language)
+        trans = translator.get("score_interpretation.high", language)
+        return trans if trans != "score_interpretation.high" else default_interpretations["high"]
 
 @router.post("/match")
 async def job_match(
@@ -399,23 +451,30 @@ async def job_match(
         
         # Log the match results for debugging
         logger.info(f"Match score: {match_score}")
-        logger.info(f"Missing skills: {suggestions.get('missing_skills', [])}")
+        logger.info(f"Generated suggestions: {json.dumps(suggestions, indent=2) if suggestions else 'No suggestions'}")
         
-        # Prepare response
+        # Get all translated strings first
+        translated_message = translator.get("success.job_match_completed", language)
+        score_interpretation = get_score_interpretation(match_score, language)
+        
+        # Prepare response with all the data needed by the frontend
         response = {
             "success": True,
-            "message": translator.get("success.job_match_completed", language),
-            "match_score": match_score,
+            "message": translated_message if translated_message != "success.job_match_completed" else "Job match completed successfully",
+            "match_score": round(match_score, 1),
+            "score_interpretation": score_interpretation if not score_interpretation.startswith("score_interpretation.") 
+                                 else "Match score: {}".format(round(match_score, 1)),
             "job_skills": job_skills,
             "cv_skills": cv_skills,
-            "suggestions": suggestions,
-            "missing_skills": suggestions.get("missing_skills", []),
-            "language": language
+            "suggestions": suggestions,  # This is now a list of suggestion cards
+            # For backward compatibility
+            "missing_skills": [item["text"] for suggestion in suggestions 
+                             for item in suggestion.get("items", []) 
+                             if item.get("action") == "add"],
+            "matched_skills": [item["text"] for suggestion in suggestions 
+                             for item in suggestion.get("items", []) 
+                             if item.get("action") == "highlight"]
         }
-        
-        # Add localized score interpretation
-        score_interpretation = get_score_interpretation(match_score, language)
-        response["score_interpretation"] = score_interpretation
         
         return response
     except Exception as e:

@@ -235,9 +235,9 @@ export default function JobScannerPage() {
                 
                 {isSuggestionsArray(result.suggestions) ? (
                   result.suggestions.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {result.suggestions.map((suggestion, index) => (
-                        <div key={`${suggestion.priority}-${index}`} className="h-full">
+                        <div key={`${suggestion.priority}-${index}`} className="flex">
                           <SuggestionCard {...suggestion} />
                         </div>
                       ))}
