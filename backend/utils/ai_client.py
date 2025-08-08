@@ -1,10 +1,18 @@
 import os
 import cohere
 from openai import OpenAI, APIError, RateLimitError, AuthenticationError
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Callable
 import httpx
 import asyncio
 import logging
+from pathlib import Path
+import json
+
+# Import translation service
+from .translations import translator
+
+# Import for type hints
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +21,49 @@ class AIClient:
         self._cohere_client = None
         self._openai_client = None
         self._initialized = False
+        self._prompt_templates = {}
+        self._load_prompt_templates()
+        
+    def _load_prompt_templates(self):
+        """Load prompt templates from configuration"""
+        try:
+            # Try to load custom prompts if they exist
+            prompts_path = Path(__file__).parent.parent / 'config' / 'prompts.json'
+            if prompts_path.exists():
+                with open(prompts_path, 'r', encoding='utf-8') as f:
+                    self._prompt_templates = json.load(f)
+                logger.info(f"Loaded custom prompts from {prompts_path}")
+            else:
+                # Use default prompts from translations
+                logger.info("No custom prompts found, using default prompts from translations")
+        except Exception as e:
+            logger.error(f"Error loading prompt templates: {e}")
+    
+    def get_prompt(self, prompt_key: str, language: str = 'en', **kwargs) -> str:
+        """
+        Get a localized prompt by key.
+        
+        Args:
+            prompt_key: The key of the prompt to retrieve (e.g., 'cv_analysis')
+            language: Language code (default: 'en')
+            **kwargs: Format arguments for the prompt
+            
+        Returns:
+            The localized and formatted prompt string
+        """
+        # First try to get from custom prompts
+        if prompt_key in self._prompt_templates.get(language, {}):
+            template = self._prompt_templates[language][prompt_key]
+        else:
+            # Fall back to translations
+            template = translator.get(f"ai.{prompt_key}_prompt", language)
+            
+        # Format the template with provided kwargs
+        try:
+            return template.format(**kwargs)
+        except KeyError as e:
+            logger.warning(f"Missing template variable {e} in prompt '{prompt_key}'")
+            return template
     
     @property
     def cohere_client(self):
@@ -118,15 +169,30 @@ class AIClient:
             else:
                 logger.info("Both Cohere and OpenAI clients initialized successfully.")
 
-    async def generate_text(self, prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> str:
+    async def generate_text(
+        self,
+        prompt: Union[str, tuple],
+        model: str = "command-r-plus",
+        max_tokens: int = 1000,
+        temperature: float = 0.7,
+        language: str = 'en',
+        **kwargs
+    ) -> str:
         """Generate text using available AI providers with fallback logic."""
+        
+        # Handle prompt templates
+        if isinstance(prompt, tuple):
+            prompt_key, format_kwargs = prompt[0], prompt[1]
+            prompt = self.get_prompt(prompt_key, language=language, **format_kwargs)
+        
+        logger.debug(f"Generating text with prompt (language: {language}): {prompt[:200]}...")
         
         # Try Cohere first (free tier available)
         if self.cohere_client:
             try:
                 # Use prompt directly as the message string
                 response = self.cohere_client.chat(
-                    model="command-r-plus",
+                    model=model,
                     message=prompt,
                     temperature=temperature,
                     max_tokens=max_tokens,
