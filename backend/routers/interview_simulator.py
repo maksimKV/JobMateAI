@@ -42,8 +42,7 @@ async def _generate_questions_by_type(
         questions_data = await ai_client.generate_interview_questions(
             job_description=job_description,
             question_type=question_type,
-            count=count,
-            language=language
+            count=count
         )
         
         questions = []
@@ -157,17 +156,26 @@ async def generate_questions(
         # Extract company name and position from job description
         job_info = await ai_client.extract_job_info(job_description)
         
+        # Log extraction results and handle potential issues
+        if not job_info.get("_extraction_success", False):
+            logger.warning(
+                "Job info extraction may be incomplete. Errors: %s",
+                job_info.get("_extraction_errors", ["Unknown error"])
+            )
+        
         # Prepare session data with only necessary fields
         session_data = {
             "interview_type": interview_type,
             "company_name": job_info.get("company_name", "Company"),
             "position": job_info.get("position", "Position"),
+            "job_description": job_description,  # Store the original job description
             "questions": questions,
             "current_question_index": 0,
             "answers": [],
             "feedback": [],
             "start_time": time.time(),
-            "language": language
+            "language": language,
+            "job_info_extraction_success": job_info.get("_extraction_success", False)
         }
         
         # Add detected role and domain for non_technical interviews
@@ -273,21 +281,19 @@ async def submit_answer(
     
     # Generate feedback using AI
     try:
-        feedback = await ai_client.evaluate_interview_answer(
+        feedback_response = await ai_client.evaluate_answer(
             question=question_text,
             answer=answer,
-            job_description=session["job_description"],
-            language=session.get("language", language)
+            question_type=session["questions"][current_q].get("type", "general")
         )
         
-        # Ensure feedback has required fields
-        if not isinstance(feedback, dict):
-            feedback = {"feedback": str(feedback), "score": 0}
-        
-        feedback.setdefault("feedback", "")
-        feedback.setdefault("score", 0)
-        feedback.setdefault("strengths", [])
-        feedback.setdefault("improvements", [])
+        # Map the response to the expected feedback format
+        feedback = {
+            "feedback": feedback_response.get("evaluation", ""),
+            "score": feedback_response.get("score", 0),
+            "strengths": [],
+            "improvements": []
+        }
         
     except Exception as e:
         logger.error(f"Error generating feedback: {str(e)}", exc_info=True)
