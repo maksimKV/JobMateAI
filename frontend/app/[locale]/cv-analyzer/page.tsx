@@ -356,7 +356,7 @@ export default function CVAnalyzer() {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{t('analysis.fileInfo')}</h3>
                     <p className="text-sm text-gray-600">{t('analysis.filename')}: {analysis.filename}</p>
-                    <p className="text-sm text-gray-600">{t('analysis.wordCount')}: {analysis.analysis?.word_count || 0}</p>
+                    <p className="text-sm text-gray-600">{t('analysis.wordCount')}: {analysis.parsed_data?.word_count || 0}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{t('analysis.skillsFound')}</h3>
