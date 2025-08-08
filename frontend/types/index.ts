@@ -25,9 +25,19 @@ export interface CVData {
   parsed_data: ParsedData;
   extracted_skills: string[];
   analysis: {
-    analysis: string;
-    type: string;
-    provider: string;
+    structure: {
+      has_contact_info: boolean;
+      has_education: boolean;
+      has_experience: boolean;
+      has_skills: boolean;
+      has_projects: boolean;
+      has_certifications: boolean;
+      missing_sections: string[];
+    };
+    ai_feedback: string;
+    extracted_skills: string[];
+    word_count: number;
+    missing_sections: string[];
     [key: string]: any; // Allow additional properties
   };
   [key: string]: any; // Allow additional properties
@@ -41,9 +51,19 @@ export interface CVUploadResponse {
   parsed_data: ParsedData;
   extracted_skills: string[];
   analysis: {
-    analysis: string;
-    type: string;
-    provider: string;
+    structure: {
+      has_contact_info: boolean;
+      has_education: boolean;
+      has_experience: boolean;
+      has_skills: boolean;
+      has_projects: boolean;
+      has_certifications: boolean;
+      missing_sections: string[];
+    };
+    ai_feedback: string;
+    extracted_skills: string[];
+    word_count: number;
+    missing_sections: string[];
     [key: string]: any; // Allow additional properties
   };
   [key: string]: any; // Allow additional properties from backend

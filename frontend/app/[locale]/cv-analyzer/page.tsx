@@ -50,20 +50,21 @@ export default function CVAnalyzer() {
         filename: cvData.filename || 'Unknown',
         upload_timestamp: cvData.upload_timestamp || new Date().toISOString(),
         analysis: {
-          analysis: cvData.analysis?.analysis || '',
-          type: cvData.analysis?.type || 'cv_analysis',
-          provider: cvData.analysis?.provider || 'jobmateai',
-          structure: cvData.analysis?.structure || {
-            has_contact_info: false,
-            has_education: false,
-            has_experience: false,
-            has_skills: false,
-            has_projects: false,
-            has_certifications: false
+          structure: {
+            has_contact_info: cvData.analysis?.structure?.has_contact_info || false,
+            has_education: cvData.analysis?.structure?.has_education || false,
+            has_experience: cvData.analysis?.structure?.has_experience || false,
+            has_skills: cvData.analysis?.structure?.has_skills || false,
+            has_projects: cvData.analysis?.structure?.has_projects || false,
+            has_certifications: cvData.analysis?.structure?.has_certifications || false,
+            missing_sections: cvData.analysis?.structure?.missing_sections || []
           },
-          missing_sections: cvData.analysis?.missing_sections || [],
+          ai_feedback: cvData.analysis?.ai_feedback || cvData.analysis?.analysis || '',
+          extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) ? 
+            cvData.analysis.extracted_skills : 
+            (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
           word_count: cvData.analysis?.word_count || 0,
-          ai_feedback: cvData.analysis?.ai_feedback || ''
+          missing_sections: cvData.analysis?.missing_sections || []
         },
         parsed_data: {
           raw_text: cvData.parsed_data?.raw_text || '',
@@ -144,10 +145,22 @@ export default function CVAnalyzer() {
         ...result,
         cv_id: result.cv_id,
         filename: result.filename || file.name,
-        analysis: result.analysis || {
-          analysis: '',
-          type: 'cv_analysis',
-          provider: 'jobmateai'
+        analysis: {
+          structure: {
+            has_contact_info: result.analysis?.structure?.has_contact_info || false,
+            has_education: result.analysis?.structure?.has_education || false,
+            has_experience: result.analysis?.structure?.has_experience || false,
+            has_skills: result.analysis?.structure?.has_skills || false,
+            has_projects: result.analysis?.structure?.has_projects || false,
+            has_certifications: result.analysis?.structure?.has_certifications || false,
+            missing_sections: result.analysis?.structure?.missing_sections || []
+          },
+          ai_feedback: result.analysis?.ai_feedback || result.analysis?.analysis || '',
+          extracted_skills: Array.isArray(result.analysis?.extracted_skills) ? 
+            result.analysis.extracted_skills : 
+            (Array.isArray(result.extracted_skills) ? result.extracted_skills : []),
+          word_count: result.analysis?.word_count || 0,
+          missing_sections: result.analysis?.missing_sections || []
         },
         parsed_data: result.parsed_data || {
           raw_text: '',
@@ -165,7 +178,7 @@ export default function CVAnalyzer() {
           word_count: 0,
           character_count: 0
         },
-        extracted_skills: result.extracted_skills || []
+        extracted_skills: Array.isArray(result.extracted_skills) ? result.extracted_skills : []
       });
       await loadCvList();
     } catch (err) {
