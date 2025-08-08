@@ -344,27 +344,55 @@ async def job_match(
         # Extract skills from job description (handle both string and dict inputs)
         job_skills = extract_skills_from_text(job_description if isinstance(job_description, dict) else {"raw_text": job_description})
         
-        # Get skills from CV with validation
-        cv_data = cv_storage[cv_id]
-        cv_skills = cv_data.get("skills", {})
+        # Get CV data and extract skills with proper transformation
+        cv_data = cv_storage.get(cv_id, {})
+        
+        # Extract skills from CV with multiple fallback strategies
+        cv_skills = {"skills": [], "technologies": [], "soft_skills": []}
+        
+        # Strategy 1: Check for extracted_skills in CV data (direct list)
+        if "extracted_skills" in cv_data and isinstance(cv_data["extracted_skills"], list):
+            cv_skills["skills"] = list(set(skill.lower() for skill in cv_data["extracted_skills"] if skill and isinstance(skill, str)))
+            cv_skills["technologies"] = cv_skills["skills"].copy()
+            logger.info(f"Found {len(cv_skills['skills'])} skills in extracted_skills")
+        
+        # Strategy 2: Check for skills in parsed_data
+        if not cv_skills["skills"] and "parsed_data" in cv_data and isinstance(cv_data["parsed_data"], dict):
+            parsed_data = cv_data["parsed_data"]
+            
+            # Extract from skills section if available
+            if "skills" in parsed_data and isinstance(parsed_data["skills"], list):
+                cv_skills["skills"].extend(skill.lower() for skill in parsed_data["skills"] if skill and isinstance(skill, str))
+            
+            # Extract from raw text if available
+            if "raw_text" in parsed_data and isinstance(parsed_data["raw_text"], str):
+                extracted = extract_skills_using_regex(parsed_data["raw_text"])
+                cv_skills["skills"].extend(skill.lower() for skill in extracted["tech_skills"])
+                cv_skills["soft_skills"].extend(skill.lower() for skill in extracted["soft_skills"])
+            
+            # Remove duplicates
+            cv_skills["skills"] = list(set(cv_skills["skills"]))
+            cv_skills["technologies"] = cv_skills["skills"].copy()
+            logger.info(f"Extracted {len(cv_skills['skills'])} skills from parsed_data")
+        
+        # Ensure all skills are strings and not empty
+        for key in ["skills", "technologies", "soft_skills"]:
+            cv_skills[key] = [str(skill).strip() for skill in cv_skills[key] if skill and str(skill).strip()]
         
         # Log extracted skills for debugging
         logger.info(f"Extracted job skills: {json.dumps(job_skills, indent=2)}")
-        logger.info(f"CV skills structure: {json.dumps(cv_skills, indent=2)[:1000]}...")
+        logger.info(f"CV skills structure: {json.dumps(cv_skills, indent=2)}")
         
-        # Validate CV skills structure
-        if not isinstance(cv_skills, dict):
-            logger.warning(f"Unexpected CV skills format: {type(cv_skills)}")
-            cv_skills = {"skills": [], "technologies": [], "soft_skills": []}
+        if not any(cv_skills.values()):
+            logger.warning("No skills could be extracted from the CV")
         
-        # Ensure all expected keys exist in cv_skills
-        for key in ["skills", "technologies", "soft_skills"]:
-            if key not in cv_skills:
-                cv_skills[key] = []
-                logger.warning(f"Missing key in CV skills: {key}")
-        
-        # Calculate match score with case-insensitive comparison
-        match_score = calculate_match_score(job_skills, cv_skills)
+        try:
+            # Calculate match score with case-insensitive comparison
+            match_score = calculate_match_score(job_skills, cv_skills)
+        except Exception as e:
+            logger.error(f"Error calculating match score: {str(e)}", exc_info=True)
+            # Fallback to 0 if there's an error in calculation
+            match_score = 0.0
         
         # Generate improvement suggestions
         suggestions = generate_improvement_suggestions(job_skills, cv_skills, language)

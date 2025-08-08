@@ -264,24 +264,66 @@ async def upload_cv(
         
         # Generate AI analysis (async)
         try:
+            # Get raw text from parsed data
+            raw_text = parsed_data.get("raw_text", "")
+            logger.info(f"Sending text to AI for analysis (length: {len(raw_text)} chars)")
+            
+            # Get AI analysis
             analysis = await ai_client.analyze_text(
-                text=parsed_data.get("raw_text", ""),
+                text=raw_text,
                 analysis_type="cv_analysis"
             )
-            cv_data["analysis"] = analysis
             
-            # Update skills with AI-extracted ones if available
-            if "skills" in analysis and isinstance(analysis["skills"], list):
-                # Combine and deduplicate skills
-                existing_skills = set(skill.lower() for skill in extracted_skills)
-                ai_skills = [skill for skill in analysis["skills"] 
-                           if isinstance(skill, str) and skill.lower() not in existing_skills]
-                cv_data["extracted_skills"].extend(ai_skills)
+            # Store the raw analysis for debugging
+            cv_data["analysis"] = analysis
+            logger.debug(f"Raw AI analysis: {analysis}")
+            
+            # Extract skills from AI response with multiple fallback strategies
+            ai_skills = []
+            
+            # Strategy 1: Check for direct 'skills' key
+            if isinstance(analysis.get("skills"), list):
+                ai_skills.extend([s for s in analysis["skills"] if isinstance(s, str)])
+            
+            # Strategy 2: Check for skills in nested sections
+            for section in ["technical_skills", "skills_section", "competencies"]:
+                if section in analysis and isinstance(analysis[section], list):
+                    ai_skills.extend([s for s in analysis[section] if isinstance(s, str)])
+            
+            # Strategy 3: Look for skills in a string with delimiters
+            skills_text = analysis.get("skills_text", "")
+            if skills_text and isinstance(skills_text, str):
+                # Split by common delimiters and clean up
+                for item in re.split(r'[,\n\-•*]', skills_text):
+                    skill = item.strip().lower()
+                    if 2 <= len(skill) <= 50 and skill not in ai_skills:
+                        ai_skills.append(skill)
+            
+            # Deduplicate and clean up skills
+            if ai_skills:
+                # Convert to lowercase and remove duplicates
+                ai_skills = list({s.lower().strip() for s in ai_skills if s and isinstance(s, str)})
+                
+                # Add skills that aren't already in extracted_skills
+                existing_skills = {s.lower() for s in cv_data["extracted_skills"]}
+                new_skills = [s for s in ai_skills if s.lower() not in existing_skills]
+                
+                if new_skills:
+                    logger.info(f"Adding {len(new_skills)} new skills from AI analysis")
+                    cv_data["extracted_skills"].extend(new_skills)
+                
+                # Update the analysis with the processed skills
+                if "skills" not in cv_data["analysis"]:
+                    cv_data["analysis"]["skills"] = ai_skills
+            
+            logger.info(f"Total skills after AI analysis: {len(cv_data['extracted_skills'])}")
                 
         except Exception as e:
-            logger.error(f"Error generating AI analysis: {str(e)}", exc_info=True)
+            error_msg = f"Error generating AI analysis: {str(e)}"
+            logger.error(error_msg, exc_info=True)
             cv_data["analysis"] = {
-                "error": translator.get("errors.ai_analysis_failed", language, error=str(e))
+                "error": translator.get("errors.ai_analysis_failed", language, error=str(e)),
+                "raw_error": str(e)
             }
         
         return {
