@@ -16,16 +16,15 @@ async def generate_cover_letter(
     request: Request,
     cv_id: str = Body(..., embed=True, description="ID of the uploaded CV"),
     job_description: str = Body(..., embed=True, description="Job description to tailor the cover letter"),
-    tone: Optional[str] = Body("professional", embed=True, description="Tone of the cover letter"),
     language: Optional[str] = Body(None, embed=True, description="Language for the cover letter")
 ) -> Dict[str, Any]:
     """
     Generate a personalized cover letter based on uploaded CV and job description.
+    The cover letter will be generated with a professional tone.
     
     Args:
         cv_id: ID of the previously uploaded CV
         job_description: The job description to tailor the cover letter to
-        tone: Desired tone of the cover letter (e.g., professional, enthusiastic)
         language: Language code (e.g., 'en', 'bg'). If not provided, uses request language.
     """
     # Get language from request if not provided
@@ -55,11 +54,10 @@ async def generate_cover_letter(
                 detail=error_msg
             )
         
-        # Generate cover letter using AI
+        # Generate cover letter using AI with professional tone
         result = await ai_client.generate_cover_letter(
             cv_content=cv_content,
             job_description=job_description,
-            tone=tone,
             language=language
         )
         
