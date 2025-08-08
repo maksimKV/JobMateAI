@@ -17,7 +17,7 @@ export interface JobMatchRequest {
   cv_id: string;
   job_description: string | {
     raw_text: string;
-    [key: string]: any; // Allow additional properties
+    [key: string]: string | string[] | number | boolean | undefined; // Allow additional properties with specific types
   };
   language?: string;
 }
@@ -36,7 +36,7 @@ export interface JobMatchResponse {
   cv_skills: JobSkills;
   suggestions: {
     missing_skills: string[];
-    [key: string]: any; // Allow additional suggestion properties
+    [key: string]: unknown; // Allow additional suggestion properties with type safety
   };
   missing_skills: string[];
   language: string;
