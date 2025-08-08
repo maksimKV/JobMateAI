@@ -109,10 +109,24 @@ export const coverLetterAPI = {
 // Job Scanner API
 export const jobScannerAPI = {
   match: async (data: JobMatchRequest): Promise<JobMatchResponse> => {
-    return apiRequest<JobMatchResponse>('/api/job-scanner/match', {
+    // Ensure job_description is properly formatted
+    const requestData = {
+      ...data,
+      // If job_description is a string, convert it to the expected format
+      job_description: typeof data.job_description === 'string' 
+        ? { raw_text: data.job_description }
+        : data.job_description,
+    };
+
+    console.log('Sending job match request:', JSON.stringify(requestData, null, 2));
+    
+    const response = await apiRequest<JobMatchResponse>('/api/job-scanner/match', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(requestData),
     });
+    
+    console.log('Received job match response:', response);
+    return response;
   },
 };
 

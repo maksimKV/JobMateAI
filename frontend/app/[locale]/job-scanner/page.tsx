@@ -35,19 +35,65 @@ export default function JobScannerPage() {
   }, [t]);
 
   const handleMatch = async () => {
+    // Validate inputs
+    if (!selectedCv) {
+      setError(t('errors.selectCV'));
+      return;
+    }
+    
+    if (!jobDescription.trim()) {
+      setError(t('errors.enterJobDescription'));
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setResult(null);
+    
     try {
+      console.log('Starting job match with CV ID:', selectedCv);
+      console.log('Job description length:', jobDescription.length, 'characters');
+      
+      // Prepare the request with proper structure
       const req: JobMatchRequest = {
         cv_id: selectedCv,
-        job_description: jobDescription,
+        job_description: {
+          raw_text: jobDescription,
+          // Add any additional structured data here if needed
+        },
+        language: 'en' // Default to English, can be made dynamic based on user selection
       };
+      
+      console.log('Sending request to API:', JSON.stringify(req, null, 2));
+      
+      const startTime = Date.now();
       const res: JobMatchResponse = await jobScannerAPI.match(req);
-      setResult(res);
+      const endTime = Date.now();
+      
+      console.log(`API response received in ${endTime - startTime}ms`, res);
+      
+      if (res.success) {
+        setResult(res);
+        console.log('Match score:', res.match_score);
+        console.log('Extracted job skills:', res.job_skills);
+        console.log('CV skills:', res.cv_skills);
+      } else {
+        console.error('API returned success:false with message:', res.message);
+        setError(res.message || t('errors.matchFailed'));
+      }
     } catch (err) {
-      if (err instanceof APIError) setError(err.message);
-      else setError(t('errors.unexpected'));
+      console.error('Error in handleMatch:', err);
+      
+      if (err instanceof APIError) {
+        console.error('API Error:', err.status, err.message);
+        setError(`${t('errors.apiError')}: ${err.message}`);
+      } else if (err instanceof Error) {
+        console.error('Unexpected error:', err.message, err.stack);
+        setError(`${t('errors.unexpected')}: ${err.message}`);
+      } else {
+        console.error('Unknown error occurred');
+        setError(t('errors.unexpected'));
+      }
     } finally {
       setIsLoading(false);
     }

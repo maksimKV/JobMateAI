@@ -91,24 +91,42 @@ export interface CoverLetterResponse {
 }
 
 // Job Scanner Types
+export interface JobSkills {
+  skills: string[];
+  technologies: string[];
+  soft_skills: string[];
+}
+
 export interface JobMatchRequest {
   cv_id: string;
-  job_description: string;
+  job_description: string | {
+    raw_text: string;
+    [key: string]: any; // Allow additional properties
+  };
+  language?: string;
 }
 
 export interface JobMatchResponse {
   success: boolean;
-  match_percent: number;
-  matched_skills: string[];
-  missing_skills: string[];
-  soft_skill_percent: number;
-  matched_soft_skills: string[];
-  missing_soft_skills: string[];
-  job_info: {
-    skills: string[];
-    technologies: string[];
-    soft_skills: string[];
+  message: string;
+  match_score: number;
+  job_skills: JobSkills;
+  cv_skills: JobSkills;
+  suggestions: {
+    missing_skills: string[];
+    [key: string]: any; // Allow additional suggestion properties
   };
+  missing_skills: string[];
+  language: string;
+  score_interpretation: string;
+  
+  // For backward compatibility
+  match_percent?: number;
+  soft_skill_percent?: number;
+  matched_skills?: string[];
+  matched_soft_skills?: string[];
+  missing_soft_skills?: string[];
+  job_info?: JobSkills;
 }
 
 // Interview Simulator Types
