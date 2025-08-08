@@ -18,12 +18,36 @@ export default function CVAnalyzer() {
   const [error, setError] = useState<string | null>(null);
   const t = useTranslations('cvAnalyzer');
 
+  // Load the last viewed CV ID from localStorage
+  const getLastViewedCvId = () => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('lastViewedCvId');
+  };
+
+  // Save the last viewed CV ID to localStorage
+  const saveLastViewedCvId = (cvId: string) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('lastViewedCvId', cvId);
+  };
+
   const loadCvList = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await cvAPI.list();
       const cvs = Array.isArray(response) ? response : (response as { cvs: CVData[] })?.cvs || [];
       setCvList(cvs);
+      
+      // If no analysis is loaded yet, try to load the last viewed CV
+      if (!analysis && cvs.length > 0) {
+        const lastViewedCvId = getLastViewedCvId();
+        const cvToLoad = lastViewedCvId 
+          ? cvs.find(cv => cv.id === lastViewedCvId) || cvs[0]
+          : cvs[0];
+          
+        if (cvToLoad) {
+          await handleCvSelect(cvToLoad.id);
+        }
+      }
     } catch (err) {
       console.error('Error loading CV list:', err);
       setError(t('errors.loadList'));
@@ -31,7 +55,7 @@ export default function CVAnalyzer() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t, analysis]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -102,6 +126,7 @@ export default function CVAnalyzer() {
       
       setAnalysis(response);
       setShowList(false);
+      saveLastViewedCvId(cvId);
     } catch (err) {
       console.error('Error loading CV:', err);
       setError(t('errors.loadDetails'));
@@ -145,6 +170,7 @@ export default function CVAnalyzer() {
     }
   };
 
+  // Clear the last viewed CV when uploading a new one
   const handleUpload = async () => {
     if (!file) {
       setError(t('errors.noFileSelected'));
