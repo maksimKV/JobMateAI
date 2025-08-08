@@ -23,6 +23,14 @@
     "file_deleted": "File deleted successfully",
     "analysis_complete": "Analysis completed successfully",
     "operation_successful": "Operation completed successfully",
-    "no_cvs_found": "No CVs found. Please upload a CV to get started."
+    "no_cvs_found": "No CVs found. Please upload a CV to get started.",
+    "job_match_completed": "Job matching completed successfully",
+    "cvs_retrieved": "CVs retrieved successfully"
+  },
+  "cv_analyzer": {
+    "unknown_filename": "Unknown filename"
+  },
+  "score_interpretation": {
+    "low": "Low match - Consider developing these skills further"
   }
 }
