@@ -9,7 +9,7 @@ from routers.cv_analyzer import cv_storage
 # Set up logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/cover-letter", tags=["Cover Letter"])
+router = APIRouter(tags=["Cover Letter"])
 
 @router.post("/generate")
 async def generate_cover_letter(
@@ -31,7 +31,7 @@ async def generate_cover_letter(
     req_language = getattr(request.state, 'language', 'en')
     language = language or req_language
     
-    logger.info(f"Generating cover letter for CV {cv_id} in {language} with {tone} tone")
+    logger.info(f"Generating cover letter for CV {cv_id} in {language}")
     
     # Validate CV exists
     if cv_id not in cv_storage:
@@ -70,7 +70,7 @@ async def generate_cover_letter(
             "cover_letter": result.get("content", ""),
             "company_name": result.get("company_name", "Company"),
             "language": language,
-            "tone": tone
+            "tone": "professional"
         }
         
     except HTTPException:
