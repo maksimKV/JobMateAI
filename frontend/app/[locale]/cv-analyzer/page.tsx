@@ -30,12 +30,107 @@ export default function CVAnalyzer() {
     localStorage.setItem('lastViewedCvId', cvId);
   };
 
-  const handleCvSelect = useCallback(async (cvId: string) => {
+  const loadCvList = useCallback(async (selectedCvId?: string) => {
+    // Function to load CV analysis (moved inside useCallback to avoid dependency issues)
+    const loadCvAnalysis = async (cvId: string) => {
+      try {
+        console.log(`Loading CV analysis for cvId: ${cvId}`);
+        setIsLoading(true);
+        console.log('Calling cvAPI.getAnalysis...');
+        const cvData = await cvAPI.getAnalysis(cvId);
+        console.log('CV Analysis data:', JSON.stringify({
+          cv_id: cvId,
+          word_count: cvData.analysis?.word_count,
+          parsed_data_word_count: cvData.parsed_data?.word_count,
+          has_analysis: !!cvData.analysis,
+          has_parsed_data: !!cvData.parsed_data
+        }, null, 2));
+        
+        // Create a complete CVUploadResponse object with all required properties
+        const response: CVUploadResponse = {
+          success: true,
+          cv_id: cvId,
+          filename: cvData.filename || 'Unknown',
+          upload_timestamp: cvData.upload_timestamp || new Date().toISOString(),
+          parsed_data: cvData.parsed_data || null,
+          extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) 
+            ? cvData.analysis.extracted_skills 
+            : (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
+          analysis: {
+            structure: {
+              has_contact_info: cvData.analysis?.structure?.has_contact_info || 
+                              cvData.parsed_data?.sections?.has_contact_info || false,
+              has_education: cvData.analysis?.structure?.has_education || 
+                           cvData.parsed_data?.sections?.has_education || false,
+              has_experience: cvData.analysis?.structure?.has_experience || 
+                            cvData.parsed_data?.sections?.has_experience || false,
+              has_skills: cvData.analysis?.structure?.has_skills || 
+                         cvData.parsed_data?.sections?.has_skills || false,
+              has_projects: cvData.analysis?.structure?.has_projects || 
+                           cvData.parsed_data?.sections?.has_projects || false,
+              has_certifications: cvData.analysis?.structure?.has_certifications || 
+                                cvData.parsed_data?.sections?.has_certifications || false,
+              missing_sections: cvData.analysis?.structure?.missing_sections || 
+                              cvData.parsed_data?.sections?.missing_sections || []
+            },
+            ai_feedback: cvData.analysis?.ai_feedback || cvData.analysis?.analysis || '',
+            extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) 
+              ? cvData.analysis.extracted_skills 
+              : (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
+            word_count: cvData.analysis?.word_count || cvData.parsed_data?.word_count || 0,
+            missing_sections: cvData.analysis?.missing_sections || 
+                            cvData.parsed_data?.sections?.missing_sections || []
+          },
+        };
+        
+        setAnalysis(response);
+        saveLastViewedCvId(cvId);
+      } catch (err) {
+        console.error('Error loading CV analysis:', err);
+        setError(t('errors.loadAnalysis'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     try {
+      setIsLoading(true);
+      const response = await cvAPI.list();
+      const cvs = Array.isArray(response) ? response : (response as { cvs: CVData[] })?.cvs || [];
+      setCvList(cvs);
+      
+      // If a specific CV ID was provided, load that CV
+      if (selectedCvId) {
+        await loadCvAnalysis(selectedCvId);
+      }
+      // Otherwise, if no analysis is loaded yet, try to load the last viewed CV
+      else if (!analysis && cvs.length > 0) {
+        const lastViewedCvId = getLastViewedCvId();
+        const cvToLoad = lastViewedCvId 
+          ? cvs.find(cv => cv.id === lastViewedCvId) || cvs[0]
+          : cvs[0];
+          
+        if (cvToLoad) {
+          await loadCvAnalysis(cvToLoad.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading CV list:', err);
+      setError(t('errors.loadList'));
+      setCvList([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t, analysis]);
+
+  // Wrapper function for handling CV selection from UI
+  const handleCvSelect = useCallback(async (cvId: string) => {
+    // Implement the CV selection logic directly here
+    try {
+      console.log(`Loading CV analysis for cvId: ${cvId}`);
       setIsLoading(true);
       const cvData = await cvAPI.getAnalysis(cvId);
       
-      // Create a complete CVUploadResponse object with all required properties
       const response: CVUploadResponse = {
         success: true,
         cv_id: cvId,
@@ -81,33 +176,6 @@ export default function CVAnalyzer() {
       setIsLoading(false);
     }
   }, [t]);
-
-  const loadCvList = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const response = await cvAPI.list();
-      const cvs = Array.isArray(response) ? response : (response as { cvs: CVData[] })?.cvs || [];
-      setCvList(cvs);
-      
-      // If no analysis is loaded yet, try to load the last viewed CV
-      if (!analysis && cvs.length > 0) {
-        const lastViewedCvId = getLastViewedCvId();
-        const cvToLoad = lastViewedCvId 
-          ? cvs.find(cv => cv.id === lastViewedCvId) || cvs[0]
-          : cvs[0];
-          
-        if (cvToLoad) {
-          await handleCvSelect(cvToLoad.id);
-        }
-      }
-    } catch (err) {
-      console.error('Error loading CV list:', err);
-      setError(t('errors.loadList'));
-      setCvList([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [t, analysis, handleCvSelect]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -156,18 +224,22 @@ export default function CVAnalyzer() {
       return;
     }
 
+    console.log('Starting file upload...');
     setIsUploading(true);
     setError(null);
 
     try {
       // First, upload the file
+      console.log('Calling cvAPI.upload...');
       const uploadResult = await cvAPI.upload(file);
+      console.log('Upload result:', JSON.stringify(uploadResult, null, 2));
       
       // Then, fetch the complete analysis using the returned CV ID
       if (uploadResult.cv_id) {
+        console.log(`Loading CV analysis with cv_id: ${uploadResult.cv_id}`);
         await handleCvSelect(uploadResult.cv_id);
       } else {
-        // Fallback to the old behavior if no CV ID is returned
+        console.warn('No cv_id in upload result, falling back to direct state update');
         setAnalysis({
           ...uploadResult,
           cv_id: uploadResult.cv_id || '',
@@ -386,7 +458,9 @@ export default function CVAnalyzer() {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{t('analysis.fileInfo')}</h3>
                     <p className="text-sm text-gray-600">{t('analysis.filename')}: {analysis.filename}</p>
-                    <p className="text-sm text-gray-600">{t('analysis.wordCount')}: {analysis.parsed_data?.word_count || 0}</p>
+                    <p className="text-sm text-gray-600">
+                      {t('analysis.wordCount')}: {analysis.analysis?.word_count || analysis.parsed_data?.word_count || 0}
+                    </p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{t('analysis.skillsFound')}</h3>
