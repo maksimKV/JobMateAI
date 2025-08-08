@@ -8,7 +8,8 @@
     },
     "buttons": {
       "review": "Review Code",
-      "reviewing": "Reviewing..."
+      "reviewing": "Reviewing...",
+      "clear": "Clear"
     }
   },
   "result": {
