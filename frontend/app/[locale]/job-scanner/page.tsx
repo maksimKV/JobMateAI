@@ -10,11 +10,7 @@ import { SuggestionCard } from './components/SuggestionCard';
 import { 
   JobMatchRequest, 
   JobMatchResponse, 
-  Suggestion, 
-  SkillType, 
-  isSuggestionsArray, 
-  isSuggestionsObject, 
-  isMissingSkill 
+  isSuggestionsArray
 } from './types';
 
 export default function JobScannerPage() {

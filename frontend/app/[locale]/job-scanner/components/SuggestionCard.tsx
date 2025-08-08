@@ -67,7 +67,8 @@ export function SuggestionCard({
         'h-full flex flex-col border rounded-xl p-5 transition-all hover:shadow-md',
         'bg-white',
         priorityColors[priorityString as 'high' | 'medium' | 'low'],
-        `category-${category.toLowerCase().replace(/\s+/g, '-')}`
+        `category-${category.toLowerCase().replace(/\s+/g, '-')}`,
+        'flex flex-col justify-start'  // Ensure content starts from the top
       )}
       data-category={category}
     >
@@ -98,7 +99,7 @@ export function SuggestionCard({
       
       <p className="mb-4 text-sm text-gray-600">{description}</p>
       
-      <div className="mt-auto space-y-2">
+      <div className="space-y-2 mt-3">
         {items.slice(0, 5).map((item, index) => (
           <div key={`${id}-${index}`} className="flex items-start group">
             {actionIcons[item.action]}
