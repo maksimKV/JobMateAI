@@ -65,30 +65,89 @@ async def review_code(
         # If no specific template found, use default
         if not prompt_template:
             prompt_template = """
-            Review the following code. Detect the programming language automatically. Provide:
-            1. The detected language
-            2. A summary of what the code does
-            3. Possible bugs or issues
-            4. Optimization tips
-            5. Readability improvements
-            6. Security considerations (if any)
+            You are an expert code reviewer. Your task is to analyze the provided code and provide a direct, actionable code review. 
+            DO NOT explain what a code review is or provide examples. 
+            DO NOT include any introductory text - start directly with the review.
             
-            Code:
+            Analyze this code:
+            ```
             {code}
+            ```
             
-            Respond in a structured format in {language} language.
+            Generate a code review with these sections (include all sections even if brief):
+            
+            ## Code Summary (1-2 sentences)
+            [Start directly with the summary]
+            
+            ## Detected Language
+            [Language name]
+            
+            ## Strengths
+            - [List specific strengths]
+            
+            ## Critical Issues
+            - [List critical problems with line numbers]
+            
+            ## Improvements Needed
+            - [List specific improvements with examples]
+            
+            ## Security Notes
+            - [List security concerns if any]
+            
+            ## Performance Tips
+            - [List optimization suggestions]
+            
+            ## Final Score: X/10
+            [Brief justification]
+            
+            Format: Strict markdown with code blocks for examples.
+            Language: {language}
             """
         
+        # Format the prompt with the code and language
         prompt = prompt_template.format(code=code, language=language)
+        
         try:
-            response = await ai_client.generate_text(prompt, language=language)
+            logger.info(f"Sending code review request for {len(code)} characters of {language} code")
+            
+            # Add a clear instruction to the prompt
+            final_prompt = f"""
+            You are an expert code reviewer. Analyze the following code and provide a direct, actionable code review.
+            DO NOT explain what a code review is or provide examples.
+            DO NOT include any introductory text - start directly with the review.
+            
+            {prompt}
+            
+            IMPORTANT: Start your response directly with the code review content, without any introductory text.
+            """.strip()
+            
+            # Get the response from the AI client
+            response = await ai_client.generate_text(
+                final_prompt, 
+                language=language,
+                temperature=0.3  # Lower temperature for more focused responses
+            )
+            
+            # Clean up the response
+            if response:
+                # Remove any leading/trailing whitespace
+                response = response.strip()
+                # Remove any markdown code block markers that might wrap the entire response
+                if response.startswith('```') and response.endswith('```'):
+                    response = response[3:-3].strip()
+                # Ensure the response starts with the expected format
+                if not response.startswith('## '):
+                    # Find the first heading and remove everything before it
+                    match = re.search(r'## .+', response)
+                    if match:
+                        response = response[match.start():]
+            
+            logger.info(f"Received code review response: {response[:100]}..." if response else "Empty response received")
             
             return {
                 "success": True,
-                "message": translator.get("success.code_review_completed", language),
-                "review": response,
-                "detected_language": language,
-                "language": language
+                "review": response or "No review content generated",
+                "detected_language": language
             }
             
         except Exception as e:

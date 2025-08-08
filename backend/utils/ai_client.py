@@ -175,8 +175,8 @@ class AIClient:
         self,
         prompt: Union[str, tuple],
         model: str = "command-r-plus",
-        max_tokens: int = 1000,
-        temperature: float = 0.7,
+        max_tokens: int = 2000,  # Increased for code reviews
+        temperature: float = 0.2,  # Lower temperature for more focused responses
         language: str = 'en',
         **kwargs
     ) -> str:
@@ -214,26 +214,162 @@ class AIClient:
             try:
                 logger.debug("[%s] Trying Cohere API with model: %s", request_id, model)
                 
-                # Use prompt directly as the message string
-                response = self.cohere_client.chat(
-                    model=model,
-                    message=prompt,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    p=0.9,
-                    k=0,
-                    prompt_truncation="AUTO"
-                )
+                # Check if this is a code review prompt by looking for code blocks and review instructions
+                is_code_review = ("```" in prompt and 
+                               ("review" in prompt.lower() or 
+                                "analyze" in prompt.lower() or
+                                any(word in prompt.lower() for word in ["strengths", "improvements", "critical issues"])))
+                
+                if is_code_review:
+                    # Extract the code block for better processing
+                    code_block = ""
+                    code_match = re.search(r'```(?:\w+)?\s*([\s\S]*?)\s*```', prompt, re.DOTALL)
+                    if code_match:
+                        code_block = code_match.group(1).strip()
+                    
+                    # Create a more structured prompt with clear instructions
+                    system_prompt = """
+                    You are an expert code reviewer. Your task is to analyze the provided code and provide a direct, 
+                    actionable code review. Follow these rules:
+                    
+                    1. Start directly with the review - NO INTRODUCTORY TEXT
+                    2. Be specific and provide line numbers where applicable
+                    3. Follow the exact format specified below
+                    4. Be concise but thorough in your analysis
+                    
+                    Format your response EXACTLY as follows (include all sections):
+                    
+                    ## Code Summary
+                    [1-2 sentence summary of what the code does]
+                    
+                    ## Detected Language
+                    [Programming language]
+                    
+                    ## Strengths
+                    - [Specific strength 1 with line numbers]
+                    - [Specific strength 2 with line numbers]
+                    
+                    ## Critical Issues
+                    - [Critical issue 1 with line numbers and impact]
+                    - [Critical issue 2 with line numbers and impact]
+                    
+                    ## Improvements Needed
+                    - [Specific improvement 1 with example]
+                    - [Specific improvement 2 with example]
+                    
+                    ## Security Notes
+                    - [Security concern 1 or 'No major security issues found']
+                    
+                    ## Performance Tips
+                    - [Performance suggestion 1 or 'No major performance issues found']
+                    
+                    ## Final Score: X/10
+                    [Brief justification for the score]
+                    
+                    IMPORTANT: Start directly with the review content, no intros or explanations!
+                    """.strip()
+                    
+                    # Create the final prompt
+                    final_prompt = f"""
+                    {system_prompt}
+                    
+                    CODE TO REVIEW:
+                    ```
+                    {code_block}
+                    ```
+                    
+                    Now provide your code review, starting directly with the content (no intros):
+                    """.strip()
+                    
+                    logger.debug("[%s] Using structured code review prompt", request_id)
+                    
+                    try:
+                        # First try using the chat endpoint with system prompt
+                        response = self.cohere_client.chat(
+                            model=model,
+                            message=final_prompt,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            p=0.9,
+                            k=0,
+                            prompt_truncation="AUTO"
+                        )
+                        result_text = response.text.strip()
+                    except Exception as e:
+                        logger.warning("Chat endpoint failed, falling back to generate endpoint: %s", str(e))
+                        # Fallback to generate endpoint
+                        response = self.cohere_client.generate(
+                            model=model,
+                            prompt=final_prompt,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            k=0,
+                            p=0.9,
+                            frequency_penalty=0.3,
+                            presence_penalty=0.3,
+                            return_likelihoods='NONE',
+                            truncate='END'
+                        )
+                        result_text = response.generations[0].text.strip()
+                    
+                    # Clean up the response
+                    if result_text:
+                        # Remove any markdown code block markers
+                        if result_text.startswith('```') and result_text.endswith('```'):
+                            result_text = result_text[3:-3].strip()
+                        
+                        # Ensure the response starts with the expected format
+                        lines = result_text.split('\n')
+                        start_idx = 0
+                        for i, line in enumerate(lines):
+                            if line.strip().startswith('## '):
+                                start_idx = i
+                                break
+                        
+                        result_text = '\n'.join(lines[start_idx:]).strip()
+                        
+                        # Ensure all required sections are present
+                        required_sections = [
+                            '## Code Summary',
+                            '## Detected Language',
+                            '## Strengths',
+                            '## Critical Issues',
+                            '## Improvements Needed',
+                            '## Security Notes',
+                            '## Performance Tips',
+                            '## Final Score'
+                        ]
+                        
+                        for section in required_sections:
+                            if section not in result_text:
+                                result_text += f"\n\n{section}\n[Not provided]"
+                    
+                    return result_text
+                else:
+                    # For other types of prompts, use the chat endpoint
+                    response = self.cohere_client.chat(
+                        model=model,
+                        message=prompt,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        p=0.9,
+                        k=0,
+                        prompt_truncation="AUTO"
+                    )
+                    result_text = response.text
+                
+                # Clean up the response
+                result_text = result_text.strip()
                 
                 # Log successful response
                 duration = time.time() - start_time
                 logger.info(
                     "[%s] Cohere API request completed in %.2fs. Response length: %d",
-                    request_id, duration, len(response.text)
+                    request_id, duration, len(result_text)
                 )
-                logger.debug("[%s] Cohere response (first 200 chars): %s", request_id, response.text[:200])
+                logger.debug("[%s] Cohere response (first 200 chars): %s", request_id, result_text[:200])
                 
-                return response.text.strip()
+                return result_text
                 
             except Exception as e:
                 error_msg = f"Cohere API error: {str(e)}"
