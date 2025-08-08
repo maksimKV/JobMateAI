@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import Navigation from '@/components/Navigation';
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, List, Loader2 } from 'lucide-react';
@@ -18,41 +18,29 @@ export default function CVAnalyzer() {
   const [error, setError] = useState<string | null>(null);
   const t = useTranslations('cvAnalyzer');
 
+  // Define loadCvList with useCallback to prevent recreation on every render
+  const loadCvList = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await cvAPI.list();
+      // Handle both array and object response formats
+      const cvs = Array.isArray(response) ? response : (response as { cvs: CVData[] })?.cvs || [];
+      setCvList(cvs);
+    } catch (err) {
+      console.error('Error loading CV list:', err);
+      setError(t('errors.loadList'));
+      setCvList([]); // Ensure empty array on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
   // Load CV list on component mount
   useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') return;
-    
-    const loadCvList = async () => {
-      try {
-        setIsLoading(true);
-        const response = await cvAPI.list() as { cvs: CVData[]; total_cvs: number };
-        setCvList(response.cvs || []);
-      } catch (error) {
-        console.error('Error loading CV list:', error);
-        setError(t('errors.loadList'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     loadCvList();
-  }, [t]); // Add t to dependency array
-
-  const loadCvList = async () => {
-    try {
-      setIsLoading(true);
-      const response = await cvAPI.list();
-      // Type assertion to handle the API response
-      const data = response as { cvs: CVData[] };
-      setCvList(data.cvs || []);
-    } catch (err: unknown) {
-      console.error('Error loading CV list:', err);
-      setError(t('errors.loadList'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadCvList]);
 
   const handleCvSelect = async (cvId: string) => {
     try {
