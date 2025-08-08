@@ -1,13 +1,27 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 import logging
 import time
+import json
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from pathlib import Path
+
+# Import middleware and translation
+from middleware.language import LanguageMiddleware
+from utils.translations import translator
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Import routers
@@ -53,7 +67,11 @@ app = FastAPI(
     description="AI-powered career development and interview preparation platform",
     version="1.0.0",
     on_startup=[],
-    on_shutdown=[]
+    on_shutdown=[],
+    default_response_class=JSONResponse,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
 )
 
 # Mark app as ready after initialization
@@ -83,17 +101,78 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Add middleware to handle CORS preflight and add CORS headers to all responses
+# Add language middleware
+app.add_middleware(
+    LanguageMiddleware,
+    default_language='en',
+    supported_languages=['en', 'bg']
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
+
+# Error handling middleware
 @app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    origin = request.headers.get('origin')
-    if origin in origins:
-        response.headers["Access-Control-Allow-Origin"] = origin
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
+async def error_handling_middleware(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        
+        # Add CORS headers
+        origin = request.headers.get('origin')
+        if origin in origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept-Language"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        
+        return response
+        
+    except HTTPException as http_exc:
+        # Handle HTTP exceptions
+        error_detail = http_exc.detail
+        if isinstance(error_detail, dict):
+            error_detail = error_detail.get('detail', str(error_detail))
+        
+        # Get language from request state
+        language = getattr(request.state, 'language', 'en')
+        
+        # Get translated error message
+        error_key = f"errors.{error_detail}" if isinstance(error_detail, str) and not any(c.isspace() for c in error_detail) else "internal_server_error"
+        error_message = translator.get(
+            error_key,
+            language,
+            default=error_detail,
+            **getattr(http_exc, 'extra', {})
+        )
+        
+        return JSONResponse(
+            status_code=http_exc.status_code,
+            content={"detail": error_message},
+            headers={"Content-Language": language}
+        )
+        
+    except Exception as e:
+        # Handle unexpected errors
+        logger.exception("Unhandled exception in request")
+        language = getattr(request.state, 'language', 'en')
+        error_message = translator.get(
+            "errors.internal_server_error",
+            language,
+            error=str(e)
+        )
+        
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": error_message},
+            headers={"Content-Language": language}
+        )
 
 # Mount static files for uploaded documents
 os.makedirs("uploads", exist_ok=True)
