@@ -1,4 +1,4 @@
-import { CVUploadResponse, CVData, CoverLetterRequest, CoverLetterResponse, JobMatchRequest, JobMatchResponse, InterviewQuestionRequest, InterviewQuestionResponse, AnswerSubmissionRequest, AnswerSubmissionResponse, StatisticsRequest, StatisticsResponse } from '@/types';
+import { CVUploadResponse, CVData, CoverLetterRequest, CoverLetterResponse, JobMatchRequest, JobMatchResponse, InterviewQuestionRequest, InterviewQuestionResponse, AnswerSubmissionRequest, AnswerSubmissionResponse, StatisticsRequest, StatisticsResponse, CodeReviewResponse } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -139,8 +139,8 @@ export const interviewAPI = {
 
 // Code Reviewer API
 export const codeReviewAPI = {
-  review: async (code: string): Promise<{ success: boolean; review: string; detected_language: string }> => {
-    return apiRequest<{ success: boolean; review: string; detected_language: string }>('/api/code-review/review', {
+  review: async (code: string): Promise<CodeReviewResponse> => {
+    return apiRequest<CodeReviewResponse>('/api/code-review/review', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });

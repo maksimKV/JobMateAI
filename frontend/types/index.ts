@@ -229,6 +229,7 @@ export interface CodeReviewRequest {
 export interface CodeReviewResponse {
   success: boolean;
   review: string;
+  detected_language: string;
 }
 
 // Statistics Types
