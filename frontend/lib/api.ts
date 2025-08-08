@@ -53,14 +53,30 @@ export const cvAPI = {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new APIError(response.status, errorData.detail || `HTTP ${response.status}`);
+      throw new APIError(response.status, errorData.detail || errorData.message || `HTTP ${response.status}`);
     }
     
-    return response.json();
+    const data = await response.json();
+    return {
+      success: data.success,
+      cv_id: data.cv_id,
+      filename: data.filename,
+      analysis: data.analysis || {},
+      parsed_data: data.parsed_data || {},
+      extracted_skills: data.extracted_skills || []
+    };
   },
 
   getAnalysis: async (cvId: string): Promise<CVData> => {
-    return apiRequest<CVData>(`/api/cv/${cvId}`);
+    const data = await apiRequest<CVData>(`/api/cv/${cvId}`);
+    return {
+      id: data.cv_id || cvId,
+      filename: data.filename || '',
+      upload_timestamp: data.upload_timestamp || new Date().toISOString(),
+      parsed_data: data.parsed_data || {},
+      extracted_skills: data.extracted_skills || [],
+      analysis: data.analysis || {}
+    };
   },
 
   getSkills: async (cvId: string) => {
@@ -68,7 +84,11 @@ export const cvAPI = {
   },
 
   list: async () => {
-    return apiRequest('/api/cv/list');
+    const response = await apiRequest<{ cvs: CVData[] }>('/api/cv/list');
+    return {
+      cvs: response.cvs || [],
+      total_cvs: response.cvs?.length || 0
+    };
   },
 
   delete: async (cvId: string) => {

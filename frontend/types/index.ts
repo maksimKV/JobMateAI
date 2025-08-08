@@ -1,41 +1,59 @@
 // CV Analyzer Types
+export interface ParsedData {
+  raw_text: string;
+  sections: {
+    has_contact_info: boolean;
+    has_education: boolean;
+    has_experience: boolean;
+    has_skills: boolean;
+    has_projects: boolean;
+    has_certifications: boolean;
+    missing_sections: string[];
+  };
+  file_path: string;
+  file_type: string;
+  word_count: number;
+  character_count: number;
+  [key: string]: any; // Allow additional properties
+}
+
 export interface CVData {
   id: string;
+  cv_id?: string;  // For backward compatibility
   filename: string;
   upload_timestamp: string;
-  parsed_data: {
-    raw_text: string;
-    sections: {
-      has_contact_info: boolean;
-      has_education: boolean;
-      has_experience: boolean;
-      has_skills: boolean;
-      has_projects: boolean;
-      has_certifications: boolean;
-      missing_sections: string[];
-    };
-    file_path: string;
-    file_type: string;
-    word_count: number;
-    character_count: number;
-  };
+  parsed_data: ParsedData;
   extracted_skills: string[];
   analysis: {
     analysis: string;
     type: string;
     provider: string;
+    [key: string]: any; // Allow additional properties
   };
+  [key: string]: any; // Allow additional properties
 }
 
-export interface CVUploadResponse extends Omit<CVData, 'id'> {
+export interface CVUploadResponse {
   success: boolean;
   cv_id: string;
   filename: string;
+  upload_timestamp?: string;
+  parsed_data: ParsedData;
+  extracted_skills: string[];
   analysis: {
     analysis: string;
     type: string;
     provider: string;
+    [key: string]: any; // Allow additional properties
   };
+  [key: string]: any; // Allow additional properties from backend
+}
+
+export interface CVListResponse {
+  success: boolean;
+  cvs: CVData[];
+  total_cvs: number;
+  message?: string;
 }
 
 // Cover Letter Types

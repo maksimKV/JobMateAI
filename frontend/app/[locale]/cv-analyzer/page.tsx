@@ -18,26 +18,22 @@ export default function CVAnalyzer() {
   const [error, setError] = useState<string | null>(null);
   const t = useTranslations('cvAnalyzer');
 
-  // Define loadCvList with useCallback to prevent recreation on every render
   const loadCvList = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await cvAPI.list();
-      // Handle both array and object response formats
       const cvs = Array.isArray(response) ? response : (response as { cvs: CVData[] })?.cvs || [];
       setCvList(cvs);
     } catch (err) {
       console.error('Error loading CV list:', err);
       setError(t('errors.loadList'));
-      setCvList([]); // Ensure empty array on error
+      setCvList([]);
     } finally {
       setIsLoading(false);
     }
   }, [t]);
 
-  // Load CV list on component mount
   useEffect(() => {
-    // Only run on client side
     if (typeof window === 'undefined') return;
     loadCvList();
   }, [loadCvList]);
@@ -46,12 +42,49 @@ export default function CVAnalyzer() {
     try {
       setIsLoading(true);
       const cvData = await cvAPI.getAnalysis(cvId);
-      setAnalysis({
+      
+      // Create a complete CVUploadResponse object with all required properties
+      const response: CVUploadResponse = {
         success: true,
         cv_id: cvId,
-        filename: cvData.filename || t('defaults.untitled'),
-        analysis: cvData.analysis || {}
-      });
+        filename: cvData.filename || 'Unknown',
+        upload_timestamp: cvData.upload_timestamp || new Date().toISOString(),
+        analysis: {
+          analysis: cvData.analysis?.analysis || '',
+          type: cvData.analysis?.type || 'cv_analysis',
+          provider: cvData.analysis?.provider || 'jobmateai',
+          structure: cvData.analysis?.structure || {
+            has_contact_info: false,
+            has_education: false,
+            has_experience: false,
+            has_skills: false,
+            has_projects: false,
+            has_certifications: false
+          },
+          missing_sections: cvData.analysis?.missing_sections || [],
+          word_count: cvData.analysis?.word_count || 0,
+          ai_feedback: cvData.analysis?.ai_feedback || ''
+        },
+        parsed_data: {
+          raw_text: cvData.parsed_data?.raw_text || '',
+          sections: {
+            has_contact_info: cvData.parsed_data?.sections?.has_contact_info || false,
+            has_education: cvData.parsed_data?.sections?.has_education || false,
+            has_experience: cvData.parsed_data?.sections?.has_experience || false,
+            has_skills: cvData.parsed_data?.sections?.has_skills || false,
+            has_projects: cvData.parsed_data?.sections?.has_projects || false,
+            has_certifications: cvData.parsed_data?.sections?.has_certifications || false,
+            missing_sections: cvData.parsed_data?.sections?.missing_sections || []
+          },
+          file_path: cvData.parsed_data?.file_path || '',
+          file_type: cvData.parsed_data?.file_type || '',
+          word_count: cvData.parsed_data?.word_count || 0,
+          character_count: cvData.parsed_data?.character_count || 0
+        },
+        extracted_skills: Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []
+      };
+      
+      setAnalysis(response);
       setShowList(false);
     } catch (err) {
       console.error('Error loading CV:', err);
@@ -97,21 +130,50 @@ export default function CVAnalyzer() {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {
+      setError(t('errors.noFileSelected'));
+      return;
+    }
 
     setIsUploading(true);
     setError(null);
 
     try {
       const result = await cvAPI.upload(file);
-      setAnalysis(result);
-      // Refresh the CV list after upload
+      setAnalysis({
+        ...result,
+        cv_id: result.cv_id,
+        filename: result.filename || file.name,
+        analysis: result.analysis || {
+          analysis: '',
+          type: 'cv_analysis',
+          provider: 'jobmateai'
+        },
+        parsed_data: result.parsed_data || {
+          raw_text: '',
+          sections: {
+            has_contact_info: false,
+            has_education: false,
+            has_experience: false,
+            has_skills: false,
+            has_projects: false,
+            has_certifications: false,
+            missing_sections: []
+          },
+          file_path: '',
+          file_type: file.type || file.name.split('.').pop() || '',
+          word_count: 0,
+          character_count: 0
+        },
+        extracted_skills: result.extracted_skills || []
+      });
       await loadCvList();
     } catch (err) {
+      console.error('Upload error:', err);
       if (err instanceof APIError) {
         setError(err.message);
       } else {
-        setError(t('errors.unexpected'));
+        setError(t('errors.uploadFailed'));
       }
     } finally {
       setIsUploading(false);
@@ -124,9 +186,7 @@ export default function CVAnalyzer() {
     
     try {
       await cvAPI.delete(cvId);
-      // Refresh the CV list after deletion
       await loadCvList();
-      // Clear analysis if the deleted CV is currently shown
       if (analysis?.cv_id === cvId) {
         setAnalysis(null);
       }
@@ -167,7 +227,6 @@ export default function CVAnalyzer() {
           </button>
         </div>
 
-        {/* CV List */}
         {showList && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">{t('uploadedCVs')}</h3>
@@ -203,7 +262,6 @@ export default function CVAnalyzer() {
           </div>
         )}
 
-        {/* Upload Section */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-medium text-gray-900 mb-4">{t('upload.title')}</h3>
           <div 
@@ -268,9 +326,8 @@ export default function CVAnalyzer() {
             </div>
           </div>
 
-          {/* Error Display */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 mt-6">
               <div className="flex items-center">
                 <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
                 <span className="text-red-700">{error}</span>
@@ -278,68 +335,67 @@ export default function CVAnalyzer() {
             </div>
           )}
 
-          {/* Analysis Results */}
           {analysis && (
-            <div className="space-y-6">
+            <div className="mt-8 space-y-6">
               <div className="border-b border-gray-200 pb-4">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('analysis.title')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{t('analysis.fileInfo')}</h3>
                     <p className="text-sm text-gray-600">{t('analysis.filename')}: {analysis.filename}</p>
-                    <p className="text-sm text-gray-600">{t('analysis.wordCount')}: {analysis.analysis.word_count}</p>
+                    <p className="text-sm text-gray-600">{t('analysis.wordCount')}: {analysis.analysis?.word_count || 0}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{t('analysis.skillsFound')}</h3>
                     <p className="text-sm text-gray-600">
-                      {analysis.analysis.extracted_skills.length} {t('analysis.skillsDetected')}
+                      {analysis.extracted_skills?.length || 0} {t('analysis.skillsDetected')}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Structure Analysis */}
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.structure.title')}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">{t('analysis.structure.contactInfo')}</span>
-                      {getSectionStatus(analysis.analysis.structure.has_contact_info)}
+              {analysis.analysis?.structure && (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.structure.title')}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700">{t('analysis.structure.contactInfo')}</span>
+                        {getSectionStatus(analysis.analysis.structure.has_contact_info)}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700">{t('analysis.structure.education')}</span>
+                        {getSectionStatus(analysis.analysis.structure.has_education)}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700">{t('analysis.structure.experience')}</span>
+                        {getSectionStatus(analysis.analysis.structure.has_experience)}
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">{t('analysis.structure.education')}</span>
-                      {getSectionStatus(analysis.analysis.structure.has_education)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">{t('analysis.structure.experience')}</span>
-                      {getSectionStatus(analysis.analysis.structure.has_experience)}
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">{t('analysis.structure.skills')}</span>
-                      {getSectionStatus(analysis.analysis.structure.has_skills)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">{t('analysis.structure.projects')}</span>
-                      {getSectionStatus(analysis.analysis.structure.has_projects)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700">{t('analysis.structure.certifications')}</span>
-                      {getSectionStatus(analysis.analysis.structure.has_certifications)}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700">{t('analysis.structure.skills')}</span>
+                        {getSectionStatus(analysis.analysis.structure.has_skills)}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700">{t('analysis.structure.projects')}</span>
+                        {getSectionStatus(analysis.analysis.structure.has_projects)}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700">{t('analysis.structure.certifications')}</span>
+                        {getSectionStatus(analysis.analysis.structure.has_certifications)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Missing Sections */}
-              {analysis.analysis.missing_sections?.length > 0 && (
+              {analysis.analysis?.missing_sections?.length > 0 && (
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.missingSections')}</h3>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <ul className="list-disc list-inside space-y-1">
-                      {analysis.analysis.missing_sections.map((section, index) => (
+                      {analysis.analysis.missing_sections.map((section: string, index: number) => (
                         <li key={index} className="text-yellow-800">{section}</li>
                       ))}
                     </ul>
@@ -347,12 +403,11 @@ export default function CVAnalyzer() {
                 </div>
               )}
 
-              {/* Skills */}
-              {analysis.analysis.extracted_skills?.length > 0 && (
+              {analysis.extracted_skills?.length > 0 && (
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.detectedSkills')}</h3>
                   <div className="flex flex-wrap gap-2">
-                    {analysis.analysis.extracted_skills.map((skill, index) => (
+                    {analysis.extracted_skills.map((skill: string, index: number) => (
                       <span
                         key={index}
                         className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
@@ -364,15 +419,16 @@ export default function CVAnalyzer() {
                 </div>
               )}
 
-              {/* AI Feedback */}
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.aiFeedback')}</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {analysis.analysis.ai_feedback}
-                  </p>
+              {analysis.analysis?.ai_feedback && (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.aiFeedback')}</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {analysis.analysis.ai_feedback}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
