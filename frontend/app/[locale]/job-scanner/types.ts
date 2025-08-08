@@ -28,24 +28,47 @@ export interface JobSkills {
   soft_skills: string[];
 }
 
+export interface MissingSkill {
+  text: string;
+  action?: 'add' | 'highlight' | 'suggest';
+}
+
+export type SkillType = string | MissingSkill;
+
+export interface SuggestionsObject {
+  missing_skills: SkillType[];
+}
+
+export type SuggestionsType = Suggestion[] | SuggestionsObject;
+
+// Type guards
+export function isSuggestionsArray(suggestions: SuggestionsType): suggestions is Suggestion[] {
+  return Array.isArray(suggestions);
+}
+
+export function isSuggestionsObject(suggestions: SuggestionsType): suggestions is SuggestionsObject {
+  return !Array.isArray(suggestions) && 'missing_skills' in suggestions;
+}
+
+export function isMissingSkill(skill: SkillType): skill is MissingSkill {
+  return typeof skill !== 'string' && 'text' in skill;
+}
+
 export interface JobMatchResponse {
   success: boolean;
   message: string;
   match_score: number;
   job_skills: JobSkills;
   cv_skills: JobSkills;
-  suggestions: {
-    missing_skills: string[];
-    [key: string]: unknown; // Allow additional suggestion properties with type safety
-  };
-  missing_skills: string[];
+  suggestions?: SuggestionsType;
+  missing_skills?: SkillType[];
+  matched_skills?: SkillType[];
   language: string;
   score_interpretation: string;
   
   // For backward compatibility
   match_percent?: number;
   soft_skill_percent?: number;
-  matched_skills?: string[];
   matched_soft_skills?: string[];
   missing_soft_skills?: string[];
   job_info?: JobSkills;

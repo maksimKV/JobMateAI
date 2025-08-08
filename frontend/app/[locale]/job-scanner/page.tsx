@@ -7,7 +7,15 @@ import { jobScannerAPI, cvAPI, APIError } from '@/lib/api';
 import { CVData } from '@/types';
 import { Search, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { SuggestionCard } from './components/SuggestionCard';
-import { JobMatchRequest, JobMatchResponse, Suggestion } from './types';
+import { 
+  JobMatchRequest, 
+  JobMatchResponse, 
+  Suggestion, 
+  SkillType, 
+  isSuggestionsArray, 
+  isSuggestionsObject, 
+  isMissingSkill 
+} from './types';
 
 export default function JobScannerPage() {
   const [cvList, setCvList] = useState<CVData[]>([]);
@@ -209,35 +217,53 @@ export default function JobScannerPage() {
                     <div className="w-full bg-gray-200 rounded-full h-6">
                       <div 
                         className="bg-gradient-to-r from-blue-500 to-green-500 h-6 rounded-full flex items-center justify-end pr-4 text-white font-medium text-sm"
-                        style={{ width: `${result.match_percent}%` }}
+                        style={{ width: `${result.match_score}%` }}
                       >
-                        {result.match_percent}%
+                        {result.match_score}%
                       </div>
                     </div>
-                    <span className="ml-4 text-gray-700 font-medium">{result.match_percent}%</span>
+                    <span className="ml-4 text-gray-700 font-medium">{result.match_score}%</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* AI Suggestions */}
-            {Array.isArray(result.suggestions) && result.suggestions.length > 0 && (
+            {result.suggestions && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-gray-900">{t('suggestions.title')}</h2>
                 
-                {/* Unified Grid Layout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {result.suggestions?.map((suggestion: Suggestion, index: number) => (
-                    <div key={`${suggestion.priority}-${index}`} className="h-full">
-                      <SuggestionCard {...suggestion} />
+                {isSuggestionsArray(result.suggestions) ? (
+                  result.suggestions.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {result.suggestions.map((suggestion, index) => (
+                        <div key={`${suggestion.priority}-${index}`} className="h-full">
+                          <SuggestionCard {...suggestion} />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  ) : null
+                ) : isSuggestionsObject(result.suggestions) && result.suggestions.missing_skills?.length ? (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">{t('results.missingSkills')}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.suggestions.missing_skills.map((skill, index) => (
+                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                          <XCircle className="h-4 w-4 mr-1" />
+                          {isMissingSkill(skill) ? skill.text : skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
 
             {/* Fallback to old format if no suggestions */}
-            {(!result.suggestions || result.suggestions.length === 0) && (
+            {(!result.suggestions || 
+              (isSuggestionsObject(result.suggestions) && !result.suggestions.missing_skills?.length) ||
+              (isSuggestionsArray(result.suggestions) && result.suggestions.length === 0)
+            ) && (
               <div className="bg-white rounded-lg shadow p-6 space-y-6">
                 {/* Missing Skills */}
                 {result.missing_skills && result.missing_skills.length > 0 && (
@@ -247,7 +273,7 @@ export default function JobScannerPage() {
                       {result.missing_skills.map((skill, index) => (
                         <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
                           <XCircle className="h-4 w-4 mr-1" />
-                          {skill}
+                          {isMissingSkill(skill) ? skill.text : skill}
                         </span>
                       ))}
                     </div>
@@ -259,12 +285,15 @@ export default function JobScannerPage() {
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{t('results.matchedSkills')}</h3>
                     <div className="flex flex-wrap gap-2">
-                      {result.matched_skills.map((skill, index) => (
-                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          {skill}
-                        </span>
-                      ))}
+                      {result.matched_skills.map((skill, index) => {
+                        const skillText = typeof skill === 'string' ? skill : skill.text;
+                        return (
+                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            {skillText}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
