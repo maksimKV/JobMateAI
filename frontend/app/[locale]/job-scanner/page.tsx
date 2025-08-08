@@ -221,7 +221,7 @@ export default function JobScannerPage() {
             </div>
 
             {/* AI Suggestions */}
-            {result.suggestions && result.suggestions.length > 0 && (
+            {Array.isArray(result.suggestions) && result.suggestions.length > 0 && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-gray-900">{t('suggestions.title')}</h2>
                 
