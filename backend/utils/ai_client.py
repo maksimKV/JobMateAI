@@ -505,8 +505,20 @@ class AIClient:
             logger.error(f"Error extracting company name: {str(e)}")
             return "Company"
 
-    async def generate_cover_letter(self, cv_content: str, job_description: str, language: str = "English") -> Dict[str, str]:
+    async def generate_cover_letter(
+        self, 
+        cv_content: str, 
+        job_description: str, 
+        tone: str = "professional", 
+        language: str = "English"
+    ) -> Dict[str, str]:
         """Generate a personalized cover letter based on CV and job description.
+        
+        Args:
+            cv_content: The content of the CV
+            job_description: The job description
+            tone: The tone of the cover letter (e.g., professional, enthusiastic)
+            language: The language of the cover letter
         
         Returns:
             Dict containing 'content' (the cover letter) and 'company_name'
@@ -515,7 +527,7 @@ class AIClient:
         company_name = await self.extract_company_name(job_description)
         
         prompt = f"""
-        Generate a professional cover letter in {language} based on the following CV and job description.
+        Generate a {tone} cover letter in {language} based on the following CV and job description.
         
         CV Content:
         {cv_content}
@@ -528,7 +540,7 @@ class AIClient:
         2. Highlight relevant experience from the CV
         3. Show enthusiasm for the role and company
         4. Keep it concise (300-400 words)
-        5. Use professional tone
+        5. Use a {tone} tone
         6. Include a clear call to action
         
         Generate the cover letter:
