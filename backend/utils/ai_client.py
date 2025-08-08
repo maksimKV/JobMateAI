@@ -50,7 +50,7 @@ class AIClient:
                         Format the response as a JSON object with these three arrays. Only include the JSON object in your response.
                         
                         Job description: {text}""",
-                        'suggestion_generation': """Compare the following job requirements with the candidate's CV skills and provide improvement suggestions.
+                        'suggestion_generation': """Compare the following job requirements with the candidate's CV skills and provide exactly 6 high-quality improvement suggestions.
                         
                         Job Requirements:
                         {job_skills}
@@ -58,19 +58,32 @@ class AIClient:
                         Candidate's CV Skills:
                         {cv_skills}
                         
-                        Generate suggestions in this JSON format:
+                        Generate exactly 6 suggestions in this JSON format. Ensure each suggestion is unique and provides specific, actionable advice.
                         [
                             {
-                                "id": "unique_id",
+                                "id": "unique_id_1",
                                 "title": "Suggestion Title",
-                                "icon": "code|star|group|format_align_left",
-                                "category": "Skill Enhancement|Experience|Education",
+                                "icon": "code|star|group|format_align_left|school|lightbulb",
+                                "category": "Skill Enhancement|Experience|Education|Certification|Portfolio|Networking",
                                 "priority": "high|medium|low",
-                                "description": "Detailed suggestion",
+                                "description": "Detailed suggestion with specific actions the candidate can take",
                                 "items": [
                                     {"text": "Specific action item", "action": "add|highlight|suggest"}
                                 ]
+                            },
+                            {
+                                "id": "unique_id_2",
+                                "title": "Another Suggestion",
+                                "icon": "school|group|code|star|format_align_left|lightbulb",
+                                "category": "Education|Networking|Skill Enhancement|Experience|Portfolio|Certification",
+                                "priority": "high|medium|low",
+                                "description": "Another detailed suggestion with specific actions",
+                                "items": [
+                                    {"text": "First action step", "action": "add|highlight|suggest"},
+                                    {"text": "Second action step", "action": "add|highlight|suggest"}
+                                ]
                             }
+                            // Add 4 more suggestions following the same format
                         ]"""
                     }
                 }
