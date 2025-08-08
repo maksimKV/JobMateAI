@@ -149,7 +149,7 @@ export default function CVAnalyzer() {
     }
   };
 
-  // Clear the last viewed CV when uploading a new one
+  // Handle file upload and fetch complete analysis
   const handleUpload = async () => {
     if (!file) {
       setError(t('errors.noFileSelected'));
@@ -160,46 +160,56 @@ export default function CVAnalyzer() {
     setError(null);
 
     try {
-      const result = await cvAPI.upload(file);
-      setAnalysis({
-        ...result,
-        cv_id: result.cv_id,
-        filename: result.filename || file.name,
-        analysis: {
-          structure: {
-            has_contact_info: result.analysis?.structure?.has_contact_info || false,
-            has_education: result.analysis?.structure?.has_education || false,
-            has_experience: result.analysis?.structure?.has_experience || false,
-            has_skills: result.analysis?.structure?.has_skills || false,
-            has_projects: result.analysis?.structure?.has_projects || false,
-            has_certifications: result.analysis?.structure?.has_certifications || false,
-            missing_sections: result.analysis?.structure?.missing_sections || []
+      // First, upload the file
+      const uploadResult = await cvAPI.upload(file);
+      
+      // Then, fetch the complete analysis using the returned CV ID
+      if (uploadResult.cv_id) {
+        await handleCvSelect(uploadResult.cv_id);
+      } else {
+        // Fallback to the old behavior if no CV ID is returned
+        setAnalysis({
+          ...uploadResult,
+          cv_id: uploadResult.cv_id || '',
+          filename: uploadResult.filename || file.name,
+          analysis: {
+            structure: {
+              has_contact_info: uploadResult.analysis?.structure?.has_contact_info || false,
+              has_education: uploadResult.analysis?.structure?.has_education || false,
+              has_experience: uploadResult.analysis?.structure?.has_experience || false,
+              has_skills: uploadResult.analysis?.structure?.has_skills || false,
+              has_projects: uploadResult.analysis?.structure?.has_projects || false,
+              has_certifications: uploadResult.analysis?.structure?.has_certifications || false,
+              missing_sections: uploadResult.analysis?.structure?.missing_sections || []
+            },
+            ai_feedback: uploadResult.analysis?.ai_feedback || uploadResult.analysis?.analysis || '',
+            extracted_skills: Array.isArray(uploadResult.analysis?.extracted_skills) ? 
+              uploadResult.analysis.extracted_skills : 
+              (Array.isArray(uploadResult.extracted_skills) ? uploadResult.extracted_skills : []),
+            word_count: uploadResult.parsed_data?.word_count || 0,
+            missing_sections: uploadResult.analysis?.missing_sections || []
           },
-          ai_feedback: result.analysis?.ai_feedback || result.analysis?.analysis || '',
-          extracted_skills: Array.isArray(result.analysis?.extracted_skills) ? 
-            result.analysis.extracted_skills : 
-            (Array.isArray(result.extracted_skills) ? result.extracted_skills : []),
-          word_count: result.analysis?.word_count || 0,
-          missing_sections: result.analysis?.missing_sections || []
-        },
-        parsed_data: result.parsed_data || {
-          raw_text: '',
-          sections: {
-            has_contact_info: false,
-            has_education: false,
-            has_experience: false,
-            has_skills: false,
-            has_projects: false,
-            has_certifications: false,
-            missing_sections: []
+          parsed_data: uploadResult.parsed_data || {
+            raw_text: '',
+            sections: {
+              has_contact_info: false,
+              has_education: false,
+              has_experience: false,
+              has_skills: false,
+              has_projects: false,
+              has_certifications: false,
+              missing_sections: []
+            },
+            file_path: '',
+            file_type: file.type || file.name.split('.').pop() || '',
+            word_count: 0,
+            character_count: 0
           },
-          file_path: '',
-          file_type: file.type || file.name.split('.').pop() || '',
-          word_count: 0,
-          character_count: 0
-        },
-        extracted_skills: Array.isArray(result.extracted_skills) ? result.extracted_skills : []
-      });
+          extracted_skills: Array.isArray(uploadResult.extracted_skills) ? uploadResult.extracted_skills : []
+        });
+      }
+      
+      // Refresh the CV list
       await loadCvList();
     } catch (err) {
       console.error('Upload error:', err);
