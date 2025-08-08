@@ -7,6 +7,8 @@ import asyncio
 import logging
 from pathlib import Path
 import json
+import uuid
+import time
 
 # Import translation service
 from .translations import translator
@@ -178,18 +180,40 @@ class AIClient:
         language: str = 'en',
         **kwargs
     ) -> str:
-        """Generate text using available AI providers with fallback logic."""
+        """
+        Generate text using available AI providers with fallback logic.
+        
+        Args:
+            prompt: The prompt or template key to generate text from
+            model: The model to use for generation
+            max_tokens: Maximum number of tokens to generate
+            temperature: Controls randomness (0.0 to 1.0)
+            language: Language code for localization
+            **kwargs: Additional arguments for the prompt template
+            
+        Returns:
+            Generated text or error message if all providers fail
+        """
+        request_id = str(uuid.uuid4())[:8]
+        start_time = time.time()
+        
+        # Log the request
+        logger.info(
+            "[%s] Starting text generation request. Model: %s, Max tokens: %d, Temperature: %.2f, Language: %s",
+            request_id, model, max_tokens, temperature, language
+        )
+        logger.debug("[%s] Prompt (first 200 chars): %s", request_id, str(prompt)[:200])
         
         # Handle prompt templates
         if isinstance(prompt, tuple):
             prompt_key, format_kwargs = prompt[0], prompt[1]
             prompt = self.get_prompt(prompt_key, language=language, **format_kwargs)
         
-        logger.debug(f"Generating text with prompt (language: {language}): {prompt[:200]}...")
-        
         # Try Cohere first (free tier available)
         if self.cohere_client:
             try:
+                logger.debug("[%s] Trying Cohere API with model: %s", request_id, model)
+                
                 # Use prompt directly as the message string
                 response = self.cohere_client.chat(
                     model=model,
@@ -200,13 +224,26 @@ class AIClient:
                     k=0,
                     prompt_truncation="AUTO"
                 )
+                
+                # Log successful response
+                duration = time.time() - start_time
+                logger.info(
+                    "[%s] Cohere API request completed in %.2fs. Response length: %d",
+                    request_id, duration, len(response.text)
+                )
+                logger.debug("[%s] Cohere response (first 200 chars): %s", request_id, response.text[:200])
+                
                 return response.text.strip()
+                
             except Exception as e:
-                print(f"Cohere error: {e}")
+                error_msg = f"Cohere API error: {str(e)}"
+                logger.error("[%s] %s", request_id, error_msg, exc_info=True)
         
         # Fallback to OpenAI
         if self.openai_client:
             try:
+                logger.debug("[%s] Falling back to OpenAI API", request_id)
+                
                 # For OpenAI v0.28.1, use the older API format with gpt-3.5-turbo-instruct
                 response = openai.Completion.create(
                     engine="gpt-3.5-turbo-instruct",  # Compatible with older API versions
@@ -217,11 +254,25 @@ class AIClient:
                     frequency_penalty=0.0,
                     presence_penalty=0.0
                 )
+                
+                # Log successful response
+                duration = time.time() - start_time
+                logger.info(
+                    "[%s] OpenAI API request completed in %.2fs. Response length: %d",
+                    request_id, duration, len(response.choices[0].text)
+                )
+                logger.debug("[%s] OpenAI response (first 200 chars): %s", request_id, response.choices[0].text[:200])
+                
                 return response.choices[0].text.strip()
+                
             except Exception as e:
-                print(f"OpenAI error: {e}")
+                error_msg = f"OpenAI API error: {str(e)}"
+                logger.error("[%s] %s", request_id, error_msg, exc_info=True)
         
-        # If no AI providers available, return a placeholder
+        # If no AI providers available, log error and return a placeholder
+        error_msg = "No AI providers available. Please check your API keys and configuration."
+        logger.error("[%s] %s", request_id, error_msg)
+        
         return "AI service temporarily unavailable. Please check your API keys."
     
     async def extract_job_info(self, job_description: str) -> Dict[str, str]:
@@ -592,134 +643,7 @@ class AIClient:
                 "domain": "General Business"
             }
 
-    async def extract_job_info(self, job_description: str) -> Dict[str, str]:
-        """
-        Extract company name and position from a job description using AI.
-        Returns a dictionary with 'company_name' and 'position' keys.
-        """
-        # First try with OpenAI if available
-        if hasattr(openai, 'ChatCompletion'):
-            try:
-                response = await asyncio.to_thread(
-                    openai.ChatCompletion.create,
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant that extracts company names and job positions from job descriptions. Respond with a JSON object containing 'company_name' and 'position'."},
-                        {"role": "user", "content": f"Extract the company name and job position from this job description. Respond with a JSON object containing 'company_name' and 'position' fields. If you can't determine a field, use 'Company' or 'Position' as default.\n\nJob Description: {job_description[:2000]}"}
-                    ],
-                    temperature=0.1,
-                    response_format={"type": "json_object"}
-                )
-                try:
-                    import json
-                    result = json.loads(response.choices[0].message.content)
-                    return {
-                        "company_name": result.get("company_name", "Company").strip(),
-                        "position": result.get("position", "Position").strip()
-                    }
-                except (KeyError, json.JSONDecodeError, SyntaxError, AttributeError) as e:
-                    logger.error(f"Error parsing OpenAI response: {str(e)}")
-                    logger.debug(f"OpenAI response content: {response.choices[0].message.content if hasattr(response, 'choices') else 'No response content'}")
-                    
-            except (openai.error.RateLimitError, openai.error.APIError) as e:
-                logger.warning(f"OpenAI API error, falling back to Cohere: {str(e)}")
-            except Exception as e:
-                logger.error(f"Unexpected error with OpenAI: {str(e)}", exc_info=True)
-        
-        # Fall back to Cohere if OpenAI is not available or fails
-        if self.cohere_client:
-            try:
-                prompt = f"""Extract the following information from the job description below:
-                1. Company name (field: company_name)
-                2. Job position/title (field: position)
-                
-                Return ONLY a valid JSON object with these fields. If information is not available, 
-                use 'Company' for company_name and 'Position' for position.
-                
-                Job Description:
-                {job_description[:2000]}
-                
-                Response (JSON only, no other text):
-                """
-                
-                # Create a simple prompt with clear instructions
-                full_prompt = ("Extract the company name and job position from the following job description. "
-                             "Respond with a JSON object containing 'company_name' and 'position' fields.\n\n"
-                             f"Job Description: {job_description[:2000]}\n\n"
-                             "Response (JSON only):")
-                
-                # Log the request being made to Cohere
-                logger.info("Sending request to Cohere API with prompt length: %d", len(full_prompt))
-                
-                # Make the API call with minimal parameters
-                response = self.cohere_client.chat(
-                    message=full_prompt,
-                    model="command-r-plus"
-                )
-                
-                # Log the raw response
-                logger.info("Received response from Cohere API. Response type: %s", type(response))
-                logger.debug("Raw Cohere response: %s", response)
-                
-                if hasattr(response, 'text'):
-                    logger.info("Response text length: %d", len(response.text))
-                    logger.debug("Response text: %s", response.text[:500])  # Log first 500 chars to avoid huge logs
-                else:
-                    logger.warning("No 'text' attribute in Cohere response")
-                    raise ValueError("No text in Cohere response")
-                
-                # Parse the response text as JSON
-                try:
-                    import json
-                    # Clean the response text (remove markdown code blocks if present)
-                    response_text = response.text.strip()
-                    if response_text.startswith('```json'):
-                        response_text = response_text[7:]  # Remove ```json
-                    if response_text.endswith('```'):
-                        response_text = response_text[:-3]  # Remove trailing ```
-                    response_text = response_text.strip()
-                    
-                    logger.debug("Parsing response text: %s", response_text)
-                    
-                    # Parse the JSON response
-                    result = json.loads(response_text)
-                    
-                    # Validate the response structure
-                    if not isinstance(result, dict):
-                        raise ValueError("Response is not a JSON object")
-                        
-                    extracted = {
-                        "company_name": result.get("company_name", "Company").strip(),
-                        "position": result.get("position", "Position").strip()
-                    }
-                    
-                    logger.info("Successfully extracted job info: %s", extracted)
-                    return extracted
-                    
-                except json.JSONDecodeError as e:
-                    logger.error("Failed to parse JSON response from Cohere: %s", str(e))
-                    logger.error("Response text: %s", response_text if 'response_text' in locals() else "No response text available")
-                    raise
-                except Exception as e:
-                    logger.error("Error parsing Cohere response: %s", str(e), exc_info=True)
-                    raise
-                
-            except cohere.CohereAPIError as e:
-                error_msg = f"Cohere API error: {str(e)}"
-                if hasattr(e, 'status_code'):
-                    error_msg += f" (Status: {e.status_code})"
-                if hasattr(e, 'body'):
-                    error_msg += f"\nResponse body: {e.body}"
-                logger.error(error_msg, exc_info=True)
-            except Exception as e:
-                logger.error("Unexpected error with Cohere: %s", str(e), exc_info=True)
-            logger.error(f"Error extracting job info: {str(e)}")
-        
-        # Default return if anything fails
-        return {
-            "company_name": "Company",
-            "position": "Position"
-        }
+
     
     async def generate_interview_questions(self, job_description: str, question_type: str, count: int = 8, extract_company: bool = False) -> Dict[str, Any]:
         """Generate interview questions based on job description and type."""

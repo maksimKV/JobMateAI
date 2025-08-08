@@ -1,9 +1,13 @@
-from fastapi import APIRouter, HTTPException, Body
-from typing import Dict, Any
-from utils.ai_client import ai_client
+from fastapi import APIRouter, HTTPException, Body, Request, status
+from typing import Dict, Any, Optional
 import re
+import logging
 
-router = APIRouter()
+from utils.ai_client import ai_client
+from utils.translations import translator
+
+router = APIRouter(prefix="/api/code-review", tags=["Code Review"])
+logger = logging.getLogger(__name__)
 
 def detect_language(code: str) -> str:
     """Very basic language detection based on code patterns."""
@@ -27,32 +31,76 @@ def detect_language(code: str) -> str:
 
 @router.post("/review")
 async def review_code(
-    code: str = Body(..., embed=True)
+    request: Request,
+    code: str = Body(..., embed=True, description="Source code to review"),
+    language: Optional[str] = Body(None, embed=True, description="Language code for the response (e.g., 'en', 'bg')")
 ) -> Dict[str, Any]:
-    """Review code and provide summary, bug detection, optimization, and readability tips. Language is detected automatically."""
+    """
+    Review code and provide summary, bug detection, optimization, and readability tips.
+    Programming language is detected automatically.
+    
+    Args:
+        code: Source code to review
+        language: Language code for the response (e.g., 'en', 'bg')
+        
+    Returns:
+        Dictionary containing code review results
+    """
+    # Get language from request if not provided
+    req_language = getattr(request.state, 'language', 'en')
+    language = language or req_language
+    
     if not code.strip():
-        raise HTTPException(status_code=400, detail="No code provided.")
+        error_msg = translator.get("errors.no_code_provided", language)
+        logger.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
     try:
         language = detect_language(code)
-        prompt = f"""
-        Review the following code. Detect the programming language automatically. Provide:
-        1. The detected language
-        2. A summary of what the code does
-        3. Possible bugs or issues
-        4. Optimization tips
-        5. Readability improvements
-        6. Security considerations (if any)
+        # Get localized prompt template
+        prompt_template = translator.get("prompts.code_review", language)
         
-        Code:
-        {code}
+        # If no specific template found, use default
+        if not prompt_template:
+            prompt_template = """
+            Review the following code. Detect the programming language automatically. Provide:
+            1. The detected language
+            2. A summary of what the code does
+            3. Possible bugs or issues
+            4. Optimization tips
+            5. Readability improvements
+            6. Security considerations (if any)
+            
+            Code:
+            {code}
+            
+            Respond in a structured format in {language} language.
+            """
         
-        Respond in a structured format.
-        """
-        review = await ai_client.generate_text(prompt, max_tokens=1200, temperature=0.4)
-        return {
-            "success": True,
-            "review": review,
-            "detected_language": language
-        }
+        prompt = prompt_template.format(code=code, language=language)
+        try:
+            response = await ai_client.generate_text(prompt, language=language)
+            
+            return {
+                "success": True,
+                "message": translator.get("success.code_review_completed", language),
+                "review": response,
+                "detected_language": language,
+                "language": language
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating code review: {str(e)}", exc_info=True)
+            error_msg = translator.get(
+                "errors.code_review_failed", 
+                language, 
+                error=str(e)
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_msg
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reviewing code: {str(e)}")
