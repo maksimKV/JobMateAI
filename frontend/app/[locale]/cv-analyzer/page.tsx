@@ -51,35 +51,50 @@ export default function CVAnalyzer() {
         upload_timestamp: cvData.upload_timestamp || new Date().toISOString(),
         analysis: {
           structure: {
-            has_contact_info: cvData.analysis?.structure?.has_contact_info || false,
-            has_education: cvData.analysis?.structure?.has_education || false,
-            has_experience: cvData.analysis?.structure?.has_experience || false,
-            has_skills: cvData.analysis?.structure?.has_skills || false,
-            has_projects: cvData.analysis?.structure?.has_projects || false,
-            has_certifications: cvData.analysis?.structure?.has_certifications || false,
-            missing_sections: cvData.analysis?.structure?.missing_sections || []
+            has_contact_info: cvData.analysis?.structure?.has_contact_info || 
+                            cvData.parsed_data?.sections?.has_contact_info || false,
+            has_education: cvData.analysis?.structure?.has_education || 
+                         cvData.parsed_data?.sections?.has_education || false,
+            has_experience: cvData.analysis?.structure?.has_experience || 
+                          cvData.parsed_data?.sections?.has_experience || false,
+            has_skills: cvData.analysis?.structure?.has_skills || 
+                       cvData.parsed_data?.sections?.has_skills || false,
+            has_projects: cvData.analysis?.structure?.has_projects || 
+                         cvData.parsed_data?.sections?.has_projects || false,
+            has_certifications: cvData.analysis?.structure?.has_certifications || 
+                              cvData.parsed_data?.sections?.has_certifications || false,
+            missing_sections: cvData.analysis?.structure?.missing_sections || 
+                            cvData.parsed_data?.sections?.missing_sections || []
           },
           ai_feedback: cvData.analysis?.ai_feedback || cvData.analysis?.analysis || '',
           extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) ? 
             cvData.analysis.extracted_skills : 
             (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
-          word_count: cvData.analysis?.word_count || 0,
-          missing_sections: cvData.analysis?.missing_sections || []
+          word_count: cvData.analysis?.word_count || cvData.parsed_data?.word_count || 0,
+          missing_sections: cvData.analysis?.missing_sections || 
+                          cvData.parsed_data?.sections?.missing_sections || []
         },
         parsed_data: {
           raw_text: cvData.parsed_data?.raw_text || '',
           sections: {
-            has_contact_info: cvData.parsed_data?.sections?.has_contact_info || false,
-            has_education: cvData.parsed_data?.sections?.has_education || false,
-            has_experience: cvData.parsed_data?.sections?.has_experience || false,
-            has_skills: cvData.parsed_data?.sections?.has_skills || false,
-            has_projects: cvData.parsed_data?.sections?.has_projects || false,
-            has_certifications: cvData.parsed_data?.sections?.has_certifications || false,
-            missing_sections: cvData.parsed_data?.sections?.missing_sections || []
+            has_contact_info: cvData.analysis?.structure?.has_contact_info || 
+                            cvData.parsed_data?.sections?.has_contact_info || false,
+            has_education: cvData.analysis?.structure?.has_education || 
+                         cvData.parsed_data?.sections?.has_education || false,
+            has_experience: cvData.analysis?.structure?.has_experience || 
+                          cvData.parsed_data?.sections?.has_experience || false,
+            has_skills: cvData.analysis?.structure?.has_skills || 
+                       cvData.parsed_data?.sections?.has_skills || false,
+            has_projects: cvData.analysis?.structure?.has_projects || 
+                         cvData.parsed_data?.sections?.has_projects || false,
+            has_certifications: cvData.analysis?.structure?.has_certifications || 
+                              cvData.parsed_data?.sections?.has_certifications || false,
+            missing_sections: cvData.analysis?.structure?.missing_sections || 
+                            cvData.parsed_data?.sections?.missing_sections || []
           },
           file_path: cvData.parsed_data?.file_path || '',
           file_type: cvData.parsed_data?.file_type || '',
-          word_count: cvData.parsed_data?.word_count || 0,
+          word_count: cvData.analysis?.word_count || cvData.parsed_data?.word_count || 0,
           character_count: cvData.parsed_data?.character_count || 0
         },
         extracted_skills: Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []
@@ -374,29 +389,35 @@ export default function CVAnalyzer() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-700">{t('analysis.structure.contactInfo')}</span>
-                        {getSectionStatus(analysis.analysis.structure.has_contact_info)}
+                        {getSectionStatus(analysis.analysis?.structure?.has_contact_info || 
+                                       analysis.parsed_data?.sections?.has_contact_info || false)}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-700">{t('analysis.structure.education')}</span>
-                        {getSectionStatus(analysis.analysis.structure.has_education)}
+                        {getSectionStatus(analysis.analysis?.structure?.has_education || 
+                                       analysis.parsed_data?.sections?.has_education || false)}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-700">{t('analysis.structure.experience')}</span>
-                        {getSectionStatus(analysis.analysis.structure.has_experience)}
+                        {getSectionStatus(analysis.analysis?.structure?.has_experience || 
+                                       analysis.parsed_data?.sections?.has_experience || false)}
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-700">{t('analysis.structure.skills')}</span>
-                        {getSectionStatus(analysis.analysis.structure.has_skills)}
+                        {getSectionStatus(analysis.analysis?.structure?.has_skills || 
+                                       analysis.parsed_data?.sections?.has_skills || false)}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-700">{t('analysis.structure.projects')}</span>
-                        {getSectionStatus(analysis.analysis.structure.has_projects)}
+                        {getSectionStatus(analysis.analysis?.structure?.has_projects || 
+                                       analysis.parsed_data?.sections?.has_projects || false)}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-700">{t('analysis.structure.certifications')}</span>
-                        {getSectionStatus(analysis.analysis.structure.has_certifications)}
+                        {getSectionStatus(analysis.analysis?.structure?.has_certifications || 
+                                       analysis.parsed_data?.sections?.has_certifications || false)}
                       </div>
                     </div>
                   </div>
@@ -408,7 +429,7 @@ export default function CVAnalyzer() {
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.missingSections')}</h3>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <ul className="list-disc list-inside space-y-1">
-                      {analysis.analysis.missing_sections.map((section: string, index: number) => (
+                      {analysis.analysis.missing_sections.map((section, index) => (
                         <li key={index} className="text-yellow-800">{section}</li>
                       ))}
                     </ul>
@@ -416,11 +437,11 @@ export default function CVAnalyzer() {
                 </div>
               )}
 
-              {analysis.extracted_skills?.length > 0 && (
+              {(analysis.analysis?.extracted_skills?.length > 0 || analysis.extracted_skills?.length > 0) && (
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('analysis.detectedSkills')}</h3>
                   <div className="flex flex-wrap gap-2">
-                    {analysis.extracted_skills.map((skill: string, index: number) => (
+                    {(analysis.analysis.extracted_skills || analysis.extracted_skills || []).map((skill, index) => (
                       <span
                         key={index}
                         className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
