@@ -307,8 +307,11 @@ async def upload_cv(
 
 @router.get("/{cv_id}")
 async def get_cv_analysis(cv_id: str) -> Dict[str, Any]:
-    """Get analysis for a specific CV."""
+    """Get analysis for a specific CV.
     
+    Returns:
+        Dictionary containing CV analysis with guaranteed extracted_skills as a list.
+    """
     if cv_id not in cv_storage:
         raise HTTPException(
             status_code=404,
@@ -317,15 +320,37 @@ async def get_cv_analysis(cv_id: str) -> Dict[str, Any]:
     
     cv_data = cv_storage[cv_id]
     
+    # Ensure extracted_skills is always a list
+    extracted_skills = cv_data.get("extracted_skills", [])
+    if not isinstance(extracted_skills, list):
+        extracted_skills = []
+    
+    # Safely get AI analysis with fallback
+    ai_analysis = cv_data.get("analysis", {})
+    
+    # Ensure we have a valid structure object with default values
+    structure = cv_data.get("parsed_data", {}).get("sections", {})
+    if not isinstance(structure, dict):
+        structure = {}
+    
+    # Set default structure values if they don't exist
+    structure.setdefault("has_contact_info", False)
+    structure.setdefault("has_education", False)
+    structure.setdefault("has_experience", False)
+    structure.setdefault("has_skills", False)
+    structure.setdefault("has_projects", False)
+    structure.setdefault("has_certifications", False)
+    structure.setdefault("missing_sections", [])
+    
     return {
         "cv_id": cv_id,
-        "filename": cv_data["filename"],
+        "filename": cv_data.get("filename", ""),
         "analysis": {
-            "structure": cv_data["parsed_data"]["sections"],
-            "ai_feedback": cv_data["ai_analysis"]["analysis"],
-            "extracted_skills": cv_data["extracted_skills"],
-            "word_count": cv_data["parsed_data"]["word_count"],
-            "missing_sections": cv_data["parsed_data"]["sections"]["missing_sections"]
+            "structure": structure,
+            "ai_feedback": ai_analysis.get("analysis", "No analysis available"),
+            "extracted_skills": extracted_skills,
+            "word_count": cv_data.get("parsed_data", {}).get("word_count", 0),
+            "missing_sections": structure.get("missing_sections", [])
         }
     }
 
