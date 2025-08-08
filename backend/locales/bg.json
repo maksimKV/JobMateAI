@@ -22,6 +22,7 @@
     "file_uploaded": "Файлът е качен успешно",
     "file_deleted": "Файлът е изтрит успешно",
     "analysis_complete": "Анализът завърши успешно",
-    "operation_successful": "Операцията завърши успешно"
+    "operation_successful": "Операцията завърши успешно",
+    "no_cvs_found": "Не са намерени CV-та. Моля, качете CV, за да започнете."
   }
 }
