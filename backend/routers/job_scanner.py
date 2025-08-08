@@ -251,7 +251,7 @@ def calculate_match_score(job_skills: Dict[str, List[str]], cv_skills: Dict[str,
     
     return round(match_percentage, 2)
 
-def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills: Dict[str, List[str]], language: str) -> Dict[str, Any]:
+def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills: Dict[str, List[str]], language: str) -> List[Dict[str, Any]]:
     """
     Generate improvement suggestions based on job requirements and CV skills.
     
@@ -277,14 +277,33 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
     
     if missing_skills:
         suggestions.append({
+            "id": "missing_skills",
             "title": "Missing Key Skills",
             "description": "These skills are required for the job but not found in your CV",
             "priority": 1,
             "category": "skills",
+            "icon": "alert-triangle",
             "items": [{"text": skill, "action": "add"} for skill in missing_skills[:5]]
         })
     
-    # 2. Matched skills (medium priority)
+    # 2. Skills to highlight (high priority)
+    strong_skills = []
+    for category in ["skills", "technologies"]:
+        strong = list(set(cv_skills_lower.get(category, [])) - set(job_skills_lower.get(category, [])))
+        strong_skills.extend(strong)
+    
+    if strong_skills:
+        suggestions.append({
+            "id": "skills_to_highlight",
+            "title": "Skills to Highlight",
+            "description": "These valuable skills in your CV aren't mentioned in the job description",
+            "priority": 1,
+            "category": "skills",
+            "icon": "star",
+            "items": [{"text": skill, "action": "highlight"} for skill in strong_skills[:5]]
+        })
+    
+    # 3. Matched skills (medium priority)
     matched_skills = []
     for category in ["skills", "technologies", "soft_skills"]:
         matched = list(set(job_skills_lower.get(category, [])) & set(cv_skills_lower.get(category, [])))
@@ -292,31 +311,54 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
     
     if matched_skills:
         suggestions.append({
+            "id": "matching_skills",
             "title": "Matching Skills",
             "description": "These skills from the job description match your CV",
             "priority": 2,
             "category": "skills",
+            "icon": "check-circle",
             "items": [{"text": skill, "action": "highlight"} for skill in matched_skills[:5]]
         })
     
-    # 3. Additional suggestions (low priority)
-    if len(suggestions) < 2:  # If we don't have many suggestions yet
+    # 4. Skills to learn (medium priority)
+    related_skills = []
+    if missing_skills:
+        # Take a couple of missing skills and suggest learning resources
+        related_skills = missing_skills[:2]
+    
+    if related_skills:
         suggestions.append({
-            "title": "Enhance Your Profile",
-            "description": "Consider adding more details about your experience with these technologies",
-            "priority": 3,
-            "category": "suggestion",
-            "items": [
-                {"text": "Add project examples", "action": "suggest"},
-                {"text": "Include specific achievements", "action": "suggest"},
-                {"text": "Highlight relevant experience", "action": "suggest"}
-            ]
+            "id": "skills_to_learn",
+            "title": "Skills to Learn",
+            "description": "Consider developing these skills to better match job requirements",
+            "priority": 2,
+            "category": "learning",
+            "icon": "book-open",
+            "items": [{"text": f"Learn {skill}", "action": "suggest"} for skill in related_skills]
         })
+    
+    # 5. Profile enhancement (low priority)
+    suggestions.append({
+        "id": "profile_enhancement",
+        "title": "Enhance Your Profile",
+        "description": "Consider these suggestions to improve your profile's impact",
+        "priority": 3,
+        "category": "suggestion",
+        "icon": "zap",
+        "items": [
+            {"text": "Add project examples", "action": "suggest"},
+            {"text": "Include specific achievements", "action": "suggest"},
+            {"text": "Highlight relevant experience", "action": "suggest"},
+            {"text": "Add metrics to quantify impact", "action": "suggest"},
+            {"text": "Include relevant certifications", "action": "suggest"}
+        ]
+    })
     
     # Sort suggestions by priority (ascending - lower numbers are higher priority)
     suggestions.sort(key=lambda x: x["priority"])
     
-    return suggestions
+    # Ensure we don't exceed 5 suggestions
+    return suggestions[:5]
 
 def get_score_interpretation(match_score: float, language: str) -> str:
     """
