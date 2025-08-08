@@ -6,7 +6,7 @@ import logging
 from utils.ai_client import ai_client
 from utils.translations import translator
 
-router = APIRouter(prefix="/api/code-review", tags=["Code Review"])
+router = APIRouter(tags=["Code Review"])
 logger = logging.getLogger(__name__)
 
 def detect_language(code: str) -> str:
