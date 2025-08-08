@@ -1,40 +1,122 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Request, Depends, status
 from fastapi.responses import JSONResponse
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Set
 import os
 import logging
+import uuid
+from pathlib import Path
+from datetime import datetime
+import re
 
+# Import translation and AI services
+from utils.translations import translator
 from utils.ai_client import ai_client
 from utils.file_parser import FileParser
+
+# Import language helper
+from middleware.language import get_request_language
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.info("Initializing CV Analyzer router...")
 
-router = APIRouter()
+router = APIRouter(prefix="", tags=["CV Analysis"])
 logger.info("CV Analyzer router created")
 
-# In-memory storage for parsed CVs
+# In-memory storage for parsed CVs (in production, use a database)
 cv_storage = {}
 
+# File upload configuration
+UPLOAD_DIR = Path("uploads/cv")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_EXTENSIONS = {"pdf", "docx", "doc"}  # Removed txt as it's not properly handled
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_MIME_TYPES = {
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx"
+}
+
+def get_file_extension(filename: str) -> str:
+    """Get the file extension in lowercase"""
+    return Path(filename).suffix.lower()[1:] if '.' in filename else ""
+
+def is_allowed_file(filename: str) -> bool:
+    """
+    Check if the file has an allowed extension and MIME type.
+    
+    Args:
+        filename: Name of the file to check
+        
+    Returns:
+        bool: True if file extension is allowed, False otherwise
+    """
+    return (
+        '.' in filename and
+        get_file_extension(filename) in ALLOWED_EXTENSIONS
+    )
+
+def validate_file_size(file_content: bytes) -> bool:
+    """
+    Validate that the file size is within allowed limits.
+    
+    Args:
+        file_content: The file content as bytes
+        
+    Returns:
+        bool: True if file size is valid, False otherwise
+    """
+    return len(file_content) <= MAX_FILE_SIZE
+
+def validate_mime_type(file_content: bytes, filename: str) -> bool:
+    """
+    Validate that the file's MIME type matches its extension.
+    
+    Args:
+        file_content: The file content as bytes
+        filename: Name of the file
+        
+    Returns:
+        bool: True if MIME type is valid, False otherwise
+    """
+    import magic
+    mime = magic.Magic(mime=True)
+    mime_type = mime.from_buffer(file_content)
+    
+    # Check if MIME type is allowed
+    if mime_type not in ALLOWED_MIME_TYPES:
+        return False
+        
+    # Check if extension matches MIME type
+    file_ext = get_file_extension(filename)
+    return ALLOWED_MIME_TYPES[mime_type] == file_ext
+
 @router.get("/")
-async def cv_root():
-    return {"message": "CV Analyzer API is working"}
+async def cv_root(request: Request):
+    """Root endpoint for CV Analyzer API"""
+    language = get_request_language(request)
+    return {
+        "message": translator.get("cv_analyzer.welcome", language),
+        "status": "operational",
+        "version": "1.0.0"
+    }
 
 @router.get("/list")
-async def list_cvs() -> Dict[str, Any]:
-    logger.info("List CVs endpoint called")
-    print("List CVs endpoint called - Print statement")
-    logger.info(f"CV Storage: {cv_storage}")
-    print(f"CV Storage: {cv_storage}")
+async def list_cvs(request: Request) -> Dict[str, Any]:
     """
     List all uploaded CVs.
-    Returns an empty list if no CVs are present or if there's an error.
+    
+    Returns:
+        Dict containing the list of CVs and total count
     """
+    language = get_request_language(request)
+    logger.info(f"List CVs endpoint called (language: {language})")
+    
     try:
         if not cv_storage:  # Return early if storage is empty
             return {
                 "success": True,
+                "message": translator.get("success.no_cvs_found", language),
                 "total_cvs": 0,
                 "cvs": []
             }
@@ -47,98 +129,180 @@ async def list_cvs() -> Dict[str, Any]:
             
             cv_list.append({
                 "id": cv_id,
-                "filename": cv_data.get("filename", "unknown"),
+                "filename": cv_data.get("filename", translator.get("cv_analyzer.unknown_filename", language)),
                 "upload_timestamp": cv_data.get("upload_timestamp"),
-                "word_count": parsed_data.get("word_count", 0),
-                "skills_count": len(extracted_skills) if isinstance(extracted_skills, (list, tuple)) else 0
+                "parsed_data": parsed_data,
+                "extracted_skills": extracted_skills,
+                "analysis": cv_data.get("analysis", {})
             })
         
         return {
             "success": True,
+            "message": translator.get("success.cvs_retrieved", language, count=len(cv_list)),
             "total_cvs": len(cv_list),
             "cvs": cv_list
         }
     except Exception as e:
-        print(f"Error in list_cvs: {str(e)}")
-        return {
-            "success": False,
-            "error": "Failed to retrieve CV list",
-            "total_cvs": 0,
-            "cvs": []
-        } 
+        logger.error(f"Error listing CVs: {str(e)}")
+        error_msg = translator.get("errors.failed_to_list_cvs", language, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg
+        )
 
 @router.post("/upload")
-async def upload_cv(file: UploadFile = File(...)) -> Dict[str, Any]:
-    """Upload and parse a CV/resume file."""
+async def upload_cv(
+    request: Request,
+    file: UploadFile = File(..., description="The CV/resume file to upload")
+):
+    """
+    Upload and parse a CV/resume file.
     
-    # Validate file type
-    allowed_extensions = ['.pdf', '.docx']
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    
-    if file_ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type. Please upload a PDF or DOCX file."
-        )
-    
-    # Validate file size (max 10MB)
-    if file.size and file.size > 10 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail="File size too large. Please upload a file smaller than 10MB."
-        )
+    Args:
+        file: The CV file to upload (PDF, DOCX, or DOC)
+        
+    Returns:
+        Information about the uploaded CV including its ID and parsed data
+    """
+    language = get_request_language(request)
+    logger.info(f"Upload CV endpoint called with file: {file.filename} (language: {language})")
     
     try:
-        # Read file content
+        # Read file content once
         file_content = await file.read()
         
-        # Save file
-        file_path = await FileParser.save_uploaded_file(file_content, file.filename)
+        # Validate file type by extension
+        if not is_allowed_file(file.filename):
+            error_msg = translator.get(
+                "errors.invalid_file_type", 
+                language,
+                allowed_types=", ".join(sorted(ALLOWED_EXTENSIONS))
+            )
+            logger.error(f"Invalid file type: {file.filename}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=error_msg
+            )
+            
+        # Validate file size
+        if not validate_file_size(file_content):
+            error_msg = translator.get(
+                "errors.file_too_large",
+                language,
+                max_size=f"{MAX_FILE_SIZE // (1024 * 1024)}MB"
+            )
+            logger.error(f"File too large: {file.filename} ({len(file_content)} bytes)")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+            
+        # Validate MIME type
+        if not validate_mime_type(file_content, file.filename):
+            error_msg = translator.get(
+                "errors.invalid_file_type",
+                language,
+                allowed_types=", ".join(sorted(ALLOWED_EXTENSIONS))
+            )
+            logger.error(f"MIME type validation failed for: {file.filename}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
         
-        # Parse the resume
-        parsed_data = FileParser.parse_resume(file_path)
+        # Generate a unique ID for this CV
+        cv_id = str(uuid.uuid4())
         
-        # Generate AI analysis
-        ai_analysis = await ai_client.analyze_text(parsed_data["raw_text"], "cv_analysis")
+        # Save the file using the async method
+        file_extension = get_file_extension(file.filename)
+        file_path = await FileParser.save_uploaded_file(
+            file_content,
+            f"{cv_id}.{file_extension}"
+        )
         
-        # Extract skills
-        skills = FileParser.extract_skills_from_text(parsed_data["raw_text"])
+        # Parse the CV file
+        try:
+            parsed_data = FileParser.parse_resume(file_path)
+        except Exception as e:
+            logger.error(f"Error parsing CV: {str(e)}")
+            # Clean up the file if parsing fails
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to clean up file {file_path}: {cleanup_error}")
+            
+            error_msg = translator.get(
+                "errors.cv_parsing_failed",
+                language,
+                error=str(e)
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
         
-        # Create response data
-        cv_id = str(len(cv_storage) + 1)  # Simple ID generation
-        from datetime import datetime
-        upload_timestamp = datetime.utcnow().isoformat() + "Z"
+        # Extract skills from the parsed text
+        extracted_skills = FileParser.extract_skills_from_text(
+            parsed_data.get("raw_text", ""),
+            language=language
+        )
         
+        # Store the parsed data
         cv_data = {
             "id": cv_id,
             "filename": file.filename,
             "file_path": file_path,
+            "upload_timestamp": datetime.utcnow().isoformat(),
             "parsed_data": parsed_data,
-            "ai_analysis": ai_analysis,
-            "extracted_skills": skills,
-            "upload_timestamp": upload_timestamp
+            "extracted_skills": extracted_skills,
+            "analysis": {}
         }
         
         # Store in memory (in production, save to database)
         cv_storage[cv_id] = cv_data
         
+        # Generate AI analysis (async)
+        try:
+            analysis = await ai_client.analyze_text(
+                text=parsed_data.get("raw_text", ""),
+                analysis_type="cv_analysis"
+            )
+            cv_data["analysis"] = analysis
+            
+            # Update skills with AI-extracted ones if available
+            if "skills" in analysis and isinstance(analysis["skills"], list):
+                # Combine and deduplicate skills
+                existing_skills = set(skill.lower() for skill in extracted_skills)
+                ai_skills = [skill for skill in analysis["skills"] 
+                           if isinstance(skill, str) and skill.lower() not in existing_skills]
+                cv_data["extracted_skills"].extend(ai_skills)
+                
+        except Exception as e:
+            logger.error(f"Error generating AI analysis: {str(e)}", exc_info=True)
+            cv_data["analysis"] = {
+                "error": translator.get("errors.ai_analysis_failed", language, error=str(e))
+            }
+        
         return {
             "success": True,
+            "message": translator.get("success.file_uploaded", language),
             "cv_id": cv_id,
             "filename": file.filename,
-            "analysis": {
-                "structure": parsed_data["sections"],
-                "ai_feedback": ai_analysis["analysis"],
-                "extracted_skills": skills,
-                "word_count": parsed_data["word_count"],
-                "missing_sections": parsed_data["sections"]["missing_sections"]
-            }
+            "file_size": len(file_content),
+            "parsed_data": parsed_data,
+            "extracted_skills": cv_data["extracted_skills"],
+            "analysis": cv_data["analysis"]
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Error processing file: {str(e)}", exc_info=True)
+        error_msg = translator.get("errors.file_processing_error", language, error=str(e))
         raise HTTPException(
-            status_code=500,
-            detail=f"Error processing file: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=error_msg
         )
 
 @router.get("/{cv_id}")
