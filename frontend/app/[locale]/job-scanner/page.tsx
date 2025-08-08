@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import Navigation from '@/components/Navigation';
 import { jobScannerAPI, cvAPI, APIError } from '@/lib/api';
 import { CVData } from '@/types';
-import { Search, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Loader2, AlertCircle, CheckCircle, XCircle, SearchCheck } from 'lucide-react';
 import { SuggestionCard } from './components/SuggestionCard';
 import { 
   JobMatchRequest, 
@@ -137,55 +137,57 @@ export default function JobScannerPage() {
 
             {/* Job Description */}
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor="jobDescription" className="block text-base font-semibold text-gray-900">
-                  {t('jobDescription')}
-                </label>
-                {jobDescription && (
-                  <button
-                    type="button"
-                    onClick={() => setJobDescription('')}
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isLoading}
-                    title={t('clearButton')}
-                  >
-                    {t('clear')}
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <textarea
-                  id="jobDescription"
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  rows={8}
-                  placeholder={t('jobDescriptionPlaceholder')}
-                  disabled={isLoading}
-                />
-              </div>
+              <label htmlFor="jobDescription" className="block text-base font-semibold text-gray-900 mb-2">
+                {t('jobDescription')}
+              </label>
+              <textarea
+                id="jobDescription"
+                className="w-full border rounded-lg px-4 py-3 min-h-[200px]"
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                placeholder={t('jobDescriptionPlaceholder')}
+                disabled={isLoading}
+              />
             </div>
 
-            {/* Match Button */}
-            <div className="pt-2">
-              <button
-                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                onClick={handleMatch}
-                disabled={isLoading || !selectedCv || !jobDescription}
-                title={!selectedCv ? t('errors.noCvSelected') : !jobDescription ? t('errors.noJobDescription') : ''}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                    {t('analyzing')}
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-5 w-5 mr-2" />
-                    {t('buttons.analyze')}
-                  </>
-                )}
-              </button>
+            {/* Action Buttons */}
+            <div className="flex justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                <button
+                  type="button"
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-1 sm:flex-none"
+                  onClick={handleMatch}
+                  disabled={isLoading || !selectedCv || !jobDescription.trim()}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      {t('analyzing')}
+                    </>
+                  ) : (
+                    <>
+                      <SearchCheck className="h-5 w-5 mr-2" />
+                      {t('buttons.analyze')}
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  type="button"
+                  className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-1 sm:flex-none transition-colors"
+                  onClick={() => {
+                    setJobDescription('');
+                    setResult(null);
+                    setError(null);
+                  }}
+                  disabled={isLoading || (!jobDescription && !result && !error)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {t('clear')}
+                </button>
+              </div>
             </div>
 
             {/* Error */}
