@@ -228,75 +228,62 @@ export default function JobScannerPage() {
               </div>
             </div>
 
+            {/* Missing and Matched Skills */}
+            <div className="space-y-6">
+              {/* Missing Skills */}
+              {result.missing_skills && result.missing_skills.length > 0 && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    <XCircle className="h-5 w-5 text-red-500 inline-block mr-2" />
+                    {t('results.missingSkills')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {result.missing_skills.map((skill, index) => (
+                      <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                        {typeof skill === 'string' ? skill : skill.text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Matched Skills */}
+              {result.matched_skills && result.matched_skills.length > 0 && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    <CheckCircle className="h-5 w-5 text-green-500 inline-block mr-2" />
+                    {t('results.matchedSkills')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {result.matched_skills.map((skill, index) => (
+                      <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        {typeof skill === 'string' ? skill : skill.text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* AI Suggestions */}
-            {result.suggestions && (
+            {result.suggestions && isSuggestionsArray(result.suggestions) && result.suggestions.length > 0 && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-gray-900">{t('suggestions.title')}</h2>
-                
-                {isSuggestionsArray(result.suggestions) ? (
-                  result.suggestions.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {result.suggestions.map((suggestion, index) => (
-                        <div key={`${suggestion.priority}-${index}`} className="flex">
-                          <SuggestionCard {...suggestion} />
-                        </div>
-                      ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {result.suggestions.map((suggestion, index) => (
+                    <div key={`${suggestion.id || index}`} className="h-full">
+                      <SuggestionCard 
+                        id={suggestion.id || `suggestion-${index}`}
+                        title={suggestion.title}
+                        description={suggestion.description}
+                        items={suggestion.items}
+                        priority={suggestion.priority}
+                        icon={suggestion.icon}
+                        category={suggestion.category}
+                      />
                     </div>
-                  ) : null
-                ) : isSuggestionsObject(result.suggestions) && result.suggestions.missing_skills?.length ? (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">{t('results.missingSkills')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {result.suggestions.missing_skills.map((skill, index) => (
-                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                          <XCircle className="h-4 w-4 mr-1" />
-                          {isMissingSkill(skill) ? skill.text : skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Fallback to old format if no suggestions */}
-            {(!result.suggestions || 
-              (isSuggestionsObject(result.suggestions) && !result.suggestions.missing_skills?.length) ||
-              (isSuggestionsArray(result.suggestions) && result.suggestions.length === 0)
-            ) && (
-              <div className="bg-white rounded-lg shadow p-6 space-y-6">
-                {/* Missing Skills */}
-                {result.missing_skills && result.missing_skills.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{t('results.missingSkills')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {result.missing_skills.map((skill, index) => (
-                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                          <XCircle className="h-4 w-4 mr-1" />
-                          {isMissingSkill(skill) ? skill.text : skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Matched Skills */}
-                {result.matched_skills && result.matched_skills.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{t('results.matchedSkills')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {result.matched_skills.map((skill, index) => {
-                        const skillText = typeof skill === 'string' ? skill : skill.text;
-                        return (
-                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            {skillText}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </div>
