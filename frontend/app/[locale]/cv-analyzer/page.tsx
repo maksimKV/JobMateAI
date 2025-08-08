@@ -30,6 +30,58 @@ export default function CVAnalyzer() {
     localStorage.setItem('lastViewedCvId', cvId);
   };
 
+  const handleCvSelect = useCallback(async (cvId: string) => {
+    try {
+      setIsLoading(true);
+      const cvData = await cvAPI.getAnalysis(cvId);
+      
+      // Create a complete CVUploadResponse object with all required properties
+      const response: CVUploadResponse = {
+        success: true,
+        cv_id: cvId,
+        filename: cvData.filename || 'Unknown',
+        upload_timestamp: cvData.upload_timestamp || new Date().toISOString(),
+        parsed_data: cvData.parsed_data || null,
+        extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) 
+          ? cvData.analysis.extracted_skills 
+          : (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
+        analysis: {
+          structure: {
+            has_contact_info: cvData.analysis?.structure?.has_contact_info || 
+                            cvData.parsed_data?.sections?.has_contact_info || false,
+            has_education: cvData.analysis?.structure?.has_education || 
+                         cvData.parsed_data?.sections?.has_education || false,
+            has_experience: cvData.analysis?.structure?.has_experience || 
+                          cvData.parsed_data?.sections?.has_experience || false,
+            has_skills: cvData.analysis?.structure?.has_skills || 
+                       cvData.parsed_data?.sections?.has_skills || false,
+            has_projects: cvData.analysis?.structure?.has_projects || 
+                         cvData.parsed_data?.sections?.has_projects || false,
+            has_certifications: cvData.analysis?.structure?.has_certifications || 
+                              cvData.parsed_data?.sections?.has_certifications || false,
+            missing_sections: cvData.analysis?.structure?.missing_sections || 
+                            cvData.parsed_data?.sections?.missing_sections || []
+          },
+          ai_feedback: cvData.analysis?.ai_feedback || cvData.analysis?.analysis || '',
+          extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) 
+            ? cvData.analysis.extracted_skills 
+            : (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
+          word_count: cvData.analysis?.word_count || cvData.parsed_data?.word_count || 0,
+          missing_sections: cvData.analysis?.missing_sections || 
+                          cvData.parsed_data?.sections?.missing_sections || []
+        },
+      };
+      
+      setAnalysis(response);
+      saveLastViewedCvId(cvId);
+    } catch (err) {
+      console.error('Error loading CV analysis:', err);
+      setError(t('errors.loadAnalysis'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
   const loadCvList = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -55,85 +107,12 @@ export default function CVAnalyzer() {
     } finally {
       setIsLoading(false);
     }
-  }, [t, analysis]);
+  }, [t, analysis, handleCvSelect]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     loadCvList();
   }, [loadCvList]);
-
-  const handleCvSelect = async (cvId: string) => {
-    try {
-      setIsLoading(true);
-      const cvData = await cvAPI.getAnalysis(cvId);
-      
-      // Create a complete CVUploadResponse object with all required properties
-      const response: CVUploadResponse = {
-        success: true,
-        cv_id: cvId,
-        filename: cvData.filename || 'Unknown',
-        upload_timestamp: cvData.upload_timestamp || new Date().toISOString(),
-        analysis: {
-          structure: {
-            has_contact_info: cvData.analysis?.structure?.has_contact_info || 
-                            cvData.parsed_data?.sections?.has_contact_info || false,
-            has_education: cvData.analysis?.structure?.has_education || 
-                         cvData.parsed_data?.sections?.has_education || false,
-            has_experience: cvData.analysis?.structure?.has_experience || 
-                          cvData.parsed_data?.sections?.has_experience || false,
-            has_skills: cvData.analysis?.structure?.has_skills || 
-                       cvData.parsed_data?.sections?.has_skills || false,
-            has_projects: cvData.analysis?.structure?.has_projects || 
-                         cvData.parsed_data?.sections?.has_projects || false,
-            has_certifications: cvData.analysis?.structure?.has_certifications || 
-                              cvData.parsed_data?.sections?.has_certifications || false,
-            missing_sections: cvData.analysis?.structure?.missing_sections || 
-                            cvData.parsed_data?.sections?.missing_sections || []
-          },
-          ai_feedback: cvData.analysis?.ai_feedback || cvData.analysis?.analysis || '',
-          extracted_skills: Array.isArray(cvData.analysis?.extracted_skills) ? 
-            cvData.analysis.extracted_skills : 
-            (Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []),
-          word_count: cvData.analysis?.word_count || cvData.parsed_data?.word_count || 0,
-          missing_sections: cvData.analysis?.missing_sections || 
-                          cvData.parsed_data?.sections?.missing_sections || []
-        },
-        parsed_data: {
-          raw_text: cvData.parsed_data?.raw_text || '',
-          sections: {
-            has_contact_info: cvData.analysis?.structure?.has_contact_info || 
-                            cvData.parsed_data?.sections?.has_contact_info || false,
-            has_education: cvData.analysis?.structure?.has_education || 
-                         cvData.parsed_data?.sections?.has_education || false,
-            has_experience: cvData.analysis?.structure?.has_experience || 
-                          cvData.parsed_data?.sections?.has_experience || false,
-            has_skills: cvData.analysis?.structure?.has_skills || 
-                       cvData.parsed_data?.sections?.has_skills || false,
-            has_projects: cvData.analysis?.structure?.has_projects || 
-                         cvData.parsed_data?.sections?.has_projects || false,
-            has_certifications: cvData.analysis?.structure?.has_certifications || 
-                              cvData.parsed_data?.sections?.has_certifications || false,
-            missing_sections: cvData.analysis?.structure?.missing_sections || 
-                            cvData.parsed_data?.sections?.missing_sections || []
-          },
-          file_path: cvData.parsed_data?.file_path || '',
-          file_type: cvData.parsed_data?.file_type || '',
-          word_count: cvData.analysis?.word_count || cvData.parsed_data?.word_count || 0,
-          character_count: cvData.parsed_data?.character_count || 0
-        },
-        extracted_skills: Array.isArray(cvData.extracted_skills) ? cvData.extracted_skills : []
-      };
-      
-      setAnalysis(response);
-      setShowList(false);
-      saveLastViewedCvId(cvId);
-    } catch (err) {
-      console.error('Error loading CV:', err);
-      setError(t('errors.loadDetails'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
