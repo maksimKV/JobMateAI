@@ -1,0 +1,27 @@
+{
+  "errors": {
+    "file_not_found": "File not found: {filename}",
+    "invalid_file_type": "Invalid file type. Please upload a PDF, DOCX, or TXT file.",
+    "file_upload_failed": "Failed to upload file: {error}",
+    "file_processing_error": "Error processing file: {error}",
+    "missing_required_field": "Missing required field: {field}",
+    "invalid_input": "Invalid input provided",
+    "internal_server_error": "An internal server error occurred. Please try again later.",
+    "not_found": "The requested resource was not found",
+    "unauthorized": "You are not authorized to access this resource",
+    "rate_limit_exceeded": "Rate limit exceeded. Please try again later."
+  },
+  "ai": {
+    "cv_analysis_prompt": "Analyze the following CV and extract key information including skills, experience, education, and contact details. Provide a summary of the candidate's profile.",
+    "cover_letter_prompt": "Generate a professional cover letter based on the following job description and candidate's CV.",
+    "job_matching_prompt": "Analyze the following job description and match it with the candidate's skills and experience.",
+    "interview_question_prompt": "Generate {count} interview questions for a {position} position at {company} based on the following job description.",
+    "code_review_prompt": "Review the following code and provide feedback on code quality, potential bugs, and areas for improvement."
+  },
+  "success": {
+    "file_uploaded": "File uploaded successfully",
+    "file_deleted": "File deleted successfully",
+    "analysis_complete": "Analysis completed successfully",
+    "operation_successful": "Operation completed successfully"
+  }
+}
