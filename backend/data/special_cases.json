@@ -1,6 +1,7 @@
 {
-  "c++": "c\\+\\+",
-  "c#": "c#|csharp",
+  "__comment": "This file contains regex patterns for matching various technical and non-technical skills with their common variations. The format is 'canonical_name': 'regex_pattern' where the pattern matches common variations of the skill name. Patterns are case-insensitive and account for common abbreviations, spaces, and special characters.",
+  "c_plus_plus": "c\\+\\+",
+  "c_sharp": "c#|csharp",
   ".net core": "\\.net\\s*core|dotnet\\s*core|dotnetcore",
   "node.js": "node(?:\\.js)?|nodejs",
   "next.js": "next(?:\\.js)?|nextjs",
@@ -116,5 +117,15 @@
   "amazon security hub": "amazon\\s*security\\s*hub|aws\\s*security\\s*hub|security\\s*hub",
   "amazon shield": "amazon\\s*shield|aws\\s*shield|shield",
   "amazon waf": "amazon\\s*waf|aws\\s*waf|waf",
-  "amazon detective": "amazon\\s*detective|aws\\s*detective|detective"
+  "amazon detective": "amazon\\s*detective|aws\\s*detective|detective",
+
+  "web_technologies": "html|css|js|javascript|typescript|ts|jsx|tsx",
+  "programming_languages": "python|py|java|c#|c\\+\\+|cpp|go|rust|kotlin|swift|php|ruby|scala|r|dart|elixir|clojure|haskell|perl",
+  "web_frameworks": "react|angular|vue|svelte|next\\.?js|nuxt\\.?js|sveltekit|express|django|flask|fastapi|spring(?:\\s+boot)?|laravel|rails|ruby\\s+on\\s+rails|asp\\.net|\\.net\\s+core|blazor|xamarin|flutter|react\\s+native|ionic|electron",
+  "databases": "mysql|postgres(?:ql)?|mongodb|redis|elasticsearch|dynamodb|cassandra|couchbase|oracle|sql\\s+server|sqlite|firestore|bigtable|cosmosdb|neo4j|arangodb",
+  "cloud_platforms": "aws|amazon\\s+web\\s+services|azure|google\\s+cloud|gcp|ibm\\s+cloud|oracle\\s+cloud|alibaba\\s+cloud|digitalocean|heroku|vercel|netlify|firebase",
+  "devops_tools": "docker|kubernetes|k8s|terraform|ansible|puppet|chef|jenkins|github\\s+actions|gitlab\\s+ci|circleci|travis\\s+ci|argo\\s+cd|flux|helm|istio|linkerd",
+  "ai_ml": "tensorflow|pytorch|keras|scikit-learn|opencv|nltk|spacy|huggingface|langchain|llama|gpt|bert|transformers|stable\\s+diffusion|dall-e|midjourney",
+
+  "communication": "communication|teamwork|leadership|problem-?solving|critical\\s+thinking|adaptability|time\\s+management|creativity|emotional\\s+intelligence|conflict\\s+resolution|collaboration|active\\s+listening|empathy|patience|flexibility|work\\s+ethic|responsibility|dependability|self-?motivation|professionalism|initiative|decision\\s+making|stress\\s+management|organization|attention\\s+to\\s+detail|multitasking|networking|negotiation|presentation|public\\s+speaking|writing|research|analysis|planning|delegation|mentoring|coaching|training|supervision|project\\s+management|strategic\\s+thinking|innovation|resourcefulness|persuasion|influence|diplomacy|tact|cultural\\s+awareness|customer\\s+service|sales|marketing|business\\s+development|financial\\s+management|risk\\s+management|quality\\s+assurance|compliance|regulatory|legal|ethics|diversity|inclusion|equity|belonging|accessibility|sustainability|corporate\\s+social\\s+responsibility"
 }
