@@ -92,23 +92,7 @@ origins = [
     "https://www.jobmateai-frontend-service.onrender.com",
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
-# Add language middleware
-app.add_middleware(
-    LanguageMiddleware,
-    default_language='en',
-    supported_languages=['en', 'bg']
-)
-
-# Add CORS middleware
+# Add CORS middleware - should be one of the first middlewares
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -116,6 +100,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]
+)
+
+# Add language middleware - should come after CORS but before other middleware
+app.add_middleware(
+    LanguageMiddleware,
+    default_language='en',
+    supported_languages=['en', 'bg']
 )
 
 # Error handling middleware
