@@ -1,67 +1,194 @@
-from fastapi import APIRouter, HTTPException, Body
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Body, Request, status, Depends
+from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime, timedelta
+import logging
+import statistics
+
 from routers.interview_simulator import interview_sessions
+from utils.translations import translator
+from utils.scoring import calculate_average_score
 
-router = APIRouter()
+router = APIRouter(tags=["Statistics"])
+logger = logging.getLogger(__name__)
 
-def calculate_scores(feedback: List[Dict[str, Any]], interview_type: str) -> Dict[str, Any]:
+def _calculate_averages(scores: List[float]) -> Tuple[float, float, float]:
+    """Calculate min, max, and average scores from a list of scores.
+    
+    Args:
+        scores: List of numerical scores
+        
+    Returns:
+        Tuple of (average, min, max) scores
+    """
+    if not scores:
+        return 0.0, 0.0, 0.0
+    return (
+        round(statistics.mean(scores), 1),
+        min(scores),
+        max(scores)
+    )
+
+def calculate_scores(feedback: List[Dict[str, Any]], interview_type: str, language: str = 'en') -> Dict[str, Any]:
     """Calculate scores for the feedback based on interview type.
     
     Args:
         feedback: List of feedback dictionaries
         interview_type: Type of interview ('hr', 'technical', 'non_technical', 'mixed')
-    """
-    hr_score = 0
-    tech_theory_score = 0
-    tech_practical_score = 0
-    non_tech_score = 0
-    total_hr = 0
-    total_tech_theory = 0
-    total_tech_practical = 0
-    total_non_tech = 0
-    
-    for fb in feedback:
-        question_type = fb.get('type', '').lower()
-        score = fb.get('score', 7)  # Default to 7 if score not provided
+        language: Language code for the response (e.g., 'en', 'bg')
         
-        if interview_type == 'hr':
-            hr_score += score
-            total_hr += 1
-        elif interview_type == 'non_technical':
-            non_tech_score += score
-            total_non_tech += 1
-        elif interview_type == 'technical':
-            if "theory" in fb.get('question', '').lower():
-                tech_theory_score += score
-                total_tech_theory += 1
-            else:
-                tech_practical_score += score
-                total_tech_practical += 1
-        elif interview_type == 'mixed':
+    Returns:
+        Dictionary containing calculated scores and metrics
+    """
+    if not feedback:
+        return {
+            "success": False,
+            "message": translator.get("errors.no_feedback_data", language),
+            "scores": {}
+        }
+    
+    # Initialize score trackers
+    hr_scores = []
+    tech_theory_scores = []
+    tech_practical_scores = []
+    non_tech_scores = []
+    
+    # Categorize feedback by type
+    for fb in feedback:
+        if not isinstance(fb, dict):
+            continue
+            
+        try:
+            score = float(fb.get('score', 7.0))  # Default to 7.0 if score not provided
+            if not (0 <= score <= 10):  # Validate score range
+                continue
+                
+            question_type = str(fb.get('type', '')).lower()
+            
             if question_type == 'hr':
-                hr_score += score
-                total_hr += 1
-            elif 'theory' in question_type:
-                tech_theory_score += score
-                total_tech_theory += 1
-            elif 'practical' in question_type:
-                tech_practical_score += score
-                total_tech_practical += 1
-            elif 'non_technical' in question_type:
-                non_tech_score += score
-                total_non_tech += 1
+                hr_scores.append(score)
+            elif question_type == 'non_technical':
+                non_tech_scores.append(score)
+            elif question_type == 'technical':
+                # For backward compatibility, split technical questions 50/50 between theory and practical
+                if len(tech_theory_scores) <= len(tech_practical_scores):
+                    tech_theory_scores.append(score)
+                else:
+                    tech_practical_scores.append(score)
+            elif question_type == 'technical_theory':
+                tech_theory_scores.append(score)
+            elif question_type == 'technical_practical':
+                tech_practical_scores.append(score)
+        except (ValueError, TypeError):
+            continue
+    
+    # Calculate statistics for each category
+    hr_avg, hr_min, hr_max = _calculate_averages(hr_scores)
+    theory_avg, theory_min, theory_max = _calculate_averages(tech_theory_scores)
+    practical_avg, practical_min, practical_max = _calculate_averages(tech_practical_scores)
+    non_tech_avg, non_tech_min, non_tech_max = _calculate_averages(non_tech_scores)
+    
+    # Calculate overall score based on interview type
+    if interview_type == 'hr':
+        overall_scores = hr_scores + non_tech_scores
+    elif interview_type == 'technical':
+        overall_scores = tech_theory_scores + tech_practical_scores
+    elif interview_type == 'non_technical':
+        overall_scores = non_tech_scores
+    else:  # mixed
+        overall_scores = hr_scores + tech_theory_scores + tech_practical_scores + non_tech_scores
+    
+    overall_avg, overall_min, overall_max = _calculate_averages(overall_scores)
     
     return {
-        "hr_score": hr_score,
-        "tech_theory_score": tech_theory_score,
-        "tech_practical_score": tech_practical_score,
-        "non_tech_score": non_tech_score,
-        "total_hr": total_hr,
-        "total_tech_theory": total_tech_theory,
-        "total_tech_practical": total_tech_practical,
-        "total_non_tech": total_non_tech
+        "success": True,
+        "overall_score": overall_avg,
+        "overall_min": overall_min,
+        "overall_max": overall_max,
+        "hr_score": hr_avg,
+        "hr_min": hr_min,
+        "hr_max": hr_max,
+        "tech_theory_score": theory_avg,
+        "tech_theory_min": theory_min,
+        "tech_theory_max": theory_max,
+        "tech_practical_score": practical_avg,
+        "tech_practical_min": practical_min,
+        "tech_practical_max": practical_max,
+        "non_tech_score": non_tech_avg,
+        "non_tech_min": non_tech_min,
+        "non_tech_max": non_tech_max,
+        "total_hr": len(hr_scores),
+        "total_tech_theory": len(tech_theory_scores),
+        "total_tech_practical": len(tech_practical_scores),
+        "total_non_tech": len(non_tech_scores),
+        "interview_type": interview_type,
+        "language": language
     }
+
+@router.post("/scores")
+async def get_scores(
+    request: Request,
+    feedback: List[Dict[str, Any]] = Body(..., embed=True, description="List of feedback items with scores"),
+    interview_type: str = Body("mixed", embed=True, description="Type of interview: 'hr', 'technical', 'non_technical', or 'mixed'"),
+    language: Optional[str] = Body(None, embed=True, description="Language code for the response (e.g., 'en', 'bg')")
+) -> Dict[str, Any]:
+    """
+    Calculate and return scores for the given feedback.
+    
+    Args:
+        feedback: List of feedback items with scores and question types
+        interview_type: Type of interview ('hr', 'technical', 'non_technical', 'mixed')
+        language: Language code for the response
+        
+    Returns:
+        Dictionary containing calculated scores and metrics
+    """
+    # Get language from request if not provided
+    req_language = getattr(request.state, 'language', 'en')
+    language = language or req_language
+    
+    if not feedback:
+        error_msg = translator.get("errors.no_feedback_data", language)
+        logger.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    
+    if interview_type not in ['hr', 'technical', 'non_technical', 'mixed']:
+        error_msg = translator.get("errors.invalid_interview_type", language, type=interview_type)
+        logger.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    
+    try:
+        scores = calculate_scores(feedback, interview_type, language)
+        
+        if not scores.get('success', True):
+            logger.error(f"Failed to calculate scores: {scores.get('message', 'Unknown error')}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=scores.get('message', 'Failed to calculate scores')
+            )
+            
+        # Add success message and language to response
+        scores["message"] = translator.get("success.scores_calculated", language)
+        return scores
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calculating scores: {str(e)}", exc_info=True)
+        error_msg = translator.get(
+            "errors.score_calculation_failed", 
+            language, 
+            error=str(e)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg
+        )
 
 @router.post("/charts")
 async def get_statistics(

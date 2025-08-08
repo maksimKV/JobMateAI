@@ -1,54 +1,128 @@
-from fastapi import APIRouter, HTTPException, Body
-from typing import Dict, Any, List, Optional
-from utils.ai_client import ai_client
+from fastapi import APIRouter, HTTPException, Body, Request, status, Depends
+from typing import Dict, Any, List, Optional, Tuple
 import logging
+import uuid
+import time
 
-router = APIRouter()
+from utils.ai_client import ai_client
+from utils.translations import translator
+from utils.scoring import calculate_average_score
+
+# Set up logging
 logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["Interview Simulator"])
 
 # In-memory storage for interview sessions (for MVP)
 interview_sessions = {}
 
-async def _generate_questions_by_type(job_description: str, question_type: str, count: int = 8) -> List[Dict[str, str]]:
-    """Helper function to generate a specific number of questions of a given type."""
+def get_request_language(request: Request) -> str:
+    """Helper to get language from request state"""
+    return getattr(request.state, 'language', 'en')
+
+async def _generate_questions_by_type(
+    job_description: str, 
+    question_type: str, 
+    count: int = 8,
+    language: str = 'en'
+) -> List[Dict[str, str]]:
+    """
+    Helper function to generate a specific number of questions of a given type.
+    
+    Args:
+        job_description: The job description to base questions on
+        question_type: Type of questions to generate (e.g., 'technical', 'behavioral')
+        count: Number of questions to generate
+        language: Language code for the questions
+        
+    Returns:
+        List of question dictionaries with text and type
+    """
     try:
         questions_data = await ai_client.generate_interview_questions(
-            job_description, 
-            question_type,
-            count=count
+            job_description=job_description,
+            question_type=question_type,
+            count=count,
+            language=language
         )
         
-        if isinstance(questions_data["questions"], str):
-            # Split by newlines and clean up
-            questions = [q.strip() for q in questions_data["questions"].split("\n") if q.strip()]
-        else:
-            questions = questions_data["questions"]
+        questions = []
+        if isinstance(questions_data, dict) and "questions" in questions_data:
+            if isinstance(questions_data["questions"], str):
+                # Handle string response (split by newlines)
+                questions = [
+                    q.strip() 
+                    for q in questions_data["questions"].split("\n") 
+                    if q.strip()
+                ]
+            elif isinstance(questions_data["questions"], list):
+                questions = questions_data["questions"]
         
         # Ensure we don't return more questions than requested
         questions = questions[:count]
         
         return [{"text": q, "type": question_type} for q in questions if q]
+        
     except Exception as e:
-        logger.error(f"Error generating {question_type} questions: {str(e)}")
+        logger.error(f"Error generating {question_type} questions: {str(e)}", exc_info=True)
         return []
 
 @router.post("/generate-questions")
 async def generate_questions(
-    job_description: str = Body(..., embed=True),
-    interview_type: str = Body("non_technical", embed=True),  # 'hr', 'technical', 'mixed', or 'non_technical'
-    length: str = Body("medium", embed=True)  # 'short', 'medium', or 'long'
+    request: Request,
+    job_description: str = Body(..., embed=True, description="Job description to base questions on"),
+    interview_type: str = Body("non_technical", embed=True, description="Type of interview: 'hr', 'technical', 'mixed', or 'non_technical'"),
+    length: str = Body("medium", embed=True, description="Interview length: 'short', 'medium', or 'long'"),
+    language: Optional[str] = Body(None, embed=True, description="Language code (e.g., 'en', 'bg')")
 ) -> Dict[str, Any]:
-    """Generate interview questions based on job description, interview type, and length."""
-    if interview_type not in ["hr", "technical", "mixed", "non_technical"]:
+    """
+    Generate interview questions based on job description, interview type, and length.
+    
+    Args:
+        job_description: The job description to base questions on
+        interview_type: Type of interview questions to generate
+        length: Desired length of the interview
+        language: Language code for the questions (defaults to request language)
+        
+    Returns:
+        Dictionary containing the generated questions and session ID
+    """
+    # Get language from request if not provided
+    req_language = get_request_language(request)
+    language = language or req_language
+    
+    logger.info(f"Generating {interview_type} interview questions in {language} (length: {length})")
+    
+    # Validate input
+    if not job_description.strip():
+        error_msg = translator.get("errors.missing_job_description", language)
         raise HTTPException(
-            status_code=400, 
-            detail="Invalid interview type. Use 'hr', 'technical', 'mixed', or 'non_technical'."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
         )
     
-    if length not in ["short", "medium", "long"]:
+    valid_interview_types = ["hr", "technical", "mixed", "non_technical"]
+    if interview_type not in valid_interview_types:
+        error_msg = translator.get(
+            "errors.invalid_interview_type", 
+            language,
+            valid_types=", ".join(valid_interview_types)
+        )
         raise HTTPException(
-            status_code=400,
-            detail="Invalid length. Use 'short', 'medium', or 'long'."
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=error_msg
+        )
+    
+    valid_lengths = ["short", "medium", "long"]
+    if length not in valid_lengths:
+        error_msg = translator.get(
+            "errors.invalid_interview_length",
+            language,
+            valid_lengths=", ".join(valid_lengths)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
         )
     
     try:
@@ -59,8 +133,8 @@ async def generate_questions(
             hr_count = {"short": 4, "medium": 8, "long": 12}[length]
             tech_count = {"short": 4, "medium": 8, "long": 12}[length]
             
-            hr_questions = await _generate_questions_by_type(job_description, "hr", hr_count)
-            tech_questions = await _generate_questions_by_type(job_description, "technical", tech_count)
+            hr_questions = await _generate_questions_by_type(job_description, "hr", hr_count, language)
+            tech_questions = await _generate_questions_by_type(job_description, "technical", tech_count, language)
             
             # Interleave HR and technical questions
             questions = []
@@ -72,12 +146,12 @@ async def generate_questions(
         else:
             # For single type interviews, generate questions based on length
             count = {"short": 4, "medium": 8, "long": 12}[length]
-            questions = await _generate_questions_by_type(job_description, interview_type, count)
+            questions = await _generate_questions_by_type(job_description, interview_type, count, language)
         
         if not questions:
             raise HTTPException(
-                status_code=500, 
-                detail="Failed to generate questions. Please try again."
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                detail=f"Failed to generate questions. Please try again."
             )
         
         # Extract company name and position from job description
@@ -91,7 +165,9 @@ async def generate_questions(
             "questions": questions,
             "current_question_index": 0,
             "answers": [],
-            "feedback": []
+            "feedback": [],
+            "start_time": time.time(),
+            "language": language
         }
         
         # Add detected role and domain for non_technical interviews
@@ -135,94 +211,177 @@ async def generate_questions(
     except Exception as e:
         logger.error(f"Error in generate_questions: {str(e)}")
         raise HTTPException(
-            status_code=500, 
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"An error occurred while generating questions: {str(e)}"
         )
 
 @router.post("/submit-answer")
 async def submit_answer(
-    session_id: str = Body(..., embed=True),
-    answer: str = Body(..., embed=True)
-) -> Dict[str, Any]:
-    """Submit an answer to the current interview question and get feedback."""
+    request: Request,
+    session_id: str = Body(..., embed=True, description="ID of the interview session"),
+    answer: str = Body(..., embed=True, description="Candidate's answer to the current question")
+):
+    """
+    Submit an answer to the current interview question and get feedback.
+    
+    Args:
+        session_id: ID of the interview session
+        answer: The candidate's answer to the current question
+        
+    Returns:
+        Dictionary containing feedback and information about the next question
+    """
+    language = get_request_language(request)
+    logger.info(f"Processing answer for session {session_id}")
+    
+    # Validate session exists
     if session_id not in interview_sessions:
-        raise HTTPException(status_code=404, detail="Session not found.")
+        error_msg = translator.get("errors.session_not_found", language, session_id=session_id)
+        logger.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_msg
+        )
     
     session = interview_sessions[session_id]
-    current_idx = session["current_question_index"]
+    current_q = session["current_question_index"]
     
-    if current_idx >= len(session["questions"]):
-        raise HTTPException(status_code=400, detail="No more questions in this session.")
+    # Validate answer
+    if not answer or not answer.strip():
+        error_msg = translator.get("errors.empty_answer", language)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
     
+    # Check if there are questions left
+    if current_q >= len(session["questions"]):
+        error_msg = translator.get("errors.no_more_questions", language)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    
+    question_text = session["questions"][current_q]["text"]
+    
+    # Store the answer
+    session["answers"].append({
+        "question": question_text,
+        "answer": answer,
+        "timestamp": time.time()
+    })
+    
+    # Generate feedback using AI
     try:
-        question_data = session["questions"][current_idx]
-        question = question_data["text"]
-        question_type = question_data["type"]
+        feedback = await ai_client.evaluate_interview_answer(
+            question=question_text,
+            answer=answer,
+            job_description=session["job_description"],
+            language=session.get("language", language)
+        )
         
-        # Get feedback for the answer
-        feedback = await ai_client.evaluate_answer(question, answer, question_type)
+        # Ensure feedback has required fields
+        if not isinstance(feedback, dict):
+            feedback = {"feedback": str(feedback), "score": 0}
         
-        # Store the answer and feedback
-        feedback_data = {
-            "question": question,
-            "answer": answer,
-            "type": question_type,
-            "evaluation": feedback.get("feedback", ""),
-            "score": feedback.get("score", 0)  # Store the score for statistics
-        }
-        
-        # Store in both answers and feedback arrays for backward compatibility
-        session["answers"].append(feedback_data)
-        session["feedback"].append(feedback_data)
-        
-        # Move to the next question
-        next_idx = current_idx + 1
-        session["current_question_index"] = next_idx
-        
-        # Prepare response
-        response = {
-            "success": True,
-            "feedback": feedback,
-            "is_complete": next_idx >= len(session["questions"])
-        }
-        
-        # Add next question if available
-        if next_idx < len(session["questions"]):
-            next_question = session["questions"][next_idx]
-            response.update({
-                "next_question": next_question["text"],
-                "question_type": next_question["type"],
-                "question_number": next_idx + 1
-            })
-        
-        return response
+        feedback.setdefault("feedback", "")
+        feedback.setdefault("score", 0)
+        feedback.setdefault("strengths", [])
+        feedback.setdefault("improvements", [])
         
     except Exception as e:
-        logger.error(f"Error in submit_answer: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"An error occurred while processing your answer: {str(e)}"
-        )
+        logger.error(f"Error generating feedback: {str(e)}", exc_info=True)
+        feedback = {
+            "feedback": translator.get("errors.feedback_generation_failed", language),
+            "score": 0,
+            "strengths": [],
+            "improvements": []
+        }
+    
+    # Move to next question
+    session["current_question_index"] += 1
+    is_complete = session["current_question_index"] >= len(session["questions"])
+    
+    # If that was the last question, mark session as complete
+    if is_complete:
+        session["end_time"] = time.time()
+        logger.info(f"Completed interview session {session_id}")
+    
+    # Prepare response
+    response = {
+        "success": True,
+        "message": translator.get("success.answer_submitted", language),
+        "feedback": feedback,
+        "is_complete": is_complete,
+        "question_number": min(session["current_question_index"] + 1, len(session["questions"]))
+    }
+    
+    # Add next question if available
+    if not is_complete:
+        next_q = session["questions"][session["current_question_index"]]
+        response["next_question"] = next_q
+    else:
+        # Add summary for completed interview
+        response["summary"] = {
+            "total_questions": len(session["questions"]),
+            "total_answers": len(session["answers"]),
+            "duration_seconds": int(session["end_time"] - session["start_time"])
+        }
+    
+    return response
 
 @router.get("/session/{session_id}")
-async def get_session(session_id: str) -> Dict[str, Any]:
-    """Get the current state of an interview session."""
+async def get_session(
+    request: Request,
+    session_id: str
+):
+    """
+    Get the current state of an interview session.
+    
+    Args:
+        session_id: ID of the interview session to retrieve
+        
+    Returns:
+        Dictionary containing the session details, questions, and answers
+    """
+    language = get_request_language(request)
+    logger.info(f"Retrieving session {session_id}")
+    
+    # Validate session exists
     if session_id not in interview_sessions:
-        raise HTTPException(status_code=404, detail="Session not found.")
+        error_msg = translator.get("errors.session_not_found", language, session_id=session_id)
+        logger.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_msg
+        )
     
     session = interview_sessions[session_id]
-    current_idx = session["current_question_index"]
-    total_questions = len(session["questions"])
+    is_complete = session["current_question_index"] >= len(session["questions"])
     
+    # Calculate session duration
+    end_time = session.get("end_time") or time.time()
+    duration_seconds = int(end_time - session["start_time"])
+    
+    # Calculate average score
+    avg_score = calculate_average_score(session["answers"])
+    
+    # Format response
     response = {
+        "success": True,
+        "message": translator.get("success.session_retrieved", language),
         "session_id": session_id,
-        "interview_type": session["interview_type"],
-        "company_name": session.get("company_name", "Company"),
-        "position": session.get("position", "Position"),
-        "total_questions": total_questions,
-        "current_question_index": current_idx,
+        "current_question": session["current_question_index"] + 1,  # 1-based index for display
+        "total_questions": len(session["questions"]),
+        "is_complete": is_complete,
+        "questions": session["questions"],
         "answers": session["answers"],
-        "is_complete": current_idx >= total_questions
+        "start_time": session["start_time"],
+        "end_time": session.get("end_time"),
+        "duration_seconds": duration_seconds,
+        "average_score": avg_score,
+        "interview_type": session["interview_type"],
+        "language": session.get("language", language)
     }
     
     # Add detected role and domain for non_technical interviews
@@ -233,12 +392,22 @@ async def get_session(session_id: str) -> Dict[str, Any]:
         })
     
     # Add current question if available
-    if current_idx < total_questions:
-        current_question = session["questions"][current_idx]
+    current_question_idx = session["current_question_index"]
+    if not is_complete and current_question_idx < len(session["questions"]):
+        current_question = session["questions"][current_question_idx]
         response.update({
             "current_question": current_question["text"],
             "question_type": current_question["type"],
-            "question_number": current_idx + 1
+            "question_number": current_question_idx + 1
         })
+    
+    # Add completion summary if interview is complete
+    if is_complete:
+        response["summary"] = {
+            "total_questions": len(session["questions"]),
+            "total_answers": len(session["answers"]),
+            "duration_seconds": duration_seconds,
+            "average_score": response["average_score"]
+        }
     
     return response
