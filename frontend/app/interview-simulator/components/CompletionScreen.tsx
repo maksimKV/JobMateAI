@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { InterviewFeedback } from '../types';
 import { FeedbackDisplay } from './FeedbackDisplay';
 
@@ -29,13 +30,13 @@ export const CompletionScreen: React.FC<CompletionScreenProps> = ({
         
         {/* Action Buttons */}
         <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-          <a
+          <Link
             href={`/statistics?session=${sessionId}`}
             className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             View Detailed Statistics
-          </a>
-          <a
+          </Link>
+          <Link
             href="/interview-simulator"
             onClick={(e) => {
               e.preventDefault();
@@ -44,7 +45,7 @@ export const CompletionScreen: React.FC<CompletionScreenProps> = ({
             className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Start New Interview
-          </a>
+          </Link>
         </div>
       </div>
       

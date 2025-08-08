@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { statisticsAPI, APIError } from '@/lib/api';
 import { 
@@ -380,12 +381,12 @@ export default function StatisticsPage() {
                 Complete an interview session to view your detailed statistics and performance analysis.
               </p>
               <div className="mt-6">
-                <a
+                <Link
                   href="/dashboard"
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Go to Dashboard
-                </a>
+                </Link>
               </div>
             </div>
           ) : (
