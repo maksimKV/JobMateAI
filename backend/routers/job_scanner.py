@@ -51,22 +51,31 @@ def extract_skills_from_text(job_info: Union[Dict[str, Any], str]) -> Dict[str, 
         return {"skills": [], "technologies": [], "soft_skills": []}
     
     try:
-        # Use FileParser to extract all skills (both technical and soft skills)
+        # Use FileParser to extract all skills
         all_skills = file_parser.extract_skills_from_text(text)
         
-        # Process and return results
-        skills_display = {s.title() for s in all_skills}
+        if not all_skills:
+            logger.info("No skills extracted from text")
+            return {"skills": [], "technologies": [], "soft_skills": []}
+            
+        # Normalize skills: lowercase, strip, and filter out empty strings
+        normalized_skills = list({
+            skill.lower().strip()
+            for skill in all_skills 
+            if skill and isinstance(skill, str) and skill.strip()
+        })
         
-        logger.info(f"Extracted skills: {skills_display}")
+        logger.info(f"Extracted {len(normalized_skills)} unique skills: {normalized_skills}")
         
+        # Return skills in a single category to avoid duplicates
         return {
-            "skills": list(skills_display),
-            "technologies": list(skills_display),
-            "soft_skills": []  # Soft skills are now included in the main skills list
+            "skills": normalized_skills,
+            "technologies": [],  # Will be populated based on skills if needed
+            "soft_skills": []
         }
         
     except Exception as e:
-        logger.error(f"Error extracting skills: {str(e)}")
+        logger.error(f"Error extracting skills: {str(e)}", exc_info=True)
         return {"skills": [], "technologies": [], "soft_skills": []}
 
 def normalize_skills(skills: List[str]) -> Set[str]:
@@ -155,31 +164,50 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
     """
     suggestions = []
     
-    # Get all skills in lowercase for case-insensitive comparison
-    job_skills_lower = {k: [s.lower() for s in v] for k, v in job_skills.items()}
-    cv_skills_lower = {k: [s.lower() for s in v] for k, v in cv_skills.items()}
+    # Normalize all skills to lowercase and remove duplicates
+    job_skills_normalized = {
+        'skills': list({s.lower().strip() for s in job_skills.get('skills', []) if s and isinstance(s, str)}),
+        'technologies': list({s.lower().strip() for s in job_skills.get('technologies', []) if s and isinstance(s, str)}),
+        'soft_skills': list({s.lower().strip() for s in job_skills.get('soft_skills', []) if s and isinstance(s, str)})
+    }
+    
+    cv_skills_normalized = {
+        'skills': list({s.lower().strip() for s in cv_skills.get('skills', []) if s and isinstance(s, str)}),
+        'technologies': list({s.lower().strip() for s in cv_skills.get('technologies', []) if s and isinstance(s, str)}),
+        'soft_skills': list({s.lower().strip() for s in cv_skills.get('soft_skills', []) if s and isinstance(s, str)})
+    }
     
     # 1. Missing skills (high priority)
-    missing_skills = []
-    for category in ["skills", "technologies", "soft_skills"]:
-        missing = list(set(job_skills_lower.get(category, [])) - set(cv_skills_lower.get(category, [])))
-        missing_skills.extend(missing)
+    # Combine all job skills and CV skills for comparison
+    all_job_skills = set(job_skills_normalized['skills'] + 
+                         job_skills_normalized['technologies'] + 
+                         job_skills_normalized['soft_skills'])
+    
+    all_cv_skills = set(cv_skills_normalized['skills'] + 
+                       cv_skills_normalized['technologies'] + 
+                       cv_skills_normalized['soft_skills'])
+    
+    # Find missing skills (in job but not in CV)
+    missing_skills = list(all_job_skills - all_cv_skills)
     
     if missing_skills:
+        # Sort missing skills for consistent ordering
+        missing_skills_sorted = sorted(missing_skills)
+        
         suggestions.append({
             "id": "missing_skills",
             "title": "Missing Key Skills",
             "description": "These skills are required for the job but not found in your CV",
             "priority": 1,  # high
             "category": "skills",
-            "icon": "code",  # Using 'code' icon which maps to <Code> component
-            "items": [{"text": skill, "action": "add"} for skill in missing_skills[:5]]
+            "icon": "code",
+            "items": [{"text": skill.title(), "action": "add"} for skill in missing_skills_sorted[:10]]  # Increased limit to 10
         })
     
     # 2. Skills to highlight (high priority)
     strong_skills = []
     for category in ["skills", "technologies"]:
-        strong = list(set(cv_skills_lower.get(category, [])) - set(job_skills_lower.get(category, [])))
+        strong = list(set(cv_skills_normalized.get(category, [])) - set(job_skills_normalized.get(category, [])))
         strong_skills.extend(strong)
     
     if strong_skills:
@@ -196,7 +224,7 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
     # 3. Matched skills (medium priority)
     matched_skills = []
     for category in ["skills", "technologies", "soft_skills"]:
-        matched = list(set(job_skills_lower.get(category, [])) & set(cv_skills_lower.get(category, [])))
+        matched = list(set(job_skills_normalized.get(category, [])) & set(cv_skills_normalized.get(category, [])))
         matched_skills.extend(matched)
     
     if matched_skills:
@@ -321,36 +349,46 @@ async def job_match(
         elif 'text' in cv_data:
             cv_text = cv_data['text']
         
-        # Extract skills from job description and CV using FileParser
+        # Extract skills from job description
         job_skills = extract_skills_from_text(job_description)
+        logger.info(f"Extracted {sum(len(v) for v in job_skills.values())} skills from job description")
         
-        # If we have CV text, use it for more accurate skill extraction
+        # Initialize CV skills with sets to automatically handle deduplication
+        cv_skills = {
+            'skills': set(),
+            'technologies': set(),
+            'soft_skills': set()
+        }
+        
+        # Extract skills from CV text if available
         if cv_text:
             cv_skills_extracted = extract_skills_from_text(cv_text)
-            
-            # Merge with any existing skills from CV data
-            cv_skills = {
-                'skills': list(set(cv_skills_extracted.get('skills', []) + cv_data.get('skills', []))),
-                'technologies': list(set(cv_skills_extracted.get('technologies', []) + cv_data.get('technologies', []))),
-                'soft_skills': list(set(cv_skills_extracted.get('soft_skills', []) + cv_data.get('soft_skills', [])))
-            }
-        else:
-            # Fall back to only using structured data if no text is available
-            cv_skills = {
-                'skills': cv_data.get('skills', []),
-                'technologies': cv_data.get('technologies', []),
-                'soft_skills': cv_data.get('soft_skills', [])
-            }
+            for category in cv_skills:
+                cv_skills[category].update(
+                    skill.lower().strip() 
+                    for skill in cv_skills_extracted.get(category, []) 
+                    if skill and isinstance(skill, str)
+                )
+        
+        # Add skills from CV data
+        for category in ['skills', 'technologies', 'soft_skills']:
+            cv_skills[category].update(
+                str(skill).lower().strip() 
+                for skill in cv_data.get(category, []) 
+                if skill and str(skill).strip()
+            )
         
         # Calculate match score
         match_score = calculate_match_score(job_skills, cv_skills)
         
         # Process extracted_skills from CV data if available
         if "extracted_skills" in cv_data and isinstance(cv_data["extracted_skills"], list):
-            cv_skills["skills"].extend(skill.lower() for skill in cv_data["extracted_skills"] 
-                                     if skill and isinstance(skill, str))
-            cv_skills["technologies"] = cv_skills["skills"].copy()
-            logger.info(f"Found {len(cv_data['extracted_skills'])} skills in extracted_skills")
+            cv_skills["skills"].update(
+                str(skill).lower().strip() 
+                for skill in cv_data["extracted_skills"] 
+                if skill and str(skill).strip()
+            )
+            logger.info(f"Added {len(cv_data['extracted_skills'])} skills from extracted_skills")
         
         # Process skills from parsed_data if available
         if "parsed_data" in cv_data and isinstance(cv_data["parsed_data"], dict):
@@ -358,22 +396,28 @@ async def job_match(
             
             # Add skills from skills section
             if "skills" in parsed_data and isinstance(parsed_data["skills"], list):
-                cv_skills["skills"].extend(skill.lower() for skill in parsed_data["skills"] 
-                                         if skill and isinstance(skill, str))
+                cv_skills["skills"].update(
+                    str(skill).lower().strip() 
+                    for skill in parsed_data["skills"] 
+                    if skill and str(skill).strip()
+                )
             
             # Extract skills from raw text using FileParser if available
             if "raw_text" in parsed_data and isinstance(parsed_data["raw_text"], str):
                 extracted = file_parser.extract_skills_from_text(parsed_data["raw_text"])
-                cv_skills["skills"].extend(skill.lower() for skill in extracted)
+                cv_skills["skills"].update(
+                    str(skill).lower().strip() 
+                    for skill in extracted 
+                    if skill and str(skill).strip()
+                )
             
-            # Remove duplicates
-            cv_skills["skills"] = list(set(cv_skills["skills"]))
-            cv_skills["technologies"] = cv_skills["skills"].copy()
-            logger.info(f"Extracted {len(cv_skills['skills'])} skills from parsed_data")
+            logger.info(f"Processed skills from parsed_data")
         
-        # Ensure all skills are strings and not empty
-        for key in ["skills", "technologies", "soft_skills"]:
-            cv_skills[key] = [str(skill).strip() for skill in cv_skills[key] if skill and str(skill).strip()]
+        # Convert sets to lists for the response
+        cv_skills = {k: list(v) for k, v in cv_skills.items()}
+        logger.info(f"Final skill counts - Skills: {len(cv_skills['skills'])}, "
+                  f"Technologies: {len(cv_skills['technologies'])}, "
+                  f"Soft Skills: {len(cv_skills['soft_skills'])}")
         
         # Log extracted skills for debugging
         logger.info(f"Extracted job skills: {json.dumps(job_skills, indent=2)}")
@@ -412,13 +456,20 @@ async def job_match(
             "cv_skills": cv_skills,
             "suggestions": suggestions,  # This is now a list of suggestion cards
             # For backward compatibility
-            "missing_skills": [item["text"] for suggestion in suggestions 
-                             for item in suggestion.get("items", []) 
-                             if item.get("action") == "add"],
-            "matched_skills": [item["text"] for suggestion in suggestions 
-                             for item in suggestion.get("items", []) 
-                             if item.get("action") == "highlight"]
+            "missing_skills": [],
+            "matched_skills": []
         }
+        
+        # Extract missing and matched skills from suggestions
+        for suggestion in suggestions:
+            if suggestion.get("id") == "missing_skills":
+                # Get missing skills directly from the missing_skills suggestion
+                response["missing_skills"] = [item["text"] for item in suggestion.get("items", []) 
+                                            if item.get("action") == "add"]
+            elif suggestion.get("id") == "matching_skills":
+                # Get matched skills directly from the matching_skills suggestion
+                response["matched_skills"] = [item["text"] for item in suggestion.get("items", []) 
+                                            if item.get("action") == "highlight"]
         
         return response
     except Exception as e:
