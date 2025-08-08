@@ -1,0 +1,27 @@
+{
+  "programming_languages": [
+    "python", "javascript", "typescript", "java", "c#", "c++", "c", "go", "rust", "kotlin",
+    "swift", "php", "ruby", "scala", "r", "dart", "elixir", "clojure", "haskell", "perl"
+  ],
+  "frameworks": [
+    "react", "angular", "vue", "svelte", "next.js", "nuxt.js", "sveltekit", "express", "django",
+    "flask", "fastapi", "spring", "spring boot", "laravel", "ruby on rails", "asp.net", ".net core",
+    "blazor", "xamarin", "flutter", "react native", "ionic", "electron"
+  ],
+  "databases": [
+    "mysql", "postgresql", "mongodb", "redis", "elasticsearch", "dynamodb", "cassandra", "couchbase",
+    "oracle", "sql server", "sqlite", "firestore", "bigtable", "cosmosdb", "neo4j", "arangodb"
+  ],
+  "cloud_platforms": [
+    "aws", "amazon web services", "azure", "google cloud", "gcp", "ibm cloud", "oracle cloud",
+    "alibaba cloud", "digitalocean", "heroku", "vercel", "netlify", "firebase"
+  ],
+  "devops_tools": [
+    "docker", "kubernetes", "terraform", "ansible", "puppet", "chef", "jenkins", "github actions",
+    "gitlab ci", "circleci", "travis ci", "argo cd", "flux", "helm", "istio", "linkerd"
+  ],
+  "ai_ml": [
+    "tensorflow", "pytorch", "keras", "scikit-learn", "opencv", "nltk", "spacy", "huggingface",
+    "langchain", "llama", "gpt", "bert", "transformers", "stable diffusion", "dall-e", "midjourney"
+  ]
+}

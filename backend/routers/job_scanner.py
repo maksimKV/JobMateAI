@@ -3,6 +3,8 @@ from typing import Dict, Any, List, Set, Optional
 import re
 import logging
 import json
+import os
+from pathlib import Path
 
 from utils.ai_client import ai_client
 from routers.cv_analyzer import cv_storage
@@ -14,85 +16,161 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Job Scanner"])
 
+# Load skills database from JSON file
+def load_skills_database() -> Dict[str, List[str]]:
+    """Load the skills database from the JSON file."""
+    try:
+        # Get the absolute path to the skills database file
+        base_dir = Path(__file__).parent.parent
+        skills_file = base_dir / "data" / "skills_database.json"
+        
+        with open(skills_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load skills database: {str(e)}")
+        # Return a minimal skills database if the file can't be loaded
+        return {
+            "programming_languages": ["python", "javascript", "java"],
+            "frameworks": ["react", "django", "flask"],
+            "databases": ["mysql", "mongodb", "postgresql"],
+            "cloud_platforms": ["aws", "azure", "google cloud"],
+            "devops_tools": ["docker", "kubernetes", "terraform"],
+            "ai_ml": ["tensorflow", "pytorch", "scikit-learn"]
+        }
+
+# Load the skills database at startup
+SKILL_DATABASE = load_skills_database()
+
+def extract_skills_using_regex(text: str) -> Dict[str, set]:
+    """Extract skills using regex patterns from the given text."""
+    tech_skills = set()
+    soft_skills = set()
+    
+    # Common patterns for technical skills
+    tech_patterns = [
+        r'\b(?:html|css|js|javascript|typescript|ts|jsx|tsx)\b',
+        r'\b(?:python|py|java|c#|c\+\+|cpp|go|rust|kotlin|swift|php|ruby|scala|r|dart|elixir|clojure|haskell|perl)\b',
+        r'\b(?:react|angular|vue|svelte|next\.?js|nuxt\.?js|sveltekit|express|django|flask|fastapi|spring(?:\s+boot)?|laravel|rails|ruby\s+on\s+rails|asp\.net|\.net\s+core|blazor|xamarin|flutter|react\s+native|ionic|electron)\b',
+        r'\b(?:mysql|postgres(?:ql)?|mongodb|redis|elasticsearch|dynamodb|cassandra|couchbase|oracle|sql\s+server|sqlite|firestore|bigtable|cosmosdb|neo4j|arangodb)\b',
+        r'\b(?:aws|amazon\s+web\s+services|azure|google\s+cloud|gcp|ibm\s+cloud|oracle\s+cloud|alibaba\s+cloud|digitalocean|heroku|vercel|netlify|firebase)\b',
+        r'\b(?:docker|kubernetes|k8s|terraform|ansible|puppet|chef|jenkins|github\s+actions|gitlab\s+ci|circleci|travis\s+ci|argo\s+cd|flux|helm|istio|linkerd)\b',
+        r'\b(?:tensorflow|pytorch|keras|scikit-learn|opencv|nltk|spacy|huggingface|langchain|llama|gpt|bert|transformers|stable\s+diffusion|dall-e|midjourney)\b'
+    ]
+    
+    # Common patterns for soft skills
+    soft_patterns = [
+        r'\b(?:communication|teamwork|leadership|problem-?solving|critical\s+thinking|adaptability|time\s+management|creativity|emotional\s+intelligence|conflict\s+resolution|collaboration|active\s+listening|empathy|patience|flexibility|work\s+ethic|responsibility|dependability|self-?motivation|professionalism|initiative|decision\s+making|stress\s+management|organization|attention\s+to\s+detail|multitasking|networking|negotiation|presentation|public\s+speaking|writing|research|analysis|planning|delegation|mentoring|coaching|training|supervision|project\s+management|strategic\s+thinking|innovation|resourcefulness|persuasion|influence|diplomacy|tact|cultural\s+awareness|customer\s+service|sales|marketing|business\s+development|financial\s+management|risk\s+management|quality\s+assurance|compliance|regulatory|legal|ethics|diversity|inclusion|equity|belonging|accessibility|sustainability|corporate\s+social\s+responsibility)\b'
+    ]
+    
+    # Search for technical skills
+    for pattern in tech_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        tech_skills.update(match.lower() for match in matches)
+    
+    # Search for soft skills
+    for pattern in soft_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        soft_skills.update(match.lower() for match in matches)
+    
+    return {"tech_skills": tech_skills, "soft_skills": soft_skills}
+
+def extract_skills_from_structured(data: Dict[str, Any]) -> Dict[str, set]:
+    """Extract skills from structured data like job descriptions or CVs."""
+    tech_skills = set()
+    soft_skills = set()
+    
+    # Common fields that might contain skills
+    skill_fields = [
+        'skills', 'technologies', 'technical_skills', 'programming_languages',
+        'languages', 'frameworks', 'tools', 'certifications', 'expertise'
+    ]
+    
+    # Check each field for skills
+    for field in skill_fields:
+        if field in data and isinstance(data[field], (list, set)):
+            for item in data[field]:
+                if isinstance(item, str):
+                    # Check if it's a technical skill or soft skill
+                    item_lower = item.lower()
+                    if any(skill in item_lower for category in SKILL_DATABASE.values() for skill in category):
+                        tech_skills.add(item.strip())
+                    else:
+                        soft_skills.add(item.strip())
+    
+    return {"tech_skills": tech_skills, "soft_skills": soft_skills}
+
 def extract_skills_from_text(job_info: Dict[str, Any]) -> Dict[str, List[str]]:
     """
-    Extract skills from the job info dictionary structure or raw text.
+    Extract skills from the job info using a hybrid approach:
+    1. Try structured extraction first
+    2. Fall back to regex pattern matching
+    3. Finally, use keyword matching as a last resort
     
     Args:
         job_info: Dictionary containing job information with 'raw_text' key
         
     Returns:
-        Dictionary with categorized skills (technical, soft, etc.)
+        Dictionary with categorized skills (skills, technologies, soft_skills)
     """
-    logger.info("Extracting skills from job info")
-    skills = set()
+    logger.info("Extracting skills using hybrid approach")
+    
+    # Initialize sets to store skills
     tech_skills = set()
     soft_skills = set()
     
-    # Common technical terms to look for
-    tech_keywords = [
-        'html', 'css', 'javascript', 'typescript', 'react', 'node', 'bootstrap', 
-        'aws', 'python', 'java', 'c#', 'c++', 'sql', 'nosql', 'mongodb', 'postgresql',
-        'mysql', 'git', 'docker', 'kubernetes', 'rest', 'api', 'graphql', 'grpc',
-        'microservices', 'mvc', 'mvvm', 'oop', 'design patterns', 'agile', 'scrum',
-        'ci/cd', 'tdd', 'jest', 'mocha', 'junit', 'selenium', 'jenkins', 'github actions',
-        'azure', 'google cloud', 'firebase', 'heroku', 'netlify', 'vercel', 'django',
-        'flask', 'express', 'spring boot', 'asp.net', 'ruby on rails', 'laravel',
-        'symfony', 'angular', 'vue', 'svelte', 'jquery', 'redux', 'mobx', 'apollo',
-        'webpack', 'babel', 'eslint', 'prettier', 'flow', 'jasmine', 'cypress',
-        'storybook', 'styled components', 'tailwind css', 'sass', 'less', 'bem',
-        'terraform', 'ansible', 'chef', 'puppet', 'circleci', 'gitlab ci',
-        'travis ci', 'aws codepipeline', 'azure devops', 'google cloud build',
-        'serverless', 'aws lambda', 'google cloud functions', 'azure functions',
-        'firebase functions', 'netlify functions', 'websockets', 'webrtc', 'oauth',
-        'jwt', 'openid connect', 'saml', 'ldap', 'oidc', 'api gateway', 'kong',
-        'apollo server', 'hasura', 'prisma', 'redis', 'elasticsearch', 'dynamodb',
-        'firestore', 'bigquery', 'snowflake', 'redshift', 'tableau', 'power bi',
-        'looker', 'metabase', 'apache kafka', 'rabbitmq', 'nats', 'protobuf'
-    ]
-    
-    # Common soft skills to look for
-    soft_skill_keywords = [
-        'communication', 'teamwork', 'leadership', 'problem-solving', 'critical thinking',
-        'adaptability', 'time management', 'creativity', 'emotional intelligence',
-        'conflict resolution', 'collaboration', 'active listening', 'empathy', 'patience',
-        'flexibility', 'work ethic', 'responsibility', 'dependability', 'self-motivation',
-        'professionalism', 'initiative', 'decision making', 'stress management',
-        'organization', 'attention to detail', 'multitasking', 'networking', 'negotiation',
-        'presentation', 'public speaking', 'writing', 'research', 'analysis', 'planning',
-        'delegation', 'mentoring', 'coaching', 'training', 'supervision', 'project management',
-        'strategic thinking', 'innovation', 'resourcefulness', 'persuasion', 'influence',
-        'diplomacy', 'tact', 'cultural awareness', 'customer service', 'sales', 'marketing',
-        'business development', 'financial management', 'risk management', 'quality assurance',
-        'compliance', 'regulatory', 'legal', 'ethics', 'diversity', 'inclusion', 'equity',
-        'belonging', 'accessibility', 'sustainability', 'corporate social responsibility'
-    ]
-    
-    # Try to extract from structured data first
+    # Get raw text from job info
+    text = ""
     if isinstance(job_info, dict):
-        # Get all text content from the job info
-        all_text = []
-        if 'job_description' in job_info and isinstance(job_info['job_description'], str):
-            all_text.append(job_info['job_description'].lower())
-        if 'description' in job_info and isinstance(job_info['description'], str):
-            all_text.append(job_info['description'].lower())
-        
-        # Search for technical skills in the text
-        for text in all_text:
-            for keyword in tech_keywords:
-                if keyword in text:
-                    tech_skills.add(keyword.upper() if len(keyword) <= 3 else keyword.title())
-            
-            # Search for soft skills in the text
-            for skill in soft_skill_keywords:
-                if skill in text:
-                    soft_skills.add(skill.title())
+        text = job_info.get('raw_text', '')
+        if not text and 'job_description' in job_info and isinstance(job_info['job_description'], str):
+            text = job_info['job_description']
+        elif not text and 'description' in job_info and isinstance(job_info['description'], str):
+            text = job_info['description']
+    elif isinstance(job_info, str):
+        text = job_info
     
-    # Convert sets to lists and return
+    # Convert to lowercase for case-insensitive matching
+    text_lower = text.lower()
+    
+    # 1. Try structured extraction first if possible
+    if isinstance(job_info, dict):
+        structured_result = extract_skills_from_structured(job_info)
+        tech_skills.update(structured_result["tech_skills"])
+        soft_skills.update(structured_result["soft_skills"])
+    
+    # 2. If no skills found, try regex extraction
+    if not tech_skills and not soft_skills:
+        regex_result = extract_skills_using_regex(text_lower)
+        tech_skills.update(regex_result["tech_skills"])
+        soft_skills.update(regex_result["soft_skills"])
+    
+    # 3. If still no skills, try keyword matching from the database
+    if not tech_skills:
+        for category, skills in SKILL_DATABASE.items():
+            for skill in skills:
+                if skill in text_lower:
+                    tech_skills.add(skill)
+    
+    # 4. Additional processing for common variations
+    processed_tech_skills = set()
+    for skill in tech_skills:
+        # Handle common variations (e.g., "node.js" -> "nodejs")
+        normalized = skill.replace('.', '').replace(' ', '').lower()
+        processed_tech_skills.add(normalized)
+    
+    # Convert to title case for better display
+    tech_skills_display = {s.title() for s in processed_tech_skills}
+    soft_skills_display = {s.title() for s in soft_skills}
+    
+    # Log the extracted skills for debugging
+    logger.info(f"Extracted technical skills: {tech_skills_display}")
+    logger.info(f"Extracted soft skills: {soft_skills_display}")
+    
+    # Return the results
     return {
-        "skills": list(tech_skills),  # All technical skills go here for now
-        "technologies": list(tech_skills),
-        "soft_skills": list(soft_skills)
+        "skills": list(tech_skills_display),
+        "technologies": list(tech_skills_display),
+        "soft_skills": list(soft_skills_display)
     }
 
 def normalize_skills(skills: List[str]) -> Set[str]:
