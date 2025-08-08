@@ -1,8 +1,11 @@
 from fastapi import Request
-from fastapi.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from fastapi.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.types import ASGIApp
 from fastapi.responses import Response
-from typing import Optional, Callable, Awaitable, Any
+from typing import Optional, Callable, Awaitable, Any, List, Dict, Union
 import logging
+import json
 from utils.translations import translator
 
 logger = logging.getLogger(__name__)
