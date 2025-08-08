@@ -280,9 +280,9 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
             "id": "missing_skills",
             "title": "Missing Key Skills",
             "description": "These skills are required for the job but not found in your CV",
-            "priority": 1,
+            "priority": 1,  # high
             "category": "skills",
-            "icon": "alert-triangle",
+            "icon": "code",  # Using 'code' icon which maps to <Code> component
             "items": [{"text": skill, "action": "add"} for skill in missing_skills[:5]]
         })
     
@@ -297,9 +297,9 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
             "id": "skills_to_highlight",
             "title": "Skills to Highlight",
             "description": "These valuable skills in your CV aren't mentioned in the job description",
-            "priority": 1,
-            "category": "skills",
-            "icon": "star",
+            "priority": 1,  # high
+            "category": "highlight",
+            "icon": "star",  # Using 'star' icon which maps to <Star> component
             "items": [{"text": skill, "action": "highlight"} for skill in strong_skills[:5]]
         })
     
@@ -314,9 +314,9 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
             "id": "matching_skills",
             "title": "Matching Skills",
             "description": "These skills from the job description match your CV",
-            "priority": 2,
-            "category": "skills",
-            "icon": "check-circle",
+            "priority": 2,  # medium
+            "category": "matching",
+            "icon": "group",  # Using 'group' icon which maps to <Users> component
             "items": [{"text": skill, "action": "highlight"} for skill in matched_skills[:5]]
         })
     
@@ -331,9 +331,9 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
             "id": "skills_to_learn",
             "title": "Skills to Learn",
             "description": "Consider developing these skills to better match job requirements",
-            "priority": 2,
+            "priority": 2,  # medium
             "category": "learning",
-            "icon": "book-open",
+            "icon": "format_align_left",  # Using 'format_align_left' icon which maps to <AlignLeft> component
             "items": [{"text": f"Learn {skill}", "action": "suggest"} for skill in related_skills]
         })
     
@@ -342,9 +342,9 @@ def generate_improvement_suggestions(job_skills: Dict[str, List[str]], cv_skills
         "id": "profile_enhancement",
         "title": "Enhance Your Profile",
         "description": "Consider these suggestions to improve your profile's impact",
-        "priority": 3,
+        "priority": 3,  # low
         "category": "suggestion",
-        "icon": "zap",
+        "icon": "star",  # Using 'star' icon which maps to <Star> component
         "items": [
             {"text": "Add project examples", "action": "suggest"},
             {"text": "Include specific achievements", "action": "suggest"},
