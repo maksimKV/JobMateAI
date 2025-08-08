@@ -1,12 +1,16 @@
-from fastapi import APIRouter, HTTPException, Body, Request, status, Depends
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from fastapi import APIRouter, HTTPException, Body, Request, status
+from typing import Dict, Any, List, Optional, Tuple, Union
+from datetime import datetime
 import logging
 import statistics
 
 from routers.interview_simulator import interview_sessions
 from utils.translations import translator
-from utils.scoring import calculate_average_score
+
+# Configuration constants
+DEFAULT_SCORE = 7.0  # Default score when none is provided
+MIN_SCORE = 0.0       # Minimum allowed score
+MAX_SCORE = 10.0      # Maximum allowed score
 
 router = APIRouter(tags=["Statistics"])
 logger = logging.getLogger(__name__)
@@ -28,18 +32,52 @@ def _calculate_averages(scores: List[float]) -> Tuple[float, float, float]:
         max(scores)
     )
 
-def calculate_scores(feedback: List[Dict[str, Any]], interview_type: str, language: str = 'en') -> Dict[str, Any]:
+def _validate_feedback_item(fb: Dict[str, Any]) -> Tuple[bool, Optional[float], str]:
+    """Validate a single feedback item and extract score and type.
+    
+    Args:
+        fb: Feedback dictionary containing score and type
+        
+    Returns:
+        Tuple of (is_valid, score, question_type)
+    """
+    if not isinstance(fb, dict):
+        return False, None, ""
+    
+    try:
+        # Get and validate score
+        score = float(fb.get('score', DEFAULT_SCORE))
+        if not (MIN_SCORE <= score <= MAX_SCORE):
+            logger.warning(f"Score {score} out of valid range ({MIN_SCORE}-{MAX_SCORE})")
+            return False, None, ""
+            
+        # Get and normalize question type
+        question_type = str(fb.get('type', '')).lower().strip()
+        return True, score, question_type
+        
+    except (ValueError, TypeError) as e:
+        logger.warning(f"Invalid score format in feedback item: {e}")
+        return False, None, ""
+
+def calculate_scores(
+    feedback: List[Dict[str, Any]], 
+    interview_type: str, 
+    language: str = 'en'
+) -> Dict[str, Any]:
     """Calculate scores for the feedback based on interview type.
     
     Args:
-        feedback: List of feedback dictionaries
+        feedback: List of feedback dictionaries with 'score' and 'type' keys
         interview_type: Type of interview ('hr', 'technical', 'non_technical', 'mixed')
         language: Language code for the response (e.g., 'en', 'bg')
         
     Returns:
-        Dictionary containing calculated scores and metrics
+        Dictionary containing:
+        - success: Boolean indicating if calculation was successful
+        - message: Status message
+        - scores: Dictionary with calculated metrics
     """
-    if not feedback:
+    if not feedback or not isinstance(feedback, list):
         return {
             "success": False,
             "message": translator.get("errors.no_feedback_data", language),
@@ -47,39 +85,40 @@ def calculate_scores(feedback: List[Dict[str, Any]], interview_type: str, langua
         }
     
     # Initialize score trackers
-    hr_scores = []
-    tech_theory_scores = []
-    tech_practical_scores = []
-    non_tech_scores = []
+    hr_scores: List[float] = []
+    tech_theory_scores: List[float] = []
+    tech_practical_scores: List[float] = []
+    non_tech_scores: List[float] = []
+    
+    # Track invalid feedback items
+    invalid_count = 0
     
     # Categorize feedback by type
     for fb in feedback:
-        if not isinstance(fb, dict):
+        is_valid, score, question_type = _validate_feedback_item(fb)
+        if not is_valid:
+            invalid_count += 1
             continue
             
-        try:
-            score = float(fb.get('score', 7.0))  # Default to 7.0 if score not provided
-            if not (0 <= score <= 10):  # Validate score range
-                continue
-                
-            question_type = str(fb.get('type', '')).lower()
-            
-            if question_type == 'hr':
-                hr_scores.append(score)
-            elif question_type == 'non_technical':
-                non_tech_scores.append(score)
-            elif question_type == 'technical':
-                # For backward compatibility, split technical questions 50/50 between theory and practical
-                if len(tech_theory_scores) <= len(tech_practical_scores):
-                    tech_theory_scores.append(score)
-                else:
-                    tech_practical_scores.append(score)
-            elif question_type == 'technical_theory':
+        # Categorize the score
+        if question_type == 'hr':
+            hr_scores.append(score)
+        elif question_type == 'non_technical':
+            non_tech_scores.append(score)
+        elif question_type == 'technical':
+            # For backward compatibility, split technical questions 50/50 between theory and practical
+            if len(tech_theory_scores) <= len(tech_practical_scores):
                 tech_theory_scores.append(score)
-            elif question_type == 'technical_practical':
+            else:
                 tech_practical_scores.append(score)
-        except (ValueError, TypeError):
-            continue
+        elif question_type == 'technical_theory':
+            tech_theory_scores.append(score)
+        elif question_type == 'technical_practical':
+            tech_practical_scores.append(score)
+    
+    # Log any invalid feedback items
+    if invalid_count > 0:
+        logger.warning(f"Skipped {invalid_count} invalid feedback items")
     
     # Calculate statistics for each category
     hr_avg, hr_min, hr_max = _calculate_averages(hr_scores)
