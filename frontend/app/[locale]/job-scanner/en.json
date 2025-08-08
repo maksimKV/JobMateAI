@@ -22,6 +22,17 @@
     "title": "AI Suggestions",
     "moreSuggestions": "more suggestions"
   },
+  "success": {
+    "no_cvs_found": "No CVs found in your profile. Please upload a CV first.",
+    "cvs_retrieved": "CVs retrieved successfully",
+    "job_match_completed": "Job match analysis completed successfully"
+  },
+  "cv_analyzer": {
+    "unknown_filename": "Unnamed CV"
+  },
+  "score_interpretation": {
+    "low": "Low match - Consider improving your skills to better match job requirements"
+  },
   "errors": {
     "unexpected": "An unexpected error occurred. Please try again.",
     "noCvSelected": "Please select a CV",
