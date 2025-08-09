@@ -28,6 +28,8 @@
   "feedbackDisplay": {
     "fullContext": {
       "title": "Question & Feedback",
+      "questionSection": "Your question & answers",
+      "feedbackSection": "Your AI Feedback",
       "question": "Question",
       "yourAnswer": "Your Answer",
       "feedback": "Feedback"

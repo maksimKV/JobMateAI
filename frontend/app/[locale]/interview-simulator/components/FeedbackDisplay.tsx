@@ -3,7 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { InterviewFeedback } from '../types';
-import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart, HelpCircle, MessageCircleQuestion, User, Bot } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart, HelpCircle, MessageSquareText, User, Bot } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FeedbackDisplayProps {
@@ -112,12 +112,18 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           </div>
           
           {/* Question & Answer Section */}
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <div className="flex items-center text-gray-900 mb-4">
+              <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
+              <h3 className="text-lg font-medium">
+                {t('fullContext.questionSection')}
+              </h3>
+            </div>
             <div className="space-y-4">
               {/* Question Section */}
               <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
                 <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
-                  <MessageCircleQuestion className="h-5 w-5 text-blue-600 mr-2" />
+                  <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
                   <h3 className="text-sm font-medium text-gray-900">
                     {t('fullContext.question')}
                   </h3>
@@ -140,16 +146,18 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* AI Feedback Section */}
+          {/* AI Feedback Section */}
+          <div className="space-y-4">
+            <div className="flex items-center text-gray-900">
+              <Bot className="h-5 w-5 text-blue-600 mr-2" />
+              <h3 className="text-lg font-medium">
+                {t('fullContext.feedbackSection')}
+              </h3>
+            </div>
             <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
-              <div className="flex items-center px-4 py-3 border-b border-blue-100 bg-blue-50">
-                <Bot className="h-5 w-5 text-blue-600 mr-2" />
-                <h3 className="text-sm font-medium text-gray-900">
-                  {t('fullContext.feedback')}
-                </h3>
-              </div>
-              <div className="space-y-4 p-4">
+              <div className="p-4 space-y-4">
                 {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
                   if (!sections[key]) return null;
                   
@@ -193,82 +201,85 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
         </div>
       ) : (
         // Compact view (for in-interview feedback)
-        <>
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-              <h4 className="text-lg font-medium text-gray-900">{t('compact.title')}</h4>
-            </div>
-          </div>
-          
-          {/* Question & Answer in compact view */}
-          <div className="space-y-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <div className="flex items-center text-gray-700 mb-1">
-                <MessageCircleQuestion className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
-                <span className="text-sm font-medium">{t('fullContext.question')}</span>
-              </div>
-              <p className="text-gray-700 text-sm pl-6">{displayQuestion}</p>
+        <div className="space-y-6">
+          <div className="space-y-6">
+            <div className="flex items-center text-gray-900">
+              <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
+              <h3 className="text-lg font-medium">
+                {t('fullContext.questionSection')}
+              </h3>
             </div>
             
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <div className="flex items-center text-gray-700 mb-1">
-                <User className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                <span className="text-sm font-medium">{t('fullContext.yourAnswer')}</span>
+            <div className="space-y-4 mb-6">
+              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div className="flex items-center text-gray-700 mb-1">
+                  <MessageSquareText className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
+                  <span className="text-sm font-medium">{t('fullContext.question')}</span>
+                </div>
+                <p className="text-gray-700 text-sm pl-6">{displayQuestion}</p>
               </div>
-              <p className="text-gray-700 text-sm whitespace-pre-line pl-6">{displayAnswer}</p>
+              
+              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div className="flex items-center text-gray-700 mb-1">
+                  <User className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                  <span className="text-sm font-medium">{t('fullContext.yourAnswer')}</span>
+                </div>
+                <p className="text-gray-700 text-sm whitespace-pre-line pl-6">{displayAnswer}</p>
+              </div>
             </div>
           </div>
           
           {/* AI Feedback Section */}
-          <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
-            <div className="flex items-center px-4 py-3 border-b border-blue-100 bg-blue-50">
+          <div className="space-y-4">
+            <div className="flex items-center text-gray-900">
               <Bot className="h-5 w-5 text-blue-600 mr-2" />
-              <h3 className="text-sm font-medium text-gray-900">
-                {t('fullContext.feedback')}
+              <h3 className="text-lg font-medium">
+                {t('fullContext.feedbackSection')}
               </h3>
             </div>
-            <div className="p-4 space-y-4">
-              {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
-                if (!sections[key]) return null;
-                
-                return (
-                  <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-                    <div className={`flex items-center justify-between p-3 ${bgColor}`}>
-                      <div className="flex items-center">
-                        <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
-                        <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                          {key}
-                        </h6>
+            <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
+              <div className="p-4 space-y-4">
+                {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
+                  if (!sections[key]) return null;
+                  
+                  return (
+                    <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                      <div className={`flex items-center justify-between p-3 ${bgColor}`}>
+                        <div className="flex items-center">
+                          <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
+                          <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                            {key}
+                          </h6>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                type="button" 
+                                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                aria-label={t('aria.learnMore', { section: key })}
+                              >
+                                <HelpCircle className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-sm">{tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button 
-                              type="button" 
-                              className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                              aria-label={t('aria.learnMore', { section: key })}
-                            >
-                              <HelpCircle className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-sm">{tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="p-4">
+                        <p className="text-gray-700 whitespace-pre-line text-sm">
+                          {sections[key]}
+                        </p>
+                      </div>
                     </div>
-                    <div className="p-4">
-                      <p className="text-gray-700 whitespace-pre-line text-sm">
-                        {sections[key]}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

@@ -28,6 +28,8 @@
   "feedbackDisplay": {
     "fullContext": {
       "title": "Въпрос и обратна връзка",
+      "questionSection": "Вашият въпрос и отговор",
+      "feedbackSection": "Вашата AI обратна връзка",
       "question": "Въпрос",
       "yourAnswer": "Вашият отговор",
       "feedback": "Обратна връзка"
