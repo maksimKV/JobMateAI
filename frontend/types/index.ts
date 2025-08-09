@@ -219,7 +219,7 @@ export interface AnswerSubmissionRequest {
 export interface AnswerSubmissionResponse {
   success: boolean;
   feedback: InterviewFeedback;
-  next_question?: string;
+  next_question?: string | { text: string; type?: InterviewType };
   question_type?: InterviewType;
   question_number?: number;
   is_complete: boolean;

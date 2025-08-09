@@ -102,10 +102,31 @@ export const useInterviewSession = () => {
         const nextQuestionIndex = isComplete ? prev.currentQuestionIndex : prev.currentQuestionIndex + 1;
         
         if (res.next_question && !isComplete) {
-          updatedQuestions[nextQuestionIndex] = {
-            text: res.next_question,
-            type: (res.question_type as QuestionType) || 'hr'
+          // Handle both string and object formats for next_question
+          const nextQuestion = res.next_question;
+          
+          // Helper function to ensure we always get a valid QuestionType
+          const getQuestionType = (type?: string): QuestionType => {
+            const validTypes: QuestionType[] = ['hr', 'technical', 'non_technical'];
+            return type && validTypes.includes(type as QuestionType) 
+              ? type as QuestionType 
+              : 'hr';
           };
+          
+          if (typeof nextQuestion === 'string') {
+            updatedQuestions[nextQuestionIndex] = {
+              text: nextQuestion,
+              type: getQuestionType(res.question_type)
+            };
+          } else {
+            // TypeScript now knows nextQuestion is { text: string; type?: string }
+            updatedQuestions[nextQuestionIndex] = {
+              text: nextQuestion.text,
+              type: getQuestionType(nextQuestion.type || res.question_type)
+            };
+          }
+          
+          console.log('Next question processed:', updatedQuestions[nextQuestionIndex]);
         }
         
         const updatedSession = {

@@ -325,7 +325,13 @@ async def submit_answer(
     # Add next question if available
     if not is_complete:
         next_q = session["questions"][session["current_question_index"]]
-        response["next_question"] = next_q
+        # Ensure consistent question format
+        response["next_question"] = {
+            "text": next_q["text"] if isinstance(next_q.get("text"), str) else 
+                   (next_q["text"]["text"] if isinstance(next_q.get("text"), dict) else ""),
+            "type": next_q.get("type", "general")
+        }
+        logger.debug(f"Formatted next question: {response['next_question']}")
     else:
         # Add summary for completed interview
         response["summary"] = {
