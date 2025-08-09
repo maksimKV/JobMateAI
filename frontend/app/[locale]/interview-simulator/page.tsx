@@ -14,22 +14,22 @@ import { CompletionScreen } from './components/CompletionScreen';
 
 // Constants for interview configuration
 const INTERVIEW_LENGTHS = {
-  short: { label: 'short', questions: 4 },
-  medium: { label: 'medium', questions: 8 },
-  long: { label: 'long', questions: 12 },
+  short: { label: 'Short', questions: 4 },
+  medium: { label: 'Medium', questions: 8 },
+  long: { label: 'Long', questions: 12 },
 };
 
 const MIXED_INTERVIEW_LENGTHS = {
-  short: { label: 'short', questions: { hr: 4, technical: 4 } },
-  medium: { label: 'medium', questions: { hr: 8, technical: 8 } },
-  long: { label: 'long', questions: { hr: 12, technical: 12 } },
+  short: { label: 'Short', questions: { hr: 4, technical: 4 } },
+  medium: { label: 'Medium', questions: { hr: 8, technical: 8 } },
+  long: { label: 'Long', questions: { hr: 12, technical: 12 } },
 };
 
 const InterviewSimulatorPage = () => {
   // Refs
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // State management
+  // State management for interview configuration and user input
   const [jobDescription, setJobDescription] = useState('');
   const [interviewType, setInterviewType] = useState<InterviewType>('hr');
   const [interviewLength, setInterviewLength] = useState<string>('medium');
@@ -38,28 +38,28 @@ const InterviewSimulatorPage = () => {
   const [uiError, setUiError] = useState<string | null>(null);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   
-  // Translations
+  // Translations hook for internationalization
   const t = useTranslations('interviewSimulator');
   
-  // Speech recognition hook
+  // Speech recognition hook for voice-to-text functionality
   const {
-    transcript,
-    listening,
-    recognitionError,
-    startListening,
-    stopListening,
-    isBrowserSupported,
-    clearTranscript
+    transcript,          // Current transcribed text from speech
+    listening,          // Boolean indicating if speech recognition is active
+    recognitionError,   // Any error that occurred during speech recognition
+    startListening,     // Function to start speech recognition
+    stopListening,      // Function to stop speech recognition
+    isBrowserSupported, // Boolean indicating if the browser supports speech recognition
+    clearTranscript     // Function to clear the current transcript
   } = useSpeechToText();
   
-  // Interview session hook
+  // Interview session hook for managing interview state and API calls
   const {
-    session,
-    isLoading,
-    error: sessionError,
-    startInterview: startInterviewSession,
-    submitAnswer: submitAnswerToSession,
-    restartInterview,
+    session,                    // Current interview session state
+    isLoading,                  // Loading state for API calls
+    error: sessionError,        // Error from session operations
+    startInterview: startInterviewSession,  // Function to start a new interview
+    submitAnswer: submitAnswerToSession,    // Function to submit an answer
+    restartInterview,           // Function to reset the interview
   } = useInterviewSession();
   
   // Destructure session for easier access
