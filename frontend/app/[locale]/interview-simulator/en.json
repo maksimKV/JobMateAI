@@ -85,5 +85,8 @@
     "speakNow": "Speak now...",
     "submit": "Submit",
     "nextQuestion": "Next Question"
+  },
+  "aria": {
+    "learnMore": "Learn more about {section}"
   }
 }

@@ -85,5 +85,8 @@
     "speakNow": "Говорете сега...",
     "submit": "Изпрати",
     "nextQuestion": "Следващ въпрос"
+  },
+  "aria": {
+    "learnMore": "Научете повече за {section}"
   }
 }
