@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import logging
+import re
 import time
 import json
 from datetime import datetime, timezone
@@ -83,6 +84,7 @@ async def startup_event():
     logger.info("Application startup complete")
 
 # Configure CORS with allowed origins for both development and production
+# Using a function to allow all subdomains of render.com for flexibility
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -90,16 +92,21 @@ origins = [
     "http://127.0.0.1:8000",
     "https://jobmateai-frontend-service.onrender.com",
     "https://www.jobmateai-frontend-service.onrender.com",
+    "https://*.onrender.com",  # Allow all render.com subdomains
+    "http://localhost",
+    "http://localhost:8080",
 ]
 
 # Add CORS middleware - should be one of the first middlewares
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https?://(?:.*\.)?(localhost|127\.0\.0\.1|render\.com)(?::\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
+    expose_headers=["*"],
+    max_age=600  # Cache preflight requests for 10 minutes
 )
 
 # Add language middleware - should come after CORS but before other middleware
@@ -115,12 +122,16 @@ async def error_handling_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         
-        # Add CORS headers
-        origin = request.headers.get('origin')
-        if origin in origins:
+        # Add CORS headers to all responses
+        origin = request.headers.get('origin', '')
+        # Check if the origin is in the allowed origins or matches the regex pattern
+        if (origin in origins or 
+            re.match(r"https?://(?:.*\.)?(localhost|127\.0\.0\.1|render\.com)(?::\d+)?$", origin)):
             response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept-Language"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept-Language"
+            response.headers["Access-Control-Expose-Headers"] = "*"
         response.headers["Access-Control-Allow-Credentials"] = "true"
         
         return response
