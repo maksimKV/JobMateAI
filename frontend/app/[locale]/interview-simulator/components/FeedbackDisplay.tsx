@@ -47,302 +47,287 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   
   const sections = parseEvaluationSections(displayEvaluation);
   
-  // Define question/answer section metadata including icons, tooltips, and accessibility attributes
-  const questionAnswerConfig = [
+  // Unified section configuration with consistent properties
+  const sectionConfig = [
+    // Question/Answer sections
     {
       key: 'question',
+      title: t('questionSection.question.title'),
       icon: MessageSquareText,
       iconColor: 'text-blue-500',
       bgColor: 'bg-blue-50',
-      title: t('questionSection.question.title'),
-      tooltip: t('questionSection.question.tooltip'),
       ariaLabel: t('questionSection.question.ariaLabel'),
+      tooltip: t('questionSection.question.tooltip'),
       content: displayQuestion,
-      className: ''
+      className: '',
+      isFeedbackSection: false
     },
     {
       key: 'answer',
+      title: t('questionSection.answer.title'),
       icon: User,
       iconColor: 'text-green-500',
       bgColor: 'bg-green-50',
-      title: t('questionSection.answer.title'),
-      tooltip: t('questionSection.answer.tooltip'),
       ariaLabel: t('questionSection.answer.ariaLabel'),
+      tooltip: t('questionSection.answer.tooltip'),
       content: displayAnswer,
-      className: showFullContext ? 'mb-6' : ''
-    }
-  ];
-
-  // Define AI feedback section metadata including icons, tooltips, and accessibility attributes
-  const sectionConfig = [
+      className: showFullContext ? 'mb-6' : '',
+      isFeedbackSection: false
+    },
+    // Feedback sections
     { 
-      key: 'Strengths', 
+      key: 'Strengths',
+      title: 'Strengths',
       icon: CheckCircle, 
       iconColor: 'text-green-500',
       bgColor: 'bg-green-50',
       ariaLabel: t('sections.strengths.ariaLabel'),
-      tooltip: t('sections.strengths.tooltip')
+      tooltip: t('sections.strengths.tooltip'),
+      content: sections['Strengths'],
+      className: '',
+      isFeedbackSection: true
     },
     { 
-      key: 'Areas for Improvement', 
+      key: 'Areas for Improvement',
+      title: 'Areas for Improvement',
       icon: AlertTriangle, 
       iconColor: 'text-yellow-500',
       bgColor: 'bg-yellow-50',
       ariaLabel: t('sections.areasForImprovement.ariaLabel'),
-      tooltip: t('sections.areasForImprovement.tooltip')
+      tooltip: t('sections.areasForImprovement.tooltip'),
+      content: sections['Areas for Improvement'],
+      className: '',
+      isFeedbackSection: true
     },
     { 
-      key: 'Technical Accuracy', 
+      key: 'Technical Accuracy',
+      title: 'Technical Accuracy',
       icon: Code, 
       iconColor: 'text-blue-500',
       bgColor: 'bg-blue-50',
       ariaLabel: t('sections.technicalAccuracy.ariaLabel'),
-      tooltip: t('sections.technicalAccuracy.tooltip')
+      tooltip: t('sections.technicalAccuracy.tooltip'),
+      content: sections['Technical Accuracy'],
+      className: '',
+      isFeedbackSection: true
     },
     { 
-      key: 'Behavioral Example', 
+      key: 'Behavioral Example',
+      title: 'Behavioral Example',
       icon: Users, 
       iconColor: 'text-purple-500',
       bgColor: 'bg-purple-50',
       ariaLabel: t('sections.behavioralExample.ariaLabel'),
-      tooltip: t('sections.behavioralExample.tooltip')
+      tooltip: t('sections.behavioralExample.tooltip'),
+      content: sections['Behavioral Example'],
+      className: '',
+      isFeedbackSection: true
     },
     { 
-      key: 'Suggested Answer', 
+      key: 'Suggested Answer',
+      title: 'Suggested Answer',
       icon: MessageSquare, 
       iconColor: 'text-indigo-500',
       bgColor: 'bg-indigo-50',
       ariaLabel: t('sections.suggestedAnswer.ariaLabel'),
-      tooltip: t('sections.suggestedAnswer.tooltip')
+      tooltip: t('sections.suggestedAnswer.tooltip'),
+      content: sections['Suggested Answer'],
+      className: '',
+      isFeedbackSection: true
     },
     { 
-      key: 'Confidence Score', 
+      key: 'Confidence Score',
+      title: 'Confidence Score',
       icon: BarChart, 
       iconColor: 'text-amber-500',
       bgColor: 'bg-amber-50',
       ariaLabel: t('sections.confidenceScore.ariaLabel'),
-      tooltip: t('sections.confidenceScore.tooltip')
+      tooltip: t('sections.confidenceScore.tooltip'),
+      content: sections['Confidence Score'],
+      className: '',
+      isFeedbackSection: true
     }
   ];
+
+  // Define section type for better type safety
+  type SectionConfig = {
+    key: string;
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    iconColor: string;
+    bgColor: string;
+    ariaLabel: string;
+    tooltip: string;
+    content: string;
+    className: string;
+    isFeedbackSection: boolean;
+  };
+
+  // Filter sections based on whether they're feedback sections or not
+  const questionAnswerSections = sectionConfig.filter(section => !section.isFeedbackSection);
+  const feedbackSections = sectionConfig.filter(section => section.isFeedbackSection);
+
+  // Common section component to avoid code duplication
+  const Section = ({
+    section,
+    isCompact = false,
+    showContent = true
+  }: {
+    section: SectionConfig;
+    isCompact?: boolean;
+    showContent?: boolean;
+  }) => {
+    const { 
+      key, 
+      title, 
+      icon: Icon, 
+      iconColor, 
+      bgColor, 
+      ariaLabel, 
+      tooltip, 
+      content, 
+      className 
+    } = section;
+
+    return (
+      <div key={key} className={`bg-white rounded-lg shadow overflow-hidden border border-gray-100 ${className}`}>
+        <div className={`flex items-center justify-between p-3 ${bgColor}`}>
+          <div className="flex items-center">
+            <Icon className={`h-5 w-5 ${iconColor} mr-2`} />
+            <h3 
+              className={`${isCompact ? 'text-sm' : 'text-sm font-medium'} text-gray-900`} 
+              aria-label={ariaLabel}
+            >
+              {key === 'question' && questionNumber ? `${title} #${questionNumber - 1}` : title}
+            </h3>
+          </div>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild className="cursor-help">
+              <button 
+                type="button"
+                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                aria-label={t('aria.learnMore', { section: title })}
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent 
+              className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" 
+              side="top"
+            >
+              <p className="text-sm">{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        {showContent && content && (
+          <div className="p-4">
+            <p className={`text-gray-700 whitespace-pre-line ${isCompact ? 'text-sm' : ''}`}>
+              {content}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <TooltipProvider>
       <div className="space-y-6">
-      {showFullContext ? (
-        // Full context view (for CompletionScreen)
-        <div className="space-y-6">
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="flex items-center">
-              <svg className="h-5 w-5 text-blue-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              <h4 className="text-lg font-medium text-gray-900">{t('fullContext.title')}</h4>
-            </div>
-          </div>
-          
-          {/* Question & Answer Section */}
+        {showFullContext ? (
+          // Full context view (for CompletionScreen)
           <div className="space-y-6">
-            <div className="flex flex-col items-center text-gray-900 mb-6">
-              <div className="flex items-center justify-center mb-1">
-                <MessageSquareText className="h-6 w-6 text-blue-600 mr-2" />
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-blue-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <h4 className="text-lg font-medium text-gray-900">{t('fullContext.title')}</h4>
               </div>
-              <h3 className="text-xl font-medium text-center">
-                {t('fullContext.questionSection')}
-              </h3>
-            </div>
-            <div className="space-y-4">
-              {questionAnswerConfig.map(({ key, icon: Icon, iconColor, bgColor, title, tooltip, ariaLabel, content, className }) => (
-                <div key={key} className={`bg-white rounded-lg shadow overflow-hidden border border-gray-100 ${className}`}>
-                  <div className={`flex items-center justify-between p-3 ${bgColor}`}>
-                    <div className="flex items-center">
-                      <Icon className={`h-5 w-5 ${iconColor} mr-2`} />
-                      <h3 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                        {key === 'question' && questionNumber ? `${title} #${questionNumber - 1}` : title}
-                      </h3>
-                    </div>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild className="cursor-help">
-                        <button 
-                          type="button"
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          aria-label={t('aria.learnMore', { section: title })}
-                          onMouseEnter={() => console.log('Mouse enter on tooltip for:', title)}
-                          onFocus={() => console.log('Focus on tooltip for:', title)}
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                        <p className="text-sm">{tooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-gray-700 whitespace-pre-line">{content}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Feedback Section */}
-          <div className="space-y-4 mt-8">
-            <div className="flex flex-col items-center text-gray-900 mb-6">
-              <div className="flex items-center justify-center mb-1">
-                <Bot className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-medium text-center">
-                {t('fullContext.feedbackSection')}
-              </h3>
-            </div>
-            <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
-              <div className="p-4 space-y-4">
-                {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
-                  if (!sections[key]) return null;
-                  
-                  return (
-                    <div key={key} className="rounded-lg overflow-hidden border border-gray-200">
-                      <div className={`flex items-center justify-between p-3 ${bgColor}`}>
-                        <div className="flex items-center">
-                          <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
-                          <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                            {key}
-                          </h6>
-                        </div>
-                        <TooltipProvider>
-                          <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild className="cursor-help">
-                              <button 
-                                type="button" 
-                                className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                                aria-label={t('aria.learnMore', { section: key })}
-                                onMouseEnter={() => console.log('Mouse enter on tooltip for:', key)}
-                                onFocus={() => console.log('Focus on tooltip for:', key)}
-                              >
-                                <HelpCircle className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                              <p className="text-sm">{tooltip}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <div className="p-4 bg-white">
-                        <p className="text-gray-700 whitespace-pre-line">
-                          {sections[key]}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Compact view (for in-interview feedback)
-        <div className="space-y-6">
-          <div className="space-y-6">
-            <div className="flex flex-col items-center text-gray-900 mb-6">
-              <div className="flex items-center justify-center mb-1">
-                <MessageSquareText className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-medium text-center">
-                {t('fullContext.questionSection')}
-              </h3>
             </div>
             
-            <div className="space-y-4 mb-6">
-              {questionAnswerConfig.map(({ key, icon: Icon, iconColor, bgColor, title, tooltip, ariaLabel, content, className }) => (
-                <div key={key} className={`bg-white rounded-lg shadow overflow-hidden border border-gray-100 ${className}`}>
-                  <div className={`flex items-center justify-between p-3 ${bgColor}`}>
-                    <div className="flex items-center">
-                      <Icon className={`h-5 w-5 ${iconColor} mr-2`} />
-                      <span className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                        {key === 'question' && questionNumber ? `${title} #${questionNumber - 1}` : title}
-                      </span>
-                    </div>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild className="cursor-help">
-                        <button 
-                          type="button"
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          aria-label={t('aria.learnMore', { section: title })}
-                          onMouseEnter={() => console.log('Mouse enter on tooltip for:', title)}
-                          onFocus={() => console.log('Focus on tooltip for:', title)}
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                        <p className="text-sm">{tooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-gray-700 text-sm whitespace-pre-line">{content}</p>
-                  </div>
+            {/* Question & Answer Section */}
+            <div className="space-y-6">
+              <div className="flex flex-col items-center text-gray-900 mb-6">
+                <div className="flex items-center justify-center mb-1">
+                  <MessageSquareText className="h-6 w-6 text-blue-600 mr-2" />
                 </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* AI Feedback Section */}
-          <div className="space-y-4 mt-8">
-            <div className="flex flex-col items-center text-gray-900 mb-6">
-              <div className="flex items-center justify-center mb-1">
-                <Bot className="h-6 w-6 text-blue-600" />
+                <h3 className="text-xl font-medium text-center">
+                  {t('fullContext.questionSection')}
+                </h3>
               </div>
-              <h3 className="text-xl font-medium text-center">
-                {t('fullContext.feedbackSection')}
-              </h3>
+              <div className="space-y-4">
+                {questionAnswerSections.map(section => (
+                  <Section key={section.key} section={section} />
+                ))}
+              </div>
             </div>
-            <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
-              <div className="p-4 space-y-4">
-                {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
-                  if (!sections[key]) return null;
-                  
-                  return (
-                    <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-                      <div className={`flex items-center justify-between p-3 ${bgColor}`}>
-                        <div className="flex items-center">
-                          <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
-                          <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                            {key}
-                          </h6>
-                        </div>
-                        <TooltipProvider>
-                          <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild className="cursor-help">
-                              <button 
-                                type="button" 
-                                className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                                aria-label={t('aria.learnMore', { section: key })}
-                              >
-                                <HelpCircle className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                              <p className="text-sm">{tooltip}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <div className="p-4">
-                        <p className="text-gray-700 whitespace-pre-line text-sm">
-                          {sections[key]}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+
+            {/* AI Feedback Section */}
+            <div className="space-y-4 mt-8">
+              <div className="flex flex-col items-center text-gray-900 mb-6">
+                <div className="flex items-center justify-center mb-1">
+                  <Bot className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-medium text-center">
+                  {t('fullContext.feedbackSection')}
+                </h3>
+              </div>
+              <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
+                <div className="p-4 space-y-4">
+                  {feedbackSections
+                    .filter(section => section.content)
+                    .map(section => (
+                      <Section key={section.key} section={section} />
+                    ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          // Compact view (for in-interview feedback)
+          <div className="space-y-6">
+            <div className="space-y-6">
+              <div className="flex flex-col items-center text-gray-900 mb-6">
+                <div className="flex items-center justify-center mb-1">
+                  <MessageSquareText className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-medium text-center">
+                  {t('fullContext.questionSection')}
+                </h3>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                {questionAnswerSections.map(section => (
+                  <Section key={section.key} section={section} isCompact={true} />
+                ))}
+              </div>
+            </div>
+            
+            {/* AI Feedback Section */}
+            <div className="space-y-4 mt-8">
+              <div className="flex flex-col items-center text-gray-900 mb-6">
+                <div className="flex items-center justify-center mb-1">
+                  <Bot className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-medium text-center">
+                  {t('fullContext.feedbackSection')}
+                </h3>
+              </div>
+              <div className="bg-blue-50 rounded-lg shadow overflow-hidden border border-blue-100">
+                <div className="p-4 space-y-4">
+                  {feedbackSections
+                    .filter(section => section.content)
+                    .map(section => (
+                      <Section key={section.key} section={section} isCompact={true} />
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );
 };
+
+export default FeedbackDisplay;
