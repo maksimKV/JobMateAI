@@ -196,17 +196,24 @@ const InterviewSimulatorPage = () => {
 
         {showInterviewTypeSelection && (
           <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <InterviewTypeSelector
-              interviewType={interviewType}
-              onInterviewTypeChange={setInterviewType}
-              interviewLength={interviewLength}
-              onInterviewLengthChange={setInterviewLength}
-              jobDescription={jobDescription}
-              onJobDescriptionChange={setJobDescription}
-              onStartInterview={handleStartInterview}
-              isLoading={isLoading}
-              interviewLengths={interviewType === 'mixed' ? MIXED_INTERVIEW_LENGTHS : INTERVIEW_LENGTHS}
-            />
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-600">{t('loadingStates.preparingInterview')}</p>
+              </div>
+            ) : (
+              <InterviewTypeSelector
+                interviewType={interviewType}
+                onInterviewTypeChange={setInterviewType}
+                interviewLength={interviewLength}
+                onInterviewLengthChange={setInterviewLength}
+                jobDescription={jobDescription}
+                onJobDescriptionChange={setJobDescription}
+                onStartInterview={handleStartInterview}
+                isLoading={isLoading}
+                interviewLengths={interviewType === 'mixed' ? MIXED_INTERVIEW_LENGTHS : INTERVIEW_LENGTHS}
+              />
+            )}
           </div>
         )}
         

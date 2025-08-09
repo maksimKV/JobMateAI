@@ -65,6 +65,11 @@
       }
     }
   },
+  "loadingStates": {
+    "preparingInterview": "Preparing your personalized interview...",
+    "processingResponse": "Loading next question...",
+    "preparingResults": "Preparing your interview summary..."
+  },
   "questionDisplay": {
     "questionNumber": "Question {number}",
     "detectedRole": "Detected Role",

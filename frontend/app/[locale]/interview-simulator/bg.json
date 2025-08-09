@@ -65,6 +65,11 @@
       }
     }
   },
+  "loadingStates": {
+    "preparingInterview": "Подготвяне на вашето персонализирано интервю...",
+    "processingResponse": "Зареждане на следващия въпрос...",
+    "preparingResults": "Подготвяне на резюмето на вашето интервю..."
+  },
   "questionDisplay": {
     "questionNumber": "Въпрос {number}",
     "detectedRole": "Открита роля",
