@@ -11,6 +11,7 @@ interface FeedbackDisplayProps {
   question?: string;
   answer?: string;
   showFullContext?: boolean;
+  questionNumber?: number;
 }
 
 export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({ 
@@ -127,7 +128,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                 <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
                   <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
                   <h3 className="text-sm font-medium text-gray-900">
-                    {t('fullContext.question')}
+                    {t('fullContext.question')} {questionNumber && `#${questionNumber}`}
                   </h3>
                 </div>
                 <div className="p-4">
@@ -220,7 +221,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
               <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
                 <div className="flex items-center text-gray-700 mb-1">
                   <MessageSquareText className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
-                  <span className="text-sm font-medium">{t('fullContext.question')}</span>
+                  <span className="text-sm font-medium">{t('fullContext.question')} {questionNumber && `#${questionNumber}`}</span>
                 </div>
                 <p className="text-gray-700 text-sm pl-6">{displayQuestion}</p>
               </div>

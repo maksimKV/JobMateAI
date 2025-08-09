@@ -248,7 +248,10 @@ const InterviewSimulatorPage = () => {
             
             {feedback.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <FeedbackDisplay feedback={feedback} />
+                <FeedbackDisplay 
+                  feedback={feedback} 
+                  questionNumber={currentQuestionIndex + 1}
+                />
               </div>
             )}
           </div>
