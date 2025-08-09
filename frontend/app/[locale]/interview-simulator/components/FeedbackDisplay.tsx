@@ -47,7 +47,33 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   
   const sections = parseEvaluationSections(displayEvaluation);
   
-  // Define section metadata including icons, tooltips, and accessibility attributes
+  // Define question/answer section metadata including icons, tooltips, and accessibility attributes
+  const questionAnswerConfig = [
+    {
+      key: 'question',
+      icon: MessageSquareText,
+      iconColor: 'text-blue-500',
+      bgColor: 'bg-blue-50',
+      title: t('questionSection.question.title'),
+      tooltip: t('questionSection.question.tooltip'),
+      ariaLabel: t('questionSection.question.ariaLabel'),
+      content: displayQuestion,
+      className: ''
+    },
+    {
+      key: 'answer',
+      icon: User,
+      iconColor: 'text-green-500',
+      bgColor: 'bg-green-50',
+      title: t('questionSection.answer.title'),
+      tooltip: t('questionSection.answer.tooltip'),
+      ariaLabel: t('questionSection.answer.ariaLabel'),
+      content: displayAnswer,
+      className: showFullContext ? 'mb-6' : ''
+    }
+  ];
+
+  // Define AI feedback section metadata including icons, tooltips, and accessibility attributes
   const sectionConfig = [
     { 
       key: 'Strengths', 
@@ -125,67 +151,37 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
               </h3>
             </div>
             <div className="space-y-4">
-              {/* Question Section */}
-              <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
-                <div className="flex items-center justify-between p-3 bg-blue-50">
-                  <div className="flex items-center">
-                    <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
-                    <h3 className="text-sm font-medium text-gray-900" aria-label="Interview question">
-                      {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
-                    </h3>
+              {questionAnswerConfig.map(({ key, icon: Icon, iconColor, bgColor, title, tooltip, ariaLabel, content, className }) => (
+                <div key={key} className={`bg-white rounded-lg shadow overflow-hidden border border-gray-100 ${className}`}>
+                  <div className={`flex items-center justify-between p-3 ${bgColor}`}>
+                    <div className="flex items-center">
+                      <Icon className={`h-5 w-5 ${iconColor} mr-2`} />
+                      <h3 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                        {key === 'question' && questionNumber ? `${title} #${questionNumber - 1}` : title}
+                      </h3>
+                    </div>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild className="cursor-help">
+                        <button 
+                          type="button"
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          aria-label={t('aria.learnMore', { section: title })}
+                          onMouseEnter={() => console.log('Mouse enter on tooltip for:', title)}
+                          onFocus={() => console.log('Focus on tooltip for:', title)}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
+                        <p className="text-sm">{tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild className="cursor-help">
-                      <button 
-                        type="button" 
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        aria-label={t('aria.learnMore', { section: 'Question' })}
-                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Question')}
-                        onFocus={() => console.log('Focus on tooltip for:', 'Question')}
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                      <p className="text-sm">The interview question you were asked to answer.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="p-4">
-                  <p className="text-gray-700 whitespace-pre-line">{displayQuestion}</p>
-                </div>
-              </div>
-
-              {/* Answer Section */}
-              <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100 mb-6">
-                <div className="flex items-center justify-between p-3 bg-green-50">
-                  <div className="flex items-center">
-                    <User className="h-5 w-5 text-green-600 mr-2" />
-                    <h3 className="text-sm font-medium text-gray-900" aria-label="Your answer">
-                      {t('fullContext.yourAnswer')}
-                    </h3>
+                  <div className="p-4">
+                    <p className="text-gray-700 whitespace-pre-line">{content}</p>
                   </div>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild className="cursor-help">
-                      <button 
-                        type="button" 
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        aria-label={t('aria.learnMore', { section: 'Your Answer' })}
-                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Your Answer')}
-                        onFocus={() => console.log('Focus on tooltip for:', 'Your Answer')}
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                      <p className="text-sm">The answer you provided to the interview question.</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
-                <div className="p-4">
-                  <p className="text-gray-700 whitespace-pre-line">{displayAnswer}</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -258,65 +254,37 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
             </div>
             
             <div className="space-y-4 mb-6">
-              <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
-                <div className="flex items-center justify-between p-3 bg-blue-50">
-                  <div className="flex items-center">
-                    <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium text-gray-900" aria-label="Interview question">
-                      {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
-                    </span>
+              {questionAnswerConfig.map(({ key, icon: Icon, iconColor, bgColor, title, tooltip, ariaLabel, content, className }) => (
+                <div key={key} className={`bg-white rounded-lg shadow overflow-hidden border border-gray-100 ${className}`}>
+                  <div className={`flex items-center justify-between p-3 ${bgColor}`}>
+                    <div className="flex items-center">
+                      <Icon className={`h-5 w-5 ${iconColor} mr-2`} />
+                      <span className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                        {key === 'question' && questionNumber ? `${title} #${questionNumber - 1}` : title}
+                      </span>
+                    </div>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild className="cursor-help">
+                        <button 
+                          type="button"
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          aria-label={t('aria.learnMore', { section: title })}
+                          onMouseEnter={() => console.log('Mouse enter on tooltip for:', title)}
+                          onFocus={() => console.log('Focus on tooltip for:', title)}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
+                        <p className="text-sm">{tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild className="cursor-help">
-                      <button 
-                        type="button" 
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        aria-label={t('aria.learnMore', { section: 'Question' })}
-                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Question')}
-                        onFocus={() => console.log('Focus on tooltip for:', 'Question')}
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                      <p className="text-sm">The interview question you were asked to answer.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="p-4">
-                  <p className="text-gray-700 text-sm">{displayQuestion}</p>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
-                <div className="flex items-center justify-between p-3 bg-green-50">
-                  <div className="flex items-center">
-                    <User className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm font-medium text-gray-900" aria-label="Your answer">
-                      {t('fullContext.yourAnswer')}
-                    </span>
+                  <div className="p-4">
+                    <p className="text-gray-700 text-sm whitespace-pre-line">{content}</p>
                   </div>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild className="cursor-help">
-                      <button 
-                        type="button" 
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                        aria-label={t('aria.learnMore', { section: 'Your Answer' })}
-                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Your Answer')}
-                        onFocus={() => console.log('Focus on tooltip for:', 'Your Answer')}
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
-                      <p className="text-sm">The answer you provided to the interview question.</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
-                <div className="p-4">
-                  <p className="text-gray-700 text-sm whitespace-pre-line">{displayAnswer}</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
           

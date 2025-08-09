@@ -26,6 +26,18 @@
     "newInterview": "Start New Interview"
   },
   "feedbackDisplay": {
+    "questionSection": {
+      "question": {
+        "title": "Question",
+        "tooltip": "The interview question you were asked to answer.",
+        "ariaLabel": "Interview question"
+      },
+      "answer": {
+        "title": "Your Answer",
+        "tooltip": "The answer you provided to the interview question.",
+        "ariaLabel": "Your answer"
+      }
+    },
     "sections": {
       "strengths": {
         "ariaLabel": "Strengths of the answer",
