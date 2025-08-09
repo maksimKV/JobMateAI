@@ -47,7 +47,6 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   
   const sections = parseEvaluationSections(displayEvaluation);
   
-  // Unified section configuration with consistent properties
   const sectionConfig = [
     // Question/Answer sections
     {
