@@ -3,7 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { InterviewFeedback } from '../types';
-import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart, HelpCircle } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart, HelpCircle, MessageCircleQuestion, User } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FeedbackDisplayProps {
@@ -98,7 +98,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   ];
 
   return (
-    <div className="p-6 bg-blue-50 rounded-lg border border-blue-100 w-full">
+    <div className="space-y-6">
       {showFullContext ? (
         // Full context view (for CompletionScreen)
         <div className="space-y-6">
@@ -111,22 +111,48 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
             </div>
           </div>
           
+          {/* Question & Answer Section */}
           <div className="space-y-4">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h5 className="text-sm font-medium text-gray-900 mb-1">{t('fullContext.question')}</h5>
-              <p className="text-gray-700 mb-4">{displayQuestion}</p>
-              
-              <h5 className="text-sm font-medium text-gray-900 mb-1">{t('fullContext.yourAnswer')}</h5>
-              <p className="text-gray-700 whitespace-pre-line mb-6">{displayAnswer}</p>
-              
-              <h5 className="text-sm font-medium text-gray-900 mb-4 border-b pb-2">{t('fullContext.feedback')}</h5>
-              
-              <div className="space-y-6">
+            {/* Question Section */}
+            <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+              <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <MessageCircleQuestion className="h-5 w-5 text-blue-600 mr-2" />
+                <h3 className="text-sm font-medium text-gray-900">
+                  {t('fullContext.question')}
+                </h3>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-700 whitespace-pre-line">{displayQuestion}</p>
+              </div>
+            </div>
+
+            {/* Answer Section */}
+            <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+              <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <User className="h-5 w-5 text-green-600 mr-2" />
+                <h3 className="text-sm font-medium text-gray-900">
+                  {t('fullContext.yourAnswer')}
+                </h3>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-700 whitespace-pre-line">{displayAnswer}</p>
+              </div>
+            </div>
+
+            {/* Feedback Section */}
+            <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+              <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <MessageSquare className="h-5 w-5 text-indigo-600 mr-2" />
+                <h3 className="text-sm font-medium text-gray-900">
+                  {t('fullContext.feedback')}
+                </h3>
+              </div>
+              <div className="space-y-4 p-4">
                 {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
                   if (!sections[key]) return null;
                   
                   return (
-                    <div key={key} className="rounded-lg overflow-hidden">
+                    <div key={key} className="rounded-lg overflow-hidden border border-gray-200">
                       <div className={`flex items-center justify-between p-3 ${bgColor}`}>
                         <div className="flex items-center">
                           <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
@@ -173,12 +199,31 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
             </div>
           </div>
           
+          {/* Question & Answer in compact view */}
+          <div className="space-y-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+              <div className="flex items-center text-gray-700 mb-1">
+                <MessageCircleQuestion className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
+                <span className="text-sm font-medium">{t('fullContext.question')}</span>
+              </div>
+              <p className="text-gray-700 text-sm pl-6">{displayQuestion}</p>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+              <div className="flex items-center text-gray-700 mb-1">
+                <User className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                <span className="text-sm font-medium">{t('fullContext.yourAnswer')}</span>
+              </div>
+              <p className="text-gray-700 text-sm whitespace-pre-line pl-6">{displayAnswer}</p>
+            </div>
+          </div>
+          
           <div className="space-y-4">
             {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
               if (!sections[key]) return null;
               
               return (
-                <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                   <div className={`flex items-center justify-between p-3 ${bgColor}`}>
                     <div className="flex items-center">
                       <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
@@ -204,7 +249,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                     </TooltipProvider>
                   </div>
                   <div className="p-4">
-                    <p className="text-gray-700 whitespace-pre-line">
+                    <p className="text-gray-700 whitespace-pre-line text-sm">
                       {sections[key]}
                     </p>
                   </div>
