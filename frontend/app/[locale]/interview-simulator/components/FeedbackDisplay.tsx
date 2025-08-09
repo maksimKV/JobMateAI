@@ -26,7 +26,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   if (feedback.length === 0) return null;
 
   const latestFeedback = feedback[feedback.length - 1];
-  const displayQuestion = question || latestFeedback.question || '';
+  const displayQuestion = (question || latestFeedback.question || '').replace(/^\d+\.?\s*/, '');
   const displayAnswer = answer || latestFeedback.answer || '';
   const displayEvaluation = latestFeedback.evaluation || '';
 
