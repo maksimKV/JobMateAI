@@ -113,9 +113,11 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           
           {/* Question & Answer Section */}
           <div className="space-y-6">
-            <div className="flex items-center text-gray-900 mb-4">
-              <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
-              <h3 className="text-lg font-medium">
+            <div className="flex flex-col items-center text-gray-900 mb-6">
+              <div className="flex items-center justify-center mb-1">
+                <MessageSquareText className="h-6 w-6 text-blue-600 mr-2" />
+              </div>
+              <h3 className="text-xl font-medium text-center">
                 {t('fullContext.questionSection')}
               </h3>
             </div>
@@ -149,10 +151,12 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           </div>
 
           {/* AI Feedback Section */}
-          <div className="space-y-4">
-            <div className="flex items-center text-gray-900">
-              <Bot className="h-5 w-5 text-blue-600 mr-2" />
-              <h3 className="text-lg font-medium">
+          <div className="space-y-4 mt-8">
+            <div className="flex flex-col items-center text-gray-900 mb-6">
+              <div className="flex items-center justify-center mb-1">
+                <Bot className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-medium text-center">
                 {t('fullContext.feedbackSection')}
               </h3>
             </div>
@@ -203,9 +207,11 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
         // Compact view (for in-interview feedback)
         <div className="space-y-6">
           <div className="space-y-6">
-            <div className="flex items-center text-gray-900">
-              <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
-              <h3 className="text-lg font-medium">
+            <div className="flex flex-col items-center text-gray-900 mb-6">
+              <div className="flex items-center justify-center mb-1">
+                <MessageSquareText className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-medium text-center">
                 {t('fullContext.questionSection')}
               </h3>
             </div>
@@ -230,10 +236,12 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           </div>
           
           {/* AI Feedback Section */}
-          <div className="space-y-4">
-            <div className="flex items-center text-gray-900">
-              <Bot className="h-5 w-5 text-blue-600 mr-2" />
-              <h3 className="text-lg font-medium">
+          <div className="space-y-4 mt-8">
+            <div className="flex flex-col items-center text-gray-900 mb-6">
+              <div className="flex items-center justify-center mb-1">
+                <Bot className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-medium text-center">
                 {t('fullContext.feedbackSection')}
               </h3>
             </div>
