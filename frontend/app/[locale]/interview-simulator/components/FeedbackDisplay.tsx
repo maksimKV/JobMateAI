@@ -18,7 +18,8 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   feedback, 
   question, 
   answer, 
-  showFullContext = false 
+  showFullContext = false,
+  questionNumber
 }) => {
   const t = useTranslations('interviewSimulator.feedbackDisplay');
   
