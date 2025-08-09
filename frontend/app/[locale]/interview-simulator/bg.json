@@ -26,6 +26,9 @@
     "newInterview": "Започнете ново интервю"
   },
   "feedbackDisplay": {
+    "aria": {
+      "learnMore": "Научете повече за {section}"
+    },
     "fullContext": {
       "title": "Въпрос и обратна връзка",
       "questionSection": "Вашият въпрос и отговор",

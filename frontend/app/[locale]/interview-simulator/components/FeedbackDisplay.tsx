@@ -213,17 +213,19 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                           </h6>
                         </div>
                         <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild className="cursor-help">
                               <button 
                                 type="button" 
                                 className="text-gray-400 hover:text-gray-600 focus:outline-none"
                                 aria-label={t('aria.learnMore', { section: key })}
+                                onMouseEnter={() => console.log('Mouse enter on tooltip for:', key)}
+                                onFocus={() => console.log('Focus on tooltip for:', key)}
                               >
                                 <HelpCircle className="h-4 w-4" />
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
+                            <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
                               <p className="text-sm">{tooltip}</p>
                             </TooltipContent>
                           </Tooltip>
@@ -342,8 +344,8 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                           </h6>
                         </div>
                         <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild className="cursor-help">
                               <button 
                                 type="button" 
                                 className="text-gray-400 hover:text-gray-600 focus:outline-none"
@@ -352,7 +354,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                                 <HelpCircle className="h-4 w-4" />
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
+                            <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
                               <p className="text-sm">{tooltip}</p>
                             </TooltipContent>
                           </Tooltip>

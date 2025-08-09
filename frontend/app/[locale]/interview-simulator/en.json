@@ -26,6 +26,9 @@
     "newInterview": "Start New Interview"
   },
   "feedbackDisplay": {
+    "aria": {
+      "learnMore": "Learn more about {section}"
+    },
     "fullContext": {
       "title": "Question & Feedback",
       "questionSection": "Your question & answers",
