@@ -12,7 +12,7 @@ interface BackendHealth {
   error?: string;
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const HEALTH_CHECK_INTERVAL = 5000; // 5 seconds between retries
 const MAX_RETRIES = 120; // 10 minutes total with 5s interval (120 * 5s = 600s = 10min)
 
