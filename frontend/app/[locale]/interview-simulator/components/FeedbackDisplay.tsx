@@ -100,7 +100,8 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       {showFullContext ? (
         // Full context view (for CompletionScreen)
         <div className="space-y-6">
@@ -133,22 +134,22 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                       {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
                     </h3>
                   </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          type="button" 
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          aria-label={t('aria.learnMore', { section: 'Question' })}
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">The interview question you were asked to answer.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild className="cursor-help">
+                      <button 
+                        type="button" 
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        aria-label={t('aria.learnMore', { section: 'Question' })}
+                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Question')}
+                        onFocus={() => console.log('Focus on tooltip for:', 'Question')}
+                      >
+                        <HelpCircle className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
+                      <p className="text-sm">The interview question you were asked to answer.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 whitespace-pre-line">{displayQuestion}</p>
@@ -164,22 +165,22 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                       {t('fullContext.yourAnswer')}
                     </h3>
                   </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          type="button" 
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          aria-label={t('aria.learnMore', { section: 'Your Answer' })}
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">The answer you provided to the interview question.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild className="cursor-help">
+                      <button 
+                        type="button" 
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        aria-label={t('aria.learnMore', { section: 'Your Answer' })}
+                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Your Answer')}
+                        onFocus={() => console.log('Focus on tooltip for:', 'Your Answer')}
+                      >
+                        <HelpCircle className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
+                      <p className="text-sm">The answer you provided to the interview question.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 whitespace-pre-line">{displayAnswer}</p>
@@ -265,22 +266,22 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                       {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
                     </span>
                   </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          type="button" 
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          aria-label={t('aria.learnMore', { section: 'Question' })}
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">The interview question you were asked to answer.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild className="cursor-help">
+                      <button 
+                        type="button" 
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        aria-label={t('aria.learnMore', { section: 'Question' })}
+                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Question')}
+                        onFocus={() => console.log('Focus on tooltip for:', 'Question')}
+                      >
+                        <HelpCircle className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
+                      <p className="text-sm">The interview question you were asked to answer.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 text-sm">{displayQuestion}</p>
@@ -295,22 +296,22 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
                       {t('fullContext.yourAnswer')}
                     </span>
                   </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          type="button" 
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          aria-label={t('aria.learnMore', { section: 'Your Answer' })}
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">The answer you provided to the interview question.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild className="cursor-help">
+                      <button 
+                        type="button" 
+                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        aria-label={t('aria.learnMore', { section: 'Your Answer' })}
+                        onMouseEnter={() => console.log('Mouse enter on tooltip for:', 'Your Answer')}
+                        onFocus={() => console.log('Focus on tooltip for:', 'Your Answer')}
+                      >
+                        <HelpCircle className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="z-50 max-w-xs bg-white p-2 text-sm text-gray-900 shadow-lg border border-gray-200 rounded-md" side="top">
+                      <p className="text-sm">The answer you provided to the interview question.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 text-sm whitespace-pre-line">{displayAnswer}</p>
@@ -373,6 +374,7 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 };
