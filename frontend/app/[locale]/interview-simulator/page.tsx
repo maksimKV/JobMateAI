@@ -75,7 +75,7 @@ const InterviewSimulatorPage = () => {
   
   // UI state flags
   const showInterviewTypeSelection = !sessionId && questions.length === 0;
-  const showQuestion = questions.length > 0 && !isComplete;
+  const showQuestion = questions.length > 0 && !isComplete && !isSubmittingAnswer;
   
   // Update answer when transcript changes
   useEffect(() => {
@@ -210,7 +210,7 @@ const InterviewSimulatorPage = () => {
           </div>
         )}
         
-        {showQuestion && currentQuestion && (
+        {showQuestion && currentQuestion ? (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
               <QuestionDisplay
@@ -237,7 +237,12 @@ const InterviewSimulatorPage = () => {
               </div>
             )}
           </div>
-        )}
+        ) : isSubmittingAnswer ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">{t('questionDisplay.processing')}</p>
+          </div>
+        ) : null}
         
         {showCompletion && (
           <CompletionScreen 
