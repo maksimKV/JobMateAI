@@ -289,7 +289,7 @@ async def submit_answer(
         
         # Map the response to the expected feedback format
         feedback = {
-            "feedback": feedback_response.get("evaluation", ""),
+            "evaluation": feedback_response.get("evaluation", ""),
             "score": feedback_response.get("score", 0),
             "strengths": [],
             "improvements": []
@@ -298,7 +298,7 @@ async def submit_answer(
     except Exception as e:
         logger.error(f"Error generating feedback: {str(e)}", exc_info=True)
         feedback = {
-            "feedback": translator.get("errors.feedback_generation_failed", language),
+            "evaluation": translator.get("errors.feedback_generation_failed", language),
             "score": 0,
             "strengths": [],
             "improvements": []

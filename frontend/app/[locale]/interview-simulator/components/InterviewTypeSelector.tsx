@@ -121,9 +121,18 @@ export const InterviewTypeSelector: React.FC<InterviewTypeSelectorProps> = ({
         </label>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(interviewLengths).map(([length, details]) => {
-            const questionCount = typeof details.questions === 'number' 
-              ? details.questions 
-              : details.questions[interviewType] || 0;
+            let questionCount: number;
+            if (typeof details.questions === 'number') {
+              questionCount = details.questions;
+            } else if (interviewType === 'mixed') {
+              // For mixed interviews, sum up all question types
+              questionCount = Object.values(details.questions).reduce(
+                (sum: number, count) => sum + (typeof count === 'number' ? count : 0), 
+                0
+              );
+            } else {
+              questionCount = details.questions[interviewType] || 0;
+            }
               
             return (
               <div 

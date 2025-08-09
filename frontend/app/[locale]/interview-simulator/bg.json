@@ -11,6 +11,9 @@
   },
   "session": {
     "evaluatingAnswer": "Оценяване на вашия отговор...",
+    "feedback": {
+      "noFeedback": "Няма налична обратна връзка за този отговор."
+    },
     "errors": {
       "jobDescriptionRequired": "Моля, въведете описание на работата",
       "unexpected": "Възникна неочаквана грешка"

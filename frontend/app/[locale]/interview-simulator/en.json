@@ -11,6 +11,9 @@
   },
   "session": {
     "evaluatingAnswer": "Evaluating your answer...",
+    "feedback": {
+      "noFeedback": "No feedback available for this answer."
+    },
     "errors": {
       "jobDescriptionRequired": "Please enter a job description",
       "unexpected": "An unexpected error occurred"
