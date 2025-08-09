@@ -1060,22 +1060,31 @@ class AIClient:
         """Evaluate an interview answer and provide feedback."""
         
         prompt = f"""
-        Evaluate this interview answer and provide feedback:
+        Evaluate this interview answer and provide feedback in exactly these six sections without any additional text or explanations:
         
         Question: {question}
         Answer: {answer}
         Question Type: {question_type}
         
-        Provide feedback on:
-        1. Completeness of the answer
-        2. Clarity and communication
-        3. Technical accuracy (if applicable)
-        4. Areas for improvement
+        ## Strengths
+        [List key strengths of the answer]
         
-        At the end, provide a score from 1-10 based on the answer's quality.
-        Format the score as: SCORE: X/10 where X is the score.
+        ## Areas for Improvement
+        [List specific areas that need improvement]
         
-        Give constructive feedback with specific suggestions.
+        ## Technical Accuracy
+        [Evaluate technical correctness if applicable]
+        
+        ## Behavioral Example
+        [Provide an example of a stronger behavioral response if applicable]
+        
+        ## Suggested Answer
+        [Provide a model answer]
+        
+        ## Confidence Score
+        [Provide a score from 1-10 based on answer quality]
+        
+        Do not include any other text, explanations, or sections beyond these six.
         """
         
         evaluation = await self.generate_text(prompt, max_tokens=600, temperature=0.5)

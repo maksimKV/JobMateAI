@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { InterviewFeedback } from '../types';
+import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart } from 'lucide-react';
 
 interface FeedbackDisplayProps {
   feedback: InterviewFeedback[];
@@ -26,12 +27,75 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   const displayAnswer = answer || latestFeedback.answer || '';
   const displayEvaluation = latestFeedback.evaluation || '';
 
+  // Parse the evaluation text into sections
+  const parseEvaluationSections = (evaluation: string) => {
+    const sections: Record<string, string> = {};
+    const sectionRegex = /##\s*(.+?)\n([\s\S]*?)(?=##|$)/g;
+    let match;
+    
+    while ((match = sectionRegex.exec(evaluation)) !== null) {
+      const title = match[1].trim();
+      const content = match[2].trim();
+      sections[title] = content;
+    }
+    
+    return sections;
+  };
+  
+  const sections = parseEvaluationSections(displayEvaluation);
+  
+  // Define section metadata including icons and aria-labels
+  const sectionConfig = [
+    { 
+      key: 'Strengths', 
+      icon: CheckCircle, 
+      iconColor: 'text-green-500',
+      bgColor: 'bg-green-50',
+      ariaLabel: 'Strengths of the answer'
+    },
+    { 
+      key: 'Areas for Improvement', 
+      icon: AlertTriangle, 
+      iconColor: 'text-yellow-500',
+      bgColor: 'bg-yellow-50',
+      ariaLabel: 'Areas for improvement'
+    },
+    { 
+      key: 'Technical Accuracy', 
+      icon: Code, 
+      iconColor: 'text-blue-500',
+      bgColor: 'bg-blue-50',
+      ariaLabel: 'Technical accuracy evaluation'
+    },
+    { 
+      key: 'Behavioral Example', 
+      icon: Users, 
+      iconColor: 'text-purple-500',
+      bgColor: 'bg-purple-50',
+      ariaLabel: 'Behavioral example'
+    },
+    { 
+      key: 'Suggested Answer', 
+      icon: MessageSquare, 
+      iconColor: 'text-indigo-500',
+      bgColor: 'bg-indigo-50',
+      ariaLabel: 'Suggested answer'
+    },
+    { 
+      key: 'Confidence Score', 
+      icon: BarChart, 
+      iconColor: 'text-amber-500',
+      bgColor: 'bg-amber-50',
+      ariaLabel: 'Confidence score'
+    }
+  ];
+
   return (
     <div className="p-6 bg-blue-50 rounded-lg border border-blue-100 w-full">
       {showFullContext ? (
         // Full context view (for CompletionScreen)
-        <div className="space-y-4">
-          <div className="flex flex-col items-center text-center mb-4">
+        <div className="space-y-6">
+          <div className="flex flex-col items-center text-center mb-6">
             <div className="flex items-center">
               <svg className="h-5 w-5 text-blue-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -41,33 +105,69 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           </div>
           
           <div className="space-y-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
               <h5 className="text-sm font-medium text-gray-900 mb-1">{t('fullContext.question')}</h5>
-              <p className="text-gray-700">{displayQuestion}</p>
+              <p className="text-gray-700 mb-4">{displayQuestion}</p>
               
-              <h5 className="text-sm font-medium text-gray-900 mt-3 mb-1">{t('fullContext.yourAnswer')}</h5>
-              <p className="text-gray-700 whitespace-pre-line">{displayAnswer}</p>
+              <h5 className="text-sm font-medium text-gray-900 mb-1">{t('fullContext.yourAnswer')}</h5>
+              <p className="text-gray-700 whitespace-pre-line mb-6">{displayAnswer}</p>
               
-              <h5 className="text-sm font-medium text-gray-900 mt-3 mb-1">{t('fullContext.feedback')}</h5>
-              <p className="text-gray-700 whitespace-pre-line">{displayEvaluation}</p>
+              <h5 className="text-sm font-medium text-gray-900 mb-4 border-b pb-2">{t('fullContext.feedback')}</h5>
+              
+              <div className="space-y-6">
+                {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel }) => {
+                  if (!sections[key]) return null;
+                  
+                  return (
+                    <div key={key} className="rounded-lg overflow-hidden">
+                      <div className={`flex items-center p-3 ${bgColor}`}>
+                        <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
+                        <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                          {key}
+                        </h6>
+                      </div>
+                      <div className="p-4 bg-white">
+                        <p className="text-gray-700 whitespace-pre-line">
+                          {sections[key]}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       ) : (
         // Compact view (for in-interview feedback)
         <>
-          <div className="flex flex-col items-center text-center mb-4">
+          <div className="flex flex-col items-center text-center mb-6">
             <div className="flex items-center">
-              <svg className="h-5 w-5 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
               <h4 className="text-lg font-medium text-gray-900">{t('compact.title')}</h4>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <p className="text-gray-700 whitespace-pre-line">
-              {displayEvaluation}
-            </p>
+          
+          <div className="space-y-4">
+            {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel }) => {
+              if (!sections[key]) return null;
+              
+              return (
+                <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                  <div className={`flex items-center p-3 ${bgColor}`}>
+                    <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
+                    <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                      {key}
+                    </h6>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-gray-700 whitespace-pre-line">
+                      {sections[key]}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
