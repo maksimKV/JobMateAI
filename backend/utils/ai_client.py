@@ -1079,7 +1079,7 @@ class AIClient:
         [Provide an example of a stronger behavioral response if applicable]
         
         ## Suggested Answer
-        [Provide a model answer]
+        [Provide a detailed, comprehensive model answer that demonstrates the ideal response to the question. Include specific examples, structure, and key points that should be covered. Do not refer to other sections or say 'see above'.]
         
         ## Confidence Score
         [Provide a score from 1-10 based on answer quality]
