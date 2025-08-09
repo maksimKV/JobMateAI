@@ -54,48 +54,48 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
       icon: CheckCircle, 
       iconColor: 'text-green-500',
       bgColor: 'bg-green-50',
-      ariaLabel: 'Strengths of the answer',
-      tooltip: 'Key aspects of your answer that were particularly effective or well-articulated.'
+      ariaLabel: t('sections.strengths.ariaLabel'),
+      tooltip: t('sections.strengths.tooltip')
     },
     { 
       key: 'Areas for Improvement', 
       icon: AlertTriangle, 
       iconColor: 'text-yellow-500',
       bgColor: 'bg-yellow-50',
-      ariaLabel: 'Areas for improvement',
-      tooltip: 'Specific aspects of your answer that could be enhanced for better impact.'
+      ariaLabel: t('sections.areasForImprovement.ariaLabel'),
+      tooltip: t('sections.areasForImprovement.tooltip')
     },
     { 
       key: 'Technical Accuracy', 
       icon: Code, 
       iconColor: 'text-blue-500',
       bgColor: 'bg-blue-50',
-      ariaLabel: 'Technical accuracy evaluation',
-      tooltip: 'Evaluation of the technical correctness and precision in your response.'
+      ariaLabel: t('sections.technicalAccuracy.ariaLabel'),
+      tooltip: t('sections.technicalAccuracy.tooltip')
     },
     { 
       key: 'Behavioral Example', 
       icon: Users, 
       iconColor: 'text-purple-500',
       bgColor: 'bg-purple-50',
-      ariaLabel: 'Behavioral example',
-      tooltip: 'Example of a strong behavioral response using the STAR method (Situation, Task, Action, Result).'
+      ariaLabel: t('sections.behavioralExample.ariaLabel'),
+      tooltip: t('sections.behavioralExample.tooltip')
     },
     { 
       key: 'Suggested Answer', 
       icon: MessageSquare, 
       iconColor: 'text-indigo-500',
       bgColor: 'bg-indigo-50',
-      ariaLabel: 'Suggested answer',
-      tooltip: 'A model response that demonstrates an effective way to answer this question.'
+      ariaLabel: t('sections.suggestedAnswer.ariaLabel'),
+      tooltip: t('sections.suggestedAnswer.tooltip')
     },
     { 
       key: 'Confidence Score', 
       icon: BarChart, 
       iconColor: 'text-amber-500',
       bgColor: 'bg-amber-50',
-      ariaLabel: 'Confidence score',
-      tooltip: 'Rating from 1-10 based on the overall quality and completeness of your answer.'
+      ariaLabel: t('sections.confidenceScore.ariaLabel'),
+      tooltip: t('sections.confidenceScore.tooltip')
     }
   ];
 

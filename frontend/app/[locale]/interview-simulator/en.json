@@ -26,6 +26,32 @@
     "newInterview": "Start New Interview"
   },
   "feedbackDisplay": {
+    "sections": {
+      "strengths": {
+        "ariaLabel": "Strengths of the answer",
+        "tooltip": "Key aspects of your answer that were particularly effective or well-articulated."
+      },
+      "areasForImprovement": {
+        "ariaLabel": "Areas for improvement",
+        "tooltip": "Specific aspects of your answer that could be enhanced for better impact."
+      },
+      "technicalAccuracy": {
+        "ariaLabel": "Technical accuracy evaluation",
+        "tooltip": "Evaluation of the technical correctness and precision in your response."
+      },
+      "behavioralExample": {
+        "ariaLabel": "Behavioral example",
+        "tooltip": "Example of a strong behavioral response using the STAR method (Situation, Task, Action, Result)."
+      },
+      "suggestedAnswer": {
+        "ariaLabel": "Suggested answer",
+        "tooltip": "A model response that demonstrates an effective way to answer this question."
+      },
+      "confidenceScore": {
+        "ariaLabel": "Confidence score",
+        "tooltip": "Rating from 1-10 based on the overall quality and completeness of your answer."
+      }
+    },
     "aria": {
       "learnMore": "Learn more about {section}"
     },
