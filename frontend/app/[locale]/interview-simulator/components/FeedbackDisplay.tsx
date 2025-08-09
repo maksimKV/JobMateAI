@@ -3,7 +3,8 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { InterviewFeedback } from '../types';
-import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Code, Users, MessageSquare, BarChart, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FeedbackDisplayProps {
   feedback: InterviewFeedback[];
@@ -44,49 +45,55 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
   
   const sections = parseEvaluationSections(displayEvaluation);
   
-  // Define section metadata including icons and aria-labels
+  // Define section metadata including icons, tooltips, and accessibility attributes
   const sectionConfig = [
     { 
       key: 'Strengths', 
       icon: CheckCircle, 
       iconColor: 'text-green-500',
       bgColor: 'bg-green-50',
-      ariaLabel: 'Strengths of the answer'
+      ariaLabel: 'Strengths of the answer',
+      tooltip: 'Key aspects of your answer that were particularly effective or well-articulated.'
     },
     { 
       key: 'Areas for Improvement', 
       icon: AlertTriangle, 
       iconColor: 'text-yellow-500',
       bgColor: 'bg-yellow-50',
-      ariaLabel: 'Areas for improvement'
+      ariaLabel: 'Areas for improvement',
+      tooltip: 'Specific aspects of your answer that could be enhanced for better impact.'
     },
     { 
       key: 'Technical Accuracy', 
       icon: Code, 
       iconColor: 'text-blue-500',
       bgColor: 'bg-blue-50',
-      ariaLabel: 'Technical accuracy evaluation'
+      ariaLabel: 'Technical accuracy evaluation',
+      tooltip: 'Evaluation of the technical correctness and precision in your response.'
     },
     { 
       key: 'Behavioral Example', 
       icon: Users, 
       iconColor: 'text-purple-500',
       bgColor: 'bg-purple-50',
-      ariaLabel: 'Behavioral example'
+      ariaLabel: 'Behavioral example',
+      tooltip: 'Example of a strong behavioral response using the STAR method (Situation, Task, Action, Result).'
     },
     { 
       key: 'Suggested Answer', 
       icon: MessageSquare, 
       iconColor: 'text-indigo-500',
       bgColor: 'bg-indigo-50',
-      ariaLabel: 'Suggested answer'
+      ariaLabel: 'Suggested answer',
+      tooltip: 'A model response that demonstrates an effective way to answer this question.'
     },
     { 
       key: 'Confidence Score', 
       icon: BarChart, 
       iconColor: 'text-amber-500',
       bgColor: 'bg-amber-50',
-      ariaLabel: 'Confidence score'
+      ariaLabel: 'Confidence score',
+      tooltip: 'Rating from 1-10 based on the overall quality and completeness of your answer.'
     }
   ];
 
@@ -115,16 +122,34 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
               <h5 className="text-sm font-medium text-gray-900 mb-4 border-b pb-2">{t('fullContext.feedback')}</h5>
               
               <div className="space-y-6">
-                {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel }) => {
+                {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
                   if (!sections[key]) return null;
                   
                   return (
                     <div key={key} className="rounded-lg overflow-hidden">
-                      <div className={`flex items-center p-3 ${bgColor}`}>
-                        <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
-                        <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                          {key}
-                        </h6>
+                      <div className={`flex items-center justify-between p-3 ${bgColor}`}>
+                        <div className="flex items-center">
+                          <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
+                          <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                            {key}
+                          </h6>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                type="button" 
+                                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                aria-label={t('aria.learnMore', { section: key })}
+                              >
+                                <HelpCircle className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-sm">{tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                       <div className="p-4 bg-white">
                         <p className="text-gray-700 whitespace-pre-line">
@@ -149,16 +174,34 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
           </div>
           
           <div className="space-y-4">
-            {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel }) => {
+            {sectionConfig.map(({ key, icon: Icon, iconColor, bgColor, ariaLabel, tooltip }) => {
               if (!sections[key]) return null;
               
               return (
                 <div key={key} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                  <div className={`flex items-center p-3 ${bgColor}`}>
-                    <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
-                    <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
-                      {key}
-                    </h6>
+                  <div className={`flex items-center justify-between p-3 ${bgColor}`}>
+                    <div className="flex items-center">
+                      <Icon className={`h-5 w-5 mr-2 ${iconColor}`} aria-hidden="true" />
+                      <h6 className="text-sm font-medium text-gray-900" aria-label={ariaLabel}>
+                        {key}
+                      </h6>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button 
+                            type="button" 
+                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                            aria-label={t('aria.learnMore', { section: key })}
+                          >
+                            <HelpCircle className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm">{tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <div className="p-4">
                     <p className="text-gray-700 whitespace-pre-line">
