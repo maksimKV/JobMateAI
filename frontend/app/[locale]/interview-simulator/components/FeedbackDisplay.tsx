@@ -126,11 +126,29 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
             <div className="space-y-4">
               {/* Question Section */}
               <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
-                <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
-                  <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
-                  <h3 className="text-sm font-medium text-gray-900">
-                    {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
-                  </h3>
+                <div className="flex items-center justify-between p-3 bg-blue-50">
+                  <div className="flex items-center">
+                    <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
+                    <h3 className="text-sm font-medium text-gray-900" aria-label="Interview question">
+                      {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
+                    </h3>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          type="button" 
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          aria-label={t('aria.learnMore', { section: 'Question' })}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">The interview question you were asked to answer.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 whitespace-pre-line">{displayQuestion}</p>
@@ -139,11 +157,29 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
 
               {/* Answer Section */}
               <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100 mb-6">
-                <div className="flex items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
-                  <User className="h-5 w-5 text-green-600 mr-2" />
-                  <h3 className="text-sm font-medium text-gray-900">
-                    {t('fullContext.yourAnswer')}
-                  </h3>
+                <div className="flex items-center justify-between p-3 bg-green-50">
+                  <div className="flex items-center">
+                    <User className="h-5 w-5 text-green-600 mr-2" />
+                    <h3 className="text-sm font-medium text-gray-900" aria-label="Your answer">
+                      {t('fullContext.yourAnswer')}
+                    </h3>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          type="button" 
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          aria-label={t('aria.learnMore', { section: 'Your Answer' })}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">The answer you provided to the interview question.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <div className="p-4">
                   <p className="text-gray-700 whitespace-pre-line">{displayAnswer}</p>
@@ -219,20 +255,64 @@ export const FeedbackDisplay: React.FC<FeedbackDisplayProps> = ({
             </div>
             
             <div className="space-y-4 mb-6">
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                <div className="flex items-center text-gray-700 mb-1">
-                  <MessageSquareText className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
-                  <span className="text-sm font-medium">{t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}</span>
+              <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+                <div className="flex items-center justify-between p-3 bg-blue-50">
+                  <div className="flex items-center">
+                    <MessageSquareText className="h-5 w-5 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium text-gray-900" aria-label="Interview question">
+                      {t('fullContext.question')} {questionNumber && `#${questionNumber - 1}`}
+                    </span>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          type="button" 
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          aria-label={t('aria.learnMore', { section: 'Question' })}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">The interview question you were asked to answer.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <p className="text-gray-700 text-sm pl-6">{displayQuestion}</p>
+                <div className="p-4">
+                  <p className="text-gray-700 text-sm">{displayQuestion}</p>
+                </div>
               </div>
               
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                <div className="flex items-center text-gray-700 mb-1">
-                  <User className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                  <span className="text-sm font-medium">{t('fullContext.yourAnswer')}</span>
+              <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+                <div className="flex items-center justify-between p-3 bg-green-50">
+                  <div className="flex items-center">
+                    <User className="h-5 w-5 text-green-600 mr-2" />
+                    <span className="text-sm font-medium text-gray-900" aria-label="Your answer">
+                      {t('fullContext.yourAnswer')}
+                    </span>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          type="button" 
+                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          aria-label={t('aria.learnMore', { section: 'Your Answer' })}
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">The answer you provided to the interview question.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <p className="text-gray-700 text-sm whitespace-pre-line pl-6">{displayAnswer}</p>
+                <div className="p-4">
+                  <p className="text-gray-700 text-sm whitespace-pre-line">{displayAnswer}</p>
+                </div>
               </div>
             </div>
           </div>
