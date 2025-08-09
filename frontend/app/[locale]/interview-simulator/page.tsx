@@ -37,6 +37,7 @@ const InterviewSimulatorPage = () => {
   const [showCompletion, setShowCompletion] = useState(false);
   const [uiError, setUiError] = useState<string | null>(null);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+  const [totalQuestions, setTotalQuestions] = useState<number | null>(null);
   
   // Translations hook for internationalization
   const t = useTranslations('interviewSimulator');
@@ -126,6 +127,13 @@ const InterviewSimulatorPage = () => {
     
     try {
       const length = interviewLength as string;
+      // Set total questions based on interview length
+      const total = interviewType === 'mixed' 
+        ? (MIXED_INTERVIEW_LENGTHS[length as keyof typeof MIXED_INTERVIEW_LENGTHS].questions as { hr: number, technical: number }).hr + 
+          (MIXED_INTERVIEW_LENGTHS[length as keyof typeof MIXED_INTERVIEW_LENGTHS].questions as { hr: number, technical: number }).technical
+        : INTERVIEW_LENGTHS[length as keyof typeof INTERVIEW_LENGTHS].questions;
+      
+      setTotalQuestions(total);
       await startInterviewSession(jobDescription, interviewType, length);
       setAnswer('');
       setShowCompletion(false);
@@ -247,7 +255,12 @@ const InterviewSimulatorPage = () => {
         ) : isSubmittingAnswer ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">{t('loadingStates.processingResponse')}</p>
+            <p className="text-gray-600">
+              {totalQuestions && currentQuestionIndex === totalQuestions - 1
+                ? t('loadingStates.preparingResults') 
+                : t('loadingStates.processingResponse')
+              }
+            </p>
           </div>
         ) : null}
         
